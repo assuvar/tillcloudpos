@@ -1,6 +1,55 @@
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
 import Login from "./Login";
 import Register from "./Register";
+import OnboardingFlow from "./onboarding/OnboardingFlow";
+import Dashboard from "./Dashboard";
+import { useAuth } from "./context/AuthContext";
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) return <div className="flex h-screen items-center justify-center font-bold text-[#0b1b3d]">LOADING...</div>;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user && !user.onboardingCompleted) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function OnboardingRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user, isLoading } = useAuth();
+
+  if (isLoading) return <div className="flex h-screen items-center justify-center font-bold text-[#0b1b3d]">LOADING...</div>;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user && user.onboardingCompleted) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user, isLoading } = useAuth();
+
+  if (isLoading) return <div className="flex h-screen items-center justify-center font-bold text-[#0b1b3d]">LOADING...</div>;
+
+  if (isAuthenticated && user) {
+    if (user.onboardingCompleted) return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <>{children}</>;
+}
 
 function Landing() {
   return (
@@ -583,9 +632,46 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/signup" element={<Register />} />
+      <Route 
+        path="/login" 
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        } 
+      />
+      <Route 
+        path="/register" 
+        element={
+          <PublicRoute>
+            <Register />
+          </PublicRoute>
+        } 
+      />
+      <Route 
+        path="/signup" 
+        element={
+          <PublicRoute>
+            <Register />
+          </PublicRoute>
+        } 
+      />
+      <Route 
+        path="/onboarding" 
+        element={
+          <OnboardingRoute>
+            <OnboardingFlow />
+          </OnboardingRoute>
+        } 
+      />
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
     </Routes>
   );
 }

@@ -15,28 +15,54 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  @Post(':restaurantId')
+  create(
+    @Param('restaurantId') restaurantId: string,
+    @Body() createUserDto: CreateUserDto,
+  ) {
+    return this.usersService.create(restaurantId, createUserDto);
   }
 
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
+  @Get(':restaurantId')
+  findAll(@Param('restaurantId') restaurantId: string) {
+    return this.usersService.findAll(restaurantId);
   }
 
-  @Get(':id')
+  @Get('user/:id')
   findOne(@Param('id') id: string) {
-    return this.usersService.findOne(+id);
+    return this.usersService.findOne(id);
   }
 
-  @Patch(':id')
+  @Patch('user/:id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(+id, updateUserDto);
+    return this.usersService.update(id, updateUserDto);
   }
 
-  @Delete(':id')
+  @Patch('onboarding/:id')
+  async completeOnboarding(
+    @Param('id') id: string,
+    @Body() onboardingData: any,
+  ) {
+    // Update user onboarding flag
+    await this.usersService.update(id, { 
+      onboardingCompleted: true,
+      fullName: onboardingData.fullName,
+    } as any);
+
+    // Update restaurant if details provided
+    const user = await this.usersService.findOne(id);
+    if (user && user.restaurantId && onboardingData.restaurantData) {
+      await (this.usersService as any).prisma.restaurant.update({
+        where: { id: user.restaurantId },
+        data: onboardingData.restaurantData,
+      });
+    }
+
+    return { success: true };
+  }
+
+  @Delete('user/:id')
   remove(@Param('id') id: string) {
-    return this.usersService.remove(+id);
+    return this.usersService.remove(id);
   }
 }

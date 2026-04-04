@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from './services/api';
+import { useAuth } from './context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 const registrationSteps = [
   { id: 1, label: 'Business Info', icon: Building2 },
@@ -22,12 +25,73 @@ const registrationSteps = [
 
 export default function Register() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const [formData, setFormData] = useState({
+    businessName: '',
+    country: '',
+    fullName: '',
+    mobile: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    businessType: '',
+    outlets: '',
+    serviceModels: [] as string[],
+  });
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCheckboxChange = (model: string) => {
+    setFormData(prev => ({
+      ...prev,
+      serviceModels: prev.serviceModels.includes(model)
+        ? prev.serviceModels.filter(m => m !== model)
+        : [...prev.serviceModels, model]
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      setCurrentStep(2);
+      return;
+    }
+
+    setError("");
+    setIsSubmitting(true);
+    try {
+      const response = await api.post('/auth/register', {
+        businessName: formData.businessName,
+        country: formData.country,
+        fullName: formData.fullName,
+        mobile: formData.mobile,
+        email: formData.email,
+        password: formData.password,
+        businessType: formData.businessType,
+        outlets: formData.outlets,
+        serviceModels: formData.serviceModels
+      });
+      
+      login(response.data.access_token, response.data.user);
+      navigate('/onboarding');
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Registration failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#eef4f8] text-slate-900 font-sans">
@@ -103,6 +167,10 @@ export default function Register() {
                           </label>
                           <input
                             type="text"
+                            name="businessName"
+                            required
+                            value={formData.businessName}
+                            onChange={handleInputChange}
                             placeholder="e.g. The Sapphire Bistro"
                             className="h-14 w-full rounded-2xl border border-slate-100 bg-slate-50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all font-medium"
                           />
@@ -113,7 +181,13 @@ export default function Register() {
                             Country of Operation
                           </label>
                           <div className="relative group">
-                            <select className="h-14 w-full appearance-none rounded-2xl border border-slate-100 bg-slate-50 px-6 text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all font-medium cursor-pointer">
+                            <select 
+                              name="country"
+                              required
+                              value={formData.country}
+                              onChange={handleInputChange}
+                              className="h-14 w-full appearance-none rounded-2xl border border-slate-100 bg-slate-50 px-6 text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all font-medium cursor-pointer"
+                            >
                               <option value="">Select your country</option>
                               <option value="AU">Australia</option>
                               <option value="NZ">New Zealand</option>
@@ -144,11 +218,20 @@ export default function Register() {
 
                     <div className="mt-10 rounded-[2.5rem] border border-slate-100 bg-white p-8 sm:p-12 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.05)]">
                       <form className="space-y-8" onSubmit={(e) => { e.preventDefault(); nextStep(); }}>
+                        {error && (
+                          <div className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-xs font-bold mb-6">
+                            {error}
+                          </div>
+                        )}
                         <div className="grid md:grid-cols-2 gap-6">
                           <div className="space-y-3">
                             <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Owner Name</label>
                             <input
                               type="text"
+                              name="fullName"
+                              required
+                              value={formData.fullName}
+                              onChange={handleInputChange}
                               placeholder="Alexander Reed"
                               className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all"
                             />
@@ -157,6 +240,10 @@ export default function Register() {
                             <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Owner Mobile Number</label>
                             <input
                               type="tel"
+                              name="mobile"
+                              required
+                              value={formData.mobile}
+                              onChange={handleInputChange}
                               placeholder="+91 9874563210"
                               className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all"
                             />
@@ -167,6 +254,10 @@ export default function Register() {
                           <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Email ID</label>
                           <input
                             type="email"
+                            name="email"
+                            required
+                            value={formData.email}
+                            onChange={handleInputChange}
                             placeholder="owner@restaurant.com"
                             className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all"
                           />
@@ -178,6 +269,10 @@ export default function Register() {
                             <div className="relative">
                               <input
                                 type={showPassword ? "text" : "password"}
+                                name="password"
+                                required
+                                value={formData.password}
+                                onChange={handleInputChange}
                                 placeholder="••••••••"
                                 className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all tracking-widest"
                               />
@@ -195,6 +290,10 @@ export default function Register() {
                             <div className="relative">
                               <input
                                 type={showConfirmPassword ? "text" : "password"}
+                                name="confirmPassword"
+                                required
+                                value={formData.confirmPassword}
+                                onChange={handleInputChange}
                                 placeholder="••••••••"
                                 className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all tracking-widest"
                               />
@@ -246,7 +345,13 @@ export default function Register() {
                         <div className="space-y-3">
                           <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Business Type</label>
                           <div className="relative group">
-                            <select className="h-14 w-full appearance-none rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all font-medium cursor-pointer">
+                            <select 
+                              name="businessType"
+                              required
+                              value={formData.businessType}
+                              onChange={handleInputChange}
+                              className="h-14 w-full appearance-none rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all font-medium cursor-pointer"
+                            >
                               <option value="">Cafe | Restaurant</option>
                               <option value="cafe">Cafe</option>
                               <option value="restaurant">Restaurant</option>
@@ -259,7 +364,13 @@ export default function Register() {
                         <div className="space-y-3">
                           <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Number of Outlets</label>
                           <div className="relative group">
-                            <select className="h-14 w-full appearance-none rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all font-medium cursor-pointer">
+                            <select 
+                              name="outlets"
+                              required
+                              value={formData.outlets}
+                              onChange={handleInputChange}
+                              className="h-14 w-full appearance-none rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all font-medium cursor-pointer"
+                            >
                               <option value="">1 | 2 | 3</option>
                               <option value="1">1 Outlet</option>
                               <option value="2">2 Outlets</option>
@@ -275,7 +386,12 @@ export default function Register() {
                             {['Dine-In', 'Takeaway', 'Delivery', 'Table Ordering'].map((model) => (
                               <label key={model} className="flex items-center gap-3 p-4 rounded-xl border border-slate-50 bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors group">
                                 <div className="relative flex items-center">
-                                  <input type="checkbox" className="peer w-5 h-5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer" />
+                                  <input 
+                                    type="checkbox" 
+                                    checked={formData.serviceModels.includes(model)}
+                                    onChange={() => handleCheckboxChange(model)}
+                                    className="peer w-5 h-5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer" 
+                                  />
                                   <div className="absolute inset-0 bg-[#0b1731] rounded opacity-0 peer-checked:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
                                     <span className="text-white text-[10px]">✓</span>
                                   </div>
@@ -403,10 +519,18 @@ export default function Register() {
                       </button>
                       <button
                         type="button"
-                        className="h-14 px-12 rounded-full bg-[#0b1731] text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-2xl shadow-blue-900/30 active:scale-[0.98] flex items-center gap-3"
+                        disabled={isSubmitting}
+                        onClick={handleSubmit}
+                        className="h-14 px-12 rounded-full bg-[#0b1731] text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-2xl shadow-blue-900/30 active:scale-[0.98] flex items-center gap-3 disabled:opacity-70"
                       >
-                        <span>Finish Registration</span>
-                        <span className="text-lg">→</span>
+                        {isSubmitting ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <>
+                            <span>Finish Registration</span>
+                            <span className="text-lg">→</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
