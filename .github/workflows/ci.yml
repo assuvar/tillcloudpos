@@ -1,0 +1,41 @@
+name: Monorepo CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate-build-test:
+    name: Validate, Build, and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Prisma schema (backend)
+        run: npx prisma validate --schema backend/prisma/schema.prisma
+
+      - name: Validate Prisma schema (database)
+        run: npx prisma validate --schema database/prisma/schema.prisma
+
+      - name: Lint backend
+        run: npx --workspace backend eslint "{src,apps,libs,test}/**/*.ts" --max-warnings=0
+
+      - name: Build backend
+        run: npm run build -w backend
+
+      - name: Run backend unit tests
+        run: npm run test -w backend -- --ci --runInBand
+
+      - name: Build frontend
+        run: npm run build -w frontend
