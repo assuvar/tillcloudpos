@@ -80,8 +80,6 @@ export default function StaffManagementPage() {
   const { user } = useAuth();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [staffData, setStaffData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const fetchStaffData = async () => {
     if (!user?.restaurantId) {
@@ -89,9 +87,6 @@ export default function StaffManagementPage() {
     }
 
     try {
-      setIsLoading(true);
-      setError(null);
-      
       const response = await api.get(`/users/${user.restaurantId}`);
       const users = response.data;
       
@@ -111,13 +106,9 @@ export default function StaffManagementPage() {
       }));
       
       setStaffData(formattedStaff);
-      setError(null);
     } catch (err: any) {
       console.error('Failed to fetch staff:', err);
-      setError(err?.response?.data?.message || 'Failed to load staff data');
       setStaffData([]);
-    } finally {
-      setIsLoading(false);
     }
   };
 

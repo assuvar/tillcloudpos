@@ -282,7 +282,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
 
       if (drawerMode === 'edit' && drawerEditingItemId) {
         // Update existing item
-        const response = await api.patch(`/products/${drawerEditingItemId}`, {
+        await api.patch(`/products/${drawerEditingItemId}`, {
           name,
           description: drawerForm.description.trim(),
           priceInCents,
