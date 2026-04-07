@@ -33,6 +33,9 @@ import api from "./services/api";
 import MenuManagement from "./MenuManagement";
 import StaffManagementPage from "./StaffManagementPage";
 import StockListPage from "./StockListPage";
+import CustomersPage from "./CustomersPage";
+import ReportsPage from "./ReportsPage";
+import SettingsPage from "./SettingsPage";
 
 interface StatCardProps {
   title: string;
@@ -127,7 +130,7 @@ export default function Dashboard() {
     return localStorage.getItem("terminalLaunched") === "true";
   });
   const [isLaunching, setIsLaunching] = useState(false);
-  const [currentView, setCurrentView] = useState<'home' | 'menu' | 'staff' | 'orders' | 'inventory' | 'customers' | 'analytics' | 'settings'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'menu' | 'staff' | 'orders' | 'inventory' | 'customers' | 'analytics' | 'settings' | 'reports'>('home');
   const [realStaff, setRealStaff] = useState<any[]>([]);
 
   const fetchStaff = async () => {
@@ -474,7 +477,7 @@ export default function Dashboard() {
           <SidebarIcon icon={Users} active={currentView === 'staff'} onClick={() => setCurrentView('staff')} />
           <SidebarIcon icon={Package} active={currentView === 'inventory'} onClick={() => setCurrentView('inventory')} />
           <SidebarIcon icon={User} active={currentView === 'customers'} onClick={() => setCurrentView('customers')} />
-          <SidebarIcon icon={BarChart3} active={currentView === 'analytics'} onClick={() => setCurrentView('analytics')} />
+          <SidebarIcon icon={BarChart3} active={currentView === 'reports'} onClick={() => setCurrentView('reports')} />
           <SidebarIcon icon={Settings} active={currentView === 'settings'} onClick={() => setCurrentView('settings')} />
         </nav>
 
@@ -747,6 +750,17 @@ export default function Dashboard() {
 
         {currentView === 'inventory' && (
           <StockListPage />
+        )}
+
+        {currentView === 'customers' && (
+          <CustomersPage />
+        )}
+
+        {currentView === 'reports' && (
+          <ReportsPage />
+        )}
+        {currentView === 'settings' && (
+          <SettingsPage />
         )}
       </main>
     </div>
