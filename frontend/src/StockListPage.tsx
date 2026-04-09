@@ -11,6 +11,8 @@ import {
   IceCream,
   Croissant
 } from 'lucide-react';
+import NewItemModal from './NewItemModal';
+import AdjustStockModal from './AdjustStockModal';
 
 interface StatCardProps {
   title: string;
@@ -88,6 +90,19 @@ const STOCK_DATA = [
 ];
 
 export default function StockListPage() {
+  const [isNewItemOpen, setIsNewItemOpen] = React.useState(false);
+  const [adjustingItem, setAdjustingItem] = React.useState<any>(null);
+
+  const handleAddNew = (item: any) => {
+    console.log('Adding new item:', item);
+    setIsNewItemOpen(false);
+  };
+
+  const handleAdjust = (adjustment: any) => {
+    console.log('Adjusting stock:', adjustment);
+    setAdjustingItem(null);
+  };
+
   return (
     <div className="flex flex-col gap-10 animate-in fade-in duration-500">
       {/* Header Section */}
@@ -102,7 +117,10 @@ export default function StockListPage() {
             <Download size={18} />
             Export CSV
           </button>
-          <button className="h-14 px-8 rounded-full bg-[#0c1424] text-white text-[14px] font-black uppercase tracking-widest shadow-xl shadow-black/20 hover:bg-black transition-all flex items-center gap-3">
+          <button 
+            onClick={() => setIsNewItemOpen(true)}
+            className="h-14 px-8 rounded-full bg-[#0c1424] text-white text-[14px] font-black uppercase tracking-widest shadow-xl shadow-black/20 hover:bg-black transition-all flex items-center gap-3"
+          >
             <Plus size={18} />
             New Item
           </button>
@@ -192,7 +210,10 @@ export default function StockListPage() {
                     {item.lastUpdated}
                   </td>
                   <td className="py-8 px-10 text-right">
-                    <button className="h-12 px-6 rounded-2xl bg-[#0c1424] text-white text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-black/10">
+                    <button 
+                      onClick={() => setAdjustingItem(item)}
+                      className="h-12 px-6 rounded-2xl bg-[#0c1424] text-white text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-black/10"
+                    >
                       Adjust Stock
                     </button>
                   </td>
@@ -220,6 +241,19 @@ export default function StockListPage() {
            </div>
         </div>
       </div>
+
+      <NewItemModal 
+        isOpen={isNewItemOpen} 
+        onClose={() => setIsNewItemOpen(false)} 
+        onAdd={handleAddNew} 
+      />
+
+      <AdjustStockModal 
+        isOpen={!!adjustingItem} 
+        onClose={() => setAdjustingItem(null)} 
+        item={adjustingItem} 
+        onUpdate={handleAdjust} 
+      />
     </div>
   );
 }

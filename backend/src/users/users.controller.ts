@@ -44,7 +44,7 @@ export class UsersController {
     @Body() onboardingData: any,
   ) {
     // Update user onboarding flag
-    await this.usersService.update(id, { 
+    await this.usersService.update(id, {
       onboardingCompleted: true,
       fullName: onboardingData.fullName,
     } as any);

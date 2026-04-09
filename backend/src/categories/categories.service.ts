@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -77,7 +81,11 @@ export class CategoriesService {
   /**
    * Update a category
    */
-  async update(id: string, updateCategoryDto: UpdateCategoryDto, restaurantId: string) {
+  async update(
+    id: string,
+    updateCategoryDto: UpdateCategoryDto,
+    restaurantId: string,
+  ) {
     // Verify category exists and belongs to this restaurant
     const existingCategory = await this.prisma.menuCategory.findUnique({
       where: { id },
@@ -92,9 +100,17 @@ export class CategoriesService {
     }
 
     // If updating name, check for duplicates
-    if (updateCategoryDto.name && updateCategoryDto.name !== existingCategory.name) {
+    if (
+      updateCategoryDto.name &&
+      updateCategoryDto.name !== existingCategory.name
+    ) {
       const duplicate = await this.prisma.menuCategory.findUnique({
-        where: { restaurantId_name: { restaurantId, name: updateCategoryDto.name.trim() } },
+        where: {
+          restaurantId_name: {
+            restaurantId,
+            name: updateCategoryDto.name.trim(),
+          },
+        },
       });
 
       if (duplicate) {
@@ -106,8 +122,12 @@ export class CategoriesService {
       where: { id },
       data: {
         ...(updateCategoryDto.name && { name: updateCategoryDto.name.trim() }),
-        ...(updateCategoryDto.sortOrder !== undefined && { sortOrder: updateCategoryDto.sortOrder }),
-        ...(updateCategoryDto.isActive !== undefined && { isActive: updateCategoryDto.isActive }),
+        ...(updateCategoryDto.sortOrder !== undefined && {
+          sortOrder: updateCategoryDto.sortOrder,
+        }),
+        ...(updateCategoryDto.isActive !== undefined && {
+          isActive: updateCategoryDto.isActive,
+        }),
       },
     });
   }
@@ -134,7 +154,9 @@ export class CategoriesService {
     });
 
     if (itemCount > 0) {
-      throw new BadRequestException('Cannot delete category with existing items');
+      throw new BadRequestException(
+        'Cannot delete category with existing items',
+      );
     }
 
     // Hard delete the category
@@ -156,7 +178,9 @@ export class CategoriesService {
     });
 
     if (categories.length !== categoryIds.length) {
-      throw new BadRequestException('Some categories not found or access denied');
+      throw new BadRequestException(
+        'Some categories not found or access denied',
+      );
     }
 
     // Update sort order
@@ -164,7 +188,7 @@ export class CategoriesService {
       this.prisma.menuCategory.update({
         where: { id },
         data: { sortOrder: index },
-      })
+      }),
     );
 
     return await Promise.all(updatePromises);

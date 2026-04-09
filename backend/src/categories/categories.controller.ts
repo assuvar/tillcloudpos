@@ -23,12 +23,12 @@ const getRestaurantId = (req: any): string => {
   if (req.user?.restaurantId) {
     return req.user.restaurantId;
   }
-  
+
   // Try to get from request headers (for testing)
   if (req.headers['x-restaurant-id']) {
     return req.headers['x-restaurant-id'];
   }
-  
+
   // Default fallback for development
   return 'default-restaurant';
 };
@@ -50,7 +50,7 @@ export class CategoriesController {
     } catch (error: any) {
       throw new HttpException(
         error.message || 'Failed to create category',
-        error.status || HttpStatus.BAD_REQUEST
+        error.status || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -67,7 +67,7 @@ export class CategoriesController {
     } catch (error: any) {
       throw new HttpException(
         error.message || 'Failed to fetch categories',
-        error.status || HttpStatus.BAD_REQUEST
+        error.status || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -84,7 +84,7 @@ export class CategoriesController {
     } catch (error: any) {
       throw new HttpException(
         error.message || 'Failed to fetch category',
-        error.status || HttpStatus.BAD_REQUEST
+        error.status || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -97,15 +97,19 @@ export class CategoriesController {
   async update(
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
-    @Req() req: any
+    @Req() req: any,
   ) {
     try {
       const restaurantId = getRestaurantId(req);
-      return await this.categoriesService.update(id, updateCategoryDto, restaurantId);
+      return await this.categoriesService.update(
+        id,
+        updateCategoryDto,
+        restaurantId,
+      );
     } catch (error: any) {
       throw new HttpException(
         error.message || 'Failed to update category',
-        error.status || HttpStatus.BAD_REQUEST
+        error.status || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -122,7 +126,7 @@ export class CategoriesController {
     } catch (error: any) {
       throw new HttpException(
         error.message || 'Failed to delete category',
-        error.status || HttpStatus.BAD_REQUEST
+        error.status || HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -134,7 +138,7 @@ export class CategoriesController {
   @Post('reorder')
   async reorder(
     @Body() { categoryIds }: { categoryIds: string[] },
-    @Req() req: any
+    @Req() req: any,
   ) {
     try {
       const restaurantId = getRestaurantId(req);
@@ -142,7 +146,7 @@ export class CategoriesController {
     } catch (error: any) {
       throw new HttpException(
         error.message || 'Failed to reorder categories',
-        error.status || HttpStatus.BAD_REQUEST
+        error.status || HttpStatus.BAD_REQUEST,
       );
     }
   }

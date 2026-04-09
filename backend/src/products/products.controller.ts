@@ -23,12 +23,12 @@ const getRestaurantId = (req: any): string => {
   if (req.user?.restaurantId) {
     return req.user.restaurantId;
   }
-  
+
   // Try to get from request headers (for testing)
   if (req.headers['x-restaurant-id']) {
     return req.headers['x-restaurant-id'];
   }
-  
+
   // Default fallback for development
   return 'default-restaurant';
 };

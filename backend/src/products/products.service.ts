@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -11,10 +15,21 @@ export class ProductsService {
    * Create a new product (menu item)
    */
   async create(createProductDto: CreateProductDto) {
-    const { name, categoryId, description, priceInCents, imageUrl, trackInventory, isActive, restaurantId } = createProductDto;
+    const {
+      name,
+      categoryId,
+      description,
+      priceInCents,
+      imageUrl,
+      trackInventory,
+      isActive,
+      restaurantId,
+    } = createProductDto;
 
     if (!name || !categoryId || priceInCents === undefined) {
-      throw new BadRequestException('Missing required fields: name, categoryId, priceInCents');
+      throw new BadRequestException(
+        'Missing required fields: name, categoryId, priceInCents',
+      );
     }
 
     if (priceInCents < 0) {
@@ -27,7 +42,9 @@ export class ProductsService {
     });
 
     if (!category || category.restaurantId !== restaurantId) {
-      throw new BadRequestException('Category not found or does not belong to this restaurant');
+      throw new BadRequestException(
+        'Category not found or does not belong to this restaurant',
+      );
     }
 
     return await this.prisma.menuItem.create({
@@ -86,7 +103,11 @@ export class ProductsService {
   /**
    * Update a product
    */
-  async update(id: string, updateProductDto: UpdateProductDto, restaurantId: string) {
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+    restaurantId: string,
+  ) {
     // Verify product exists and belongs to this restaurant
     const existingProduct = await this.prisma.menuItem.findUnique({
       where: { id },
@@ -101,18 +122,26 @@ export class ProductsService {
     }
 
     // If categoryId is being updated, verify new category exists
-    if (updateProductDto.categoryId && updateProductDto.categoryId !== existingProduct.categoryId) {
+    if (
+      updateProductDto.categoryId &&
+      updateProductDto.categoryId !== existingProduct.categoryId
+    ) {
       const category = await this.prisma.menuCategory.findUnique({
         where: { id: updateProductDto.categoryId },
       });
 
       if (!category || category.restaurantId !== restaurantId) {
-        throw new BadRequestException('Category not found or does not belong to this restaurant');
+        throw new BadRequestException(
+          'Category not found or does not belong to this restaurant',
+        );
       }
     }
 
     // Validate price if provided
-    if (updateProductDto.priceInCents !== undefined && updateProductDto.priceInCents < 0) {
+    if (
+      updateProductDto.priceInCents !== undefined &&
+      updateProductDto.priceInCents < 0
+    ) {
       throw new BadRequestException('Price cannot be negative');
     }
 

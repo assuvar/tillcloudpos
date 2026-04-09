@@ -66,7 +66,8 @@ export class AuthController {
   ) {}
 
   private setRefreshCookie(res: Response, token: string) {
-    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
 
     res.cookie(REFRESH_COOKIE_NAME, token, {
       httpOnly: true,
@@ -78,7 +79,8 @@ export class AuthController {
   }
 
   private clearRefreshCookie(res: Response) {
-    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
 
     res.clearCookie(REFRESH_COOKIE_NAME, {
       httpOnly: true,
@@ -117,7 +119,10 @@ export class AuthController {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const user = await this.authService.validateDashboardUser(loginDto.email, loginDto.password);
+    const user = await this.authService.validateDashboardUser(
+      loginDto.email,
+      loginDto.password,
+    );
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -143,7 +148,10 @@ export class AuthController {
       throw new UnauthorizedException('Invalid POS credentials');
     }
 
-    const user = await this.authService.validatePosUser(posLoginDto.email, posLoginDto.pin);
+    const user = await this.authService.validatePosUser(
+      posLoginDto.email,
+      posLoginDto.pin,
+    );
     if (!user) {
       throw new UnauthorizedException('Invalid POS credentials');
     }
@@ -169,7 +177,10 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const refreshToken = this.extractRefreshCookie(req);
-    const refreshed = await this.authService.refreshTokens(refreshToken, body?.posSessionToken);
+    const refreshed = await this.authService.refreshTokens(
+      refreshToken,
+      body?.posSessionToken,
+    );
 
     if (refreshed.refreshToken) {
       this.setRefreshCookie(res, refreshed.refreshToken);
@@ -190,7 +201,7 @@ export class AuthController {
       throw new BadRequestException('channel and destination are required');
     }
 
-    // Optional: Check if user exists before sending OTP if desired, 
+    // Optional: Check if user exists before sending OTP if desired,
     // or just send it and check during verification.
     return this.authService.sendOtp(body.channel, body.destination);
   }
@@ -203,19 +214,23 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     if (!body?.channel || !body?.destination || !body?.code) {
-      throw new BadRequestException('channel, destination and code are required');
+      throw new BadRequestException(
+        'channel, destination and code are required',
+      );
     }
 
     await this.authService.verifyOtp(body.channel, body.destination, body.code);
 
     // After internal verification, find the user to log them in
-    const user = await this.authService.usersService.findByEmail(body.destination.trim().toLowerCase());
-    
+    const user = await this.authService.usersService.findByEmail(
+      body.destination.trim().toLowerCase(),
+    );
+
     if (!user) {
       // For registration, the user doesn't exist yet. We return success so they can complete the flow.
-      return { 
-        success: true, 
-        message: 'OTP verified (Registration Flow)' 
+      return {
+        success: true,
+        message: 'OTP verified (Registration Flow)',
       };
     }
 
@@ -243,7 +258,13 @@ export class AuthController {
   @Public()
   @Post('register')
   async register(
-    @Body() registerDto: { email?: string; password?: string; businessName?: string; fullName?: string },
+    @Body()
+    registerDto: {
+      email?: string;
+      password?: string;
+      businessName?: string;
+      fullName?: string;
+    },
     @Res({ passthrough: true }) res: Response,
   ) {
     const session = await this.authService.register(registerDto);
@@ -270,10 +291,15 @@ export class AuthController {
     @Body() body: KitchenPairingBody,
   ) {
     if (!req.user?.restaurantId || !body?.terminalId) {
-      throw new UnauthorizedException('restaurant and terminal details are required');
+      throw new UnauthorizedException(
+        'restaurant and terminal details are required',
+      );
     }
 
-    return this.authService.generateKitchenPairingToken(req.user.restaurantId, body.terminalId);
+    return this.authService.generateKitchenPairingToken(
+      req.user.restaurantId,
+      body.terminalId,
+    );
   }
 
   @Public()

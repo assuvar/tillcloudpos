@@ -9,10 +9,10 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async create(restaurantId: string, createUserDto: CreateUserDto) {
-    const { password, pin, ...userData } = createUserDto as CreateUserDto;
+    const { password, pin, ...userData } = createUserDto;
     let passwordHash = null;
     let pinHash = null;
-    
+
     if (password) {
       passwordHash = await bcrypt.hash(password, 10);
     }
@@ -56,7 +56,8 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    const { password, pin, email, ...updateData } = updateUserDto as UpdateUserDto & { password?: string; pin?: string };
+    const { password, pin, email, ...updateData } =
+      updateUserDto as UpdateUserDto & { password?: string; pin?: string };
     const data: Record<string, unknown> = { ...updateData };
 
     if (password) {

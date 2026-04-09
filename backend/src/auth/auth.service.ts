@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
@@ -47,12 +51,15 @@ type OtpVerifyResult = {
 
 @Injectable()
 export class AuthService {
-  private otpMemoryStore = new Map<string, {
-    codeHash: string;
-    expiresAt: Date;
-    attempts: number;
-    used: boolean;
-  }>();
+  private otpMemoryStore = new Map<
+    string,
+    {
+      codeHash: string;
+      expiresAt: Date;
+      attempts: number;
+      used: boolean;
+    }
+  >();
 
   constructor(
     public usersService: UsersService,
@@ -62,7 +69,11 @@ export class AuthService {
   ) {}
 
   private isOtpTableMissing(error: unknown): boolean {
-    return typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2021';
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      (error as { code?: string }).code === 'P2021'
+    );
   }
 
   private otpKey(channel: OtpChannel, destination: string) {
@@ -88,13 +99,16 @@ export class AuthService {
     }
   }
 
-  async sendOtp(channel: OtpChannel, destination: string): Promise<OtpSendResult> {
+  async sendOtp(
+    channel: OtpChannel,
+    destination: string,
+  ): Promise<OtpSendResult> {
     this.validateOtpDestination(channel, destination);
 
     const normalizedDestination = destination.trim().toLowerCase();
-    const otp = "526252"; // Fixed OTP for development as requested
+    const otp = '526252'; // Fixed OTP for development as requested
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    
+
     const codeHash = await bcrypt.hash(otp, 10);
 
     try {
@@ -126,12 +140,15 @@ export class AuthService {
     }
 
     // In Development Mode, we log the OTP to the console.
-    console.log(`\x1b[33m%s\x1b[0m`, `[OTP_DEV_MODE] ${channel.toUpperCase()} to ${normalizedDestination}: ${otp}`);
+    console.log(
+      `\x1b[33m%s\x1b[0m`,
+      `[OTP_DEV_MODE] ${channel.toUpperCase()} to ${normalizedDestination}: ${otp}`,
+    );
 
     // Try to send via real providers if configured
     try {
       const isEmail = channel === 'email';
-      
+
       if (isEmail) {
         const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
         const fromEmail = this.configService.get<string>('SENDGRID_FROM_EMAIL');
@@ -149,7 +166,9 @@ export class AuthService {
       } else {
         const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
         const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
-        const fromNumber = this.configService.get<string>('TWILIO_PHONE_NUMBER');
+        const fromNumber = this.configService.get<string>(
+          'TWILIO_PHONE_NUMBER',
+        );
         if (accountSid && authToken && fromNumber) {
           const client = new Twilio(accountSid, authToken);
           await client.messages.create({
@@ -161,7 +180,9 @@ export class AuthService {
         }
       }
     } catch (err: any) {
-      console.error(`[OTP_SEND_ERROR] Failed to send via real provider: ${err.message}`);
+      console.error(
+        `[OTP_SEND_ERROR] Failed to send via real provider: ${err.message}`,
+      );
       // Don't throw, we've already logged it to console as fallback
     }
 
@@ -172,7 +193,11 @@ export class AuthService {
     };
   }
 
-  async verifyOtp(channel: OtpChannel, destination: string, code: string): Promise<OtpVerifyResult> {
+  async verifyOtp(
+    channel: OtpChannel,
+    destination: string,
+    code: string,
+  ): Promise<OtpVerifyResult> {
     this.validateOtpDestination(channel, destination);
 
     const normalizedCode = code?.trim();
@@ -200,7 +225,9 @@ export class AuthService {
           where: { id: otpRecord.id },
           data: { used: true },
         });
-        throw new UnauthorizedException('Too many failed attempts. Please request a new OTP.');
+        throw new UnauthorizedException(
+          'Too many failed attempts. Please request a new OTP.',
+        );
       }
 
       const isMatch = await bcrypt.compare(normalizedCode, otpRecord.codeHash);
@@ -231,7 +258,9 @@ export class AuthService {
       if (otpRecord.attempts >= 5) {
         otpRecord.used = true;
         this.otpMemoryStore.set(normalizedDestination, otpRecord);
-        throw new UnauthorizedException('Too many failed attempts. Please request a new OTP.');
+        throw new UnauthorizedException(
+          'Too many failed attempts. Please request a new OTP.',
+        );
       }
 
       const isMatch = await bcrypt.compare(normalizedCode, otpRecord.codeHash);
@@ -277,14 +306,19 @@ export class AuthService {
   }
 
   private accessToken(payload: UserSessionPayload) {
-    return this.jwtService.sign({ ...payload, type: 'access' }, { expiresIn: '1h' });
+    return this.jwtService.sign(
+      { ...payload, type: 'access' },
+      { expiresIn: '1h' },
+    );
   }
 
   private refreshToken(payload: UserSessionPayload) {
     return this.jwtService.sign(
       { ...payload, type: 'refresh' },
       {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET') || this.configService.get<string>('JWT_SECRET'),
+        secret:
+          this.configService.get<string>('JWT_REFRESH_SECRET') ||
+          this.configService.get<string>('JWT_SECRET'),
         expiresIn: '30d',
       },
     );
@@ -294,17 +328,27 @@ export class AuthService {
     return this.jwtService.sign(
       { ...payload, type: 'pos_session' },
       {
-        secret: this.configService.get<string>('JWT_POS_SECRET') || this.configService.get<string>('JWT_SECRET'),
+        secret:
+          this.configService.get<string>('JWT_POS_SECRET') ||
+          this.configService.get<string>('JWT_SECRET'),
         expiresIn: '8h',
       },
     );
   }
 
-  async validateDashboardUser(email: string, password: string): Promise<AuthenticatedUser | null> {
+  async validateDashboardUser(
+    email: string,
+    password: string,
+  ): Promise<AuthenticatedUser | null> {
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.usersService.findByEmail(normalizedEmail);
 
-    if (user && user.isActive && user.passwordHash && ['ADMIN', 'MANAGER'].includes(user.role)) {
+    if (
+      user &&
+      user.isActive &&
+      user.passwordHash &&
+      ['ADMIN', 'MANAGER'].includes(user.role)
+    ) {
       const isMatch = await bcrypt.compare(password, user.passwordHash);
       if (isMatch) {
         return this.mapUser(user);
@@ -314,7 +358,10 @@ export class AuthService {
     return null;
   }
 
-  async validatePosUser(email: string, pin: string): Promise<AuthenticatedUser | null> {
+  async validatePosUser(
+    email: string,
+    pin: string,
+  ): Promise<AuthenticatedUser | null> {
     if (!/^\d{4}$/.test(pin)) {
       return null;
     }
@@ -356,13 +403,20 @@ export class AuthService {
     };
   }
 
-  async refreshTokens(refreshToken?: string, posSessionToken?: string): Promise<RefreshResult> {
+  async refreshTokens(
+    refreshToken?: string,
+    posSessionToken?: string,
+  ): Promise<RefreshResult> {
     let payload: UserSessionPayload | null = null;
     let shouldRotateRefresh = false;
 
     if (refreshToken) {
-      const decoded = this.jwtService.verify<UserSessionPayload & { type?: string }>(refreshToken, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET') || this.configService.get<string>('JWT_SECRET'),
+      const decoded = this.jwtService.verify<
+        UserSessionPayload & { type?: string }
+      >(refreshToken, {
+        secret:
+          this.configService.get<string>('JWT_REFRESH_SECRET') ||
+          this.configService.get<string>('JWT_SECRET'),
       });
 
       if (decoded.type !== 'refresh') {
@@ -372,8 +426,12 @@ export class AuthService {
       payload = decoded;
       shouldRotateRefresh = true;
     } else if (posSessionToken) {
-      const decoded = this.jwtService.verify<UserSessionPayload & { type?: string }>(posSessionToken, {
-        secret: this.configService.get<string>('JWT_POS_SECRET') || this.configService.get<string>('JWT_SECRET'),
+      const decoded = this.jwtService.verify<
+        UserSessionPayload & { type?: string }
+      >(posSessionToken, {
+        secret:
+          this.configService.get<string>('JWT_POS_SECRET') ||
+          this.configService.get<string>('JWT_SECRET'),
       });
 
       if (decoded.type !== 'pos_session' || decoded.role !== 'CASHIER') {
@@ -398,7 +456,9 @@ export class AuthService {
     return {
       accessToken: this.accessToken(nextPayload),
       user: authUser,
-      refreshToken: shouldRotateRefresh ? this.refreshToken(nextPayload) : undefined,
+      refreshToken: shouldRotateRefresh
+        ? this.refreshToken(nextPayload)
+        : undefined,
     };
   }
 
@@ -486,7 +546,9 @@ export class AuthService {
     const businessName = registrationData?.businessName;
 
     if (!normalizedEmail || !password || !businessName) {
-      throw new BadRequestException('email, password and businessName are required');
+      throw new BadRequestException(
+        'email, password and businessName are required',
+      );
     }
 
     const existingUser = await this.usersService.findByEmail(normalizedEmail);
