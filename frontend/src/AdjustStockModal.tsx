@@ -18,12 +18,12 @@ export default function AdjustStockModal({ isOpen, onClose, item, onUpdate }: Ad
   if (!isOpen || !item) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0c1424]/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-[540px] rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center p-2 bg-[#0c1424]/40 backdrop-blur-sm animate-in fade-in duration-300 sm:items-center sm:p-4">
+      <div className="w-full max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto rounded-[24px] bg-white shadow-2xl animate-in zoom-in-95 duration-300 sm:max-w-[540px] sm:rounded-[32px]">
         {/* Header */}
-        <div className="p-8 pb-4 flex justify-between items-start">
+        <div className="flex items-start justify-between p-4 pb-4 sm:p-8">
           <div>
-            <h2 className="text-[24px] font-black text-[#0c1424] tracking-tight">Manual Adjustment</h2>
+            <h2 className="text-[22px] font-black tracking-tight text-[#0c1424] sm:text-[24px]">Manual Adjustment</h2>
             <div className="flex flex-col mt-1 gap-0.5">
               <p className="text-[13px] text-slate-400 font-medium">Modifying: <span className="text-[#0c1424] font-bold">{item.name}</span></p>
               {mode === 'SET_FIXED' && (
@@ -40,7 +40,7 @@ export default function AdjustStockModal({ isOpen, onClose, item, onUpdate }: Ad
         </div>
 
         {/* Tab Selection */}
-        <div className="px-8 flex gap-3">
+        <div className="grid grid-cols-1 gap-3 px-4 sm:grid-cols-3 sm:px-8">
           <button 
             onClick={() => setMode('ADD')}
             className={`flex-1 h-16 rounded-[20px] border flex flex-col items-center justify-center gap-1 transition-all ${mode === 'ADD' ? 'bg-white border-[#5dc7ec] shadow-[0_8px_20px_rgba(93,199,236,0.15)] ring-1 ring-[#5dc7ec]' : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100'}`}
@@ -65,7 +65,7 @@ export default function AdjustStockModal({ isOpen, onClose, item, onUpdate }: Ad
         </div>
 
         {/* Content */}
-        <div className="p-8 space-y-6">
+        <div className="space-y-6 p-4 sm:p-8">
           {/* Quantity Field */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
@@ -113,16 +113,16 @@ export default function AdjustStockModal({ isOpen, onClose, item, onUpdate }: Ad
           )}
 
           {/* Actions */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
             <button 
                onClick={onClose}
-               className="flex-1 h-14 rounded-2xl bg-slate-50 text-[14px] font-black text-[#0c1424] uppercase tracking-widest hover:bg-slate-100 transition-all"
+               className="h-14 flex-1 rounded-2xl bg-slate-50 text-[14px] font-black uppercase tracking-widest text-[#0c1424] transition-all hover:bg-slate-100"
             >
               Cancel
             </button>
             <button 
                onClick={() => onUpdate({ mode, quantity, reason, itemId: item.id })}
-               className="flex-1 h-14 rounded-2xl bg-[#0c1424] text-[14px] font-black text-white uppercase tracking-widest shadow-xl shadow-black/20 hover:bg-black transition-all"
+               className="h-14 flex-1 rounded-2xl bg-[#0c1424] text-[14px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black"
             >
               Confirm Update
             </button>
@@ -130,7 +130,7 @@ export default function AdjustStockModal({ isOpen, onClose, item, onUpdate }: Ad
         </div>
 
         {/* Footer info bar */}
-        <div className="bg-slate-50/50 border-t border-slate-100 p-6 flex items-start gap-3">
+        <div className="flex items-start gap-3 border-t border-slate-100 bg-slate-50/50 p-4 sm:p-6">
           <div className="h-5 w-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
             <Info size={12} />
           </div>

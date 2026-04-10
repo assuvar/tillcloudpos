@@ -374,7 +374,7 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-[#eef4f8] text-slate-900 font-sans">
       <main className="px-3 py-3 sm:px-4 sm:py-4">
-        <div className="min-h-[calc(100vh-24px)] sm:min-h-[calc(100vh-32px)] border border-slate-200 bg-white grid lg:grid-cols-[280px_1fr]">
+        <div className="min-h-[calc(100vh-24px)] border border-slate-200 bg-white grid grid-cols-1 lg:grid-cols-[280px_1fr] sm:min-h-[calc(100vh-32px)]">
           {/* Sidebar */}
           <aside className="border-r border-slate-200 bg-white hidden lg:block">
             <div className="px-6 py-5 text-[30px] font-black tracking-tight text-[#0b1731]">TILLCLOUD</div>
@@ -524,7 +524,7 @@ export default function Register() {
                             {error}
                           </div>
                         )}
-                        <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                           <div className="space-y-3">
                             <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Owner Name</label>
                             <input
@@ -573,7 +573,7 @@ export default function Register() {
                           {emailError && <p className="text-xs font-semibold text-rose-600">{emailError}</p>}
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-6 relative">
+                        <div className="relative grid grid-cols-1 gap-6 md:grid-cols-2">
                           <div className="space-y-3">
                             <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Enter Password</label>
                             <div className="relative">
@@ -728,7 +728,7 @@ export default function Register() {
 
                         <div className="space-y-4">
                           <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Service Model</label>
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             {['Dine-In', 'Takeaway', 'Delivery', 'Table Ordering'].map((model) => (
                               <label key={model} className="flex items-center gap-3 p-4 rounded-xl border border-slate-50 bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors group">
                                 <div className="relative flex items-center">

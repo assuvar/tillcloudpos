@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Building2, 
   Receipt, 
@@ -31,7 +31,7 @@ const RestaurantProfile = () => (
       <p className="text-[14px] text-slate-400 font-medium mt-2">Manage your business details and branding for receipts and customer interactions.</p>
     </div>
 
-    <div className="grid grid-cols-3 gap-8">
+   <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
       {/* Branding */}
       <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
         <div className="flex items-center gap-3">
@@ -65,7 +65,7 @@ const RestaurantProfile = () => (
             <Building2 size={18} className="text-[#5dc7ec]" />
             <h3 className="text-[16px] font-black text-[#0c1424]">Business Info</h3>
           </div>
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
              <div className="space-y-2">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Restaurant Name <span className="text-rose-500">*</span></label>
                 <div className="h-14 rounded-2xl bg-[#f0f7ff] border border-transparent px-6 flex items-center">
@@ -95,7 +95,7 @@ const RestaurantProfile = () => (
       </div>
     </div>
 
-    <div className="grid grid-cols-2 gap-8">
+   <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
        {/* Communication */}
        <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-8">
           <div className="flex items-center gap-3">
@@ -241,7 +241,7 @@ const TerminalManagement = () => (
     <div className="grid grid-cols-12 gap-8">
        <div className="col-span-8 bg-blue-50/50 rounded-[32px] p-10 border border-blue-50 space-y-8">
           <h3 className="text-xl font-black text-[#0c1424]">Provision New Terminal</h3>
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
              <div className="space-y-2">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Terminal Name</label>
                 <div className="h-14 rounded-2xl bg-white border border-slate-100 px-6 flex items-center">
@@ -297,7 +297,7 @@ const TaxConfiguration = () => (
        <div className="col-span-12 lg:col-span-8 space-y-12">
           <div className="space-y-6">
              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">Select Tax Mode</h3>
-             <div className="grid grid-cols-3 gap-6">
+             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {[
                   { id: 'inc', label: 'GST Included', desc: 'The price already includes GST.', active: true, tag: 'Most Common', example: 'Example: $11.00 total -> GST $1.00' },
                   { id: 'top', label: 'GST Added on Top', desc: 'GST is added at checkout.', active: false, example: 'Example: $10.00 + $1.00 GST = $11.00' },
@@ -324,7 +324,7 @@ const TaxConfiguration = () => (
 
           <div className="space-y-6">
              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">Tax Rate (%)</h3>
-             <div className="grid grid-cols-2 gap-8">
+             <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
                 <div className="space-y-4">
                    <div className="h-14 rounded-2xl bg-white border border-slate-100 px-6 flex items-center justify-between">
                       <input type="text" defaultValue="10" className="bg-transparent w-32 text-[20px] font-black text-[#0c1424] outline-none" />
@@ -449,7 +449,7 @@ const PaymentMethods = () => (
 
           <div className="space-y-6 pt-10 border-t border-slate-50">
              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">Integration Details</h4>
-             <div className="grid grid-cols-2 gap-8">
+             <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
                 <div className="space-y-2">
                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Tyro Merchant ID</label>
                    <div className="h-14 rounded-2xl bg-[#f0f7ff] border border-transparent px-6 flex items-center">
@@ -476,7 +476,7 @@ const PaymentMethods = () => (
              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Methods via Tyro</h4>
              <span className="px-3 py-1 bg-blue-50 text-[#5dc7ec] text-[9px] font-black uppercase tracking-widest rounded-lg">Enabled when connected</span>
           </div>
-          <div className="grid grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
              {[
                { id: 'card', label: 'Card Payments', icon: LayoutGrid },
                { id: 'tap', label: 'Tap to Pay', icon: Zap },
@@ -548,7 +548,7 @@ const LoyaltyProgram = () => (
 
     <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm space-y-10">
        <h3 className="text-[16px] font-black text-[#0c1424]">Program Configuration</h3>
-       <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
           <div className="space-y-2">
              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">POINTS EARNED PER DOLLAR SPENT</label>
              <div className="h-14 rounded-2xl bg-[#f0f7ff] border border-transparent px-6 flex items-center gap-4">
@@ -597,7 +597,7 @@ const SMSCredits = () => (
       <p className="text-[14px] text-slate-400 font-medium mt-2">Manage your SMS balance and track usage for digital receipts. Automatic top-ups and detailed logs help maintain seamless customer communication.</p>
     </div>
 
-    <div className="grid grid-cols-3 gap-8">
+   <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
        <div className="bg-[#0c1424] rounded-[32px] p-8 text-white shadow-xl shadow-black/10 relative overflow-hidden flex flex-col justify-between h-48">
           <div className="flex justify-between items-start">
              <div className="text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest flex items-center gap-2">
@@ -669,7 +669,7 @@ const SMSCredits = () => (
 
     <div className="space-y-8">
        <h3 className="text-[18px] font-black text-[#0c1424] px-2">Purchase Credits</h3>
-       <div className="grid grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
           {[
             { id: 'starter', label: 'Starter', credits: '100 Credits', price: '~$5 AUD', desc: 'Best for small cafes', icon: MessageSquare },
             { id: 'standard', label: 'Standard', credits: '500 Credits', price: '~$22 AUD', desc: 'Best for regular restaurants', icon: Zap, tag: 'Popular' },
@@ -700,11 +700,11 @@ export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState<SettingType>('profile');
 
   // Handle cross-component navigation within settings
-  useState(() => {
+   useEffect(() => {
     const handleSwitch = (e: any) => setActiveSetting(e.detail);
     window.addEventListener('switchSetting', handleSwitch);
     return () => window.removeEventListener('switchSetting', handleSwitch);
-  });
+   }, []);
 
   const navItems = [
     { id: 'profile', label: 'Restaurant profile', icon: Building2 },
@@ -716,9 +716,9 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="flex -m-8 h-[calc(100vh-140px)] bg-[#f8fafc] rounded-[40px] overflow-hidden shadow-sm border border-slate-100">
+   <div className="flex min-h-[calc(100vh-140px)] flex-col overflow-hidden rounded-[40px] border border-slate-100 bg-[#f8fafc] shadow-sm lg:-m-8 lg:h-[calc(100vh-140px)] lg:flex-row">
        {/* Sidebar sub-nav */}
-       <div className="w-[300px] bg-white border-r border-slate-100 pt-10 flex flex-col">
+      <div className="flex flex-col border-r border-slate-100 bg-white pt-6 lg:w-[300px] lg:pt-10">
           <div className="px-8 flex flex-col gap-10">
              <div className="space-y-4">
                 <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] px-4">CONFIGURATION</h3>
@@ -739,8 +739,8 @@ export default function SettingsPage() {
        </div>
 
        {/* Sub-view Content */}
-       <div className="flex-1 overflow-y-auto p-12 bg-[#f8fafc]">
-          <div className="max-w-[1200px] mx-auto">
+       <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-5 sm:p-8 lg:p-12">
+          <div className="mx-auto max-w-[1200px]">
              {activeSetting === 'profile' && <RestaurantProfile />}
              {activeSetting === 'terminals' && <TerminalManagement />}
              {activeSetting === 'tax' && <TaxConfiguration />}

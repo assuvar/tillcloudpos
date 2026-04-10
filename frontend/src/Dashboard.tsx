@@ -214,14 +214,14 @@ export default function Dashboard() {
 
   if (!terminalLaunched) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans flex text-[14px]">
+      <div className="min-h-screen bg-[#f8fafc] font-sans text-[14px] text-slate-900">
         {/* Sidebar */}
-        <aside className="w-[84px] bg-[#0c1424] fixed top-0 bottom-0 left-0 py-8 flex flex-col items-center z-50">
-          <div className="h-12 w-12 bg-gradient-to-br from-[#1e293b] to-[#0c1424] rounded-2xl flex items-center justify-center text-[#5dc7ec] mb-12 shadow-xl shadow-black/40 ring-1 ring-white/10">
+        <aside className="fixed bottom-0 left-0 right-0 z-50 flex h-16 flex-row items-center justify-around border-t border-white/10 bg-[#0c1424] px-4 py-2 lg:top-0 lg:bottom-0 lg:left-0 lg:right-auto lg:h-auto lg:w-[84px] lg:flex-col lg:items-center lg:justify-start lg:py-8">
+          <div className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1e293b] to-[#0c1424] text-[#5dc7ec] shadow-xl shadow-black/40 ring-1 ring-white/10 lg:mb-12 lg:flex">
             <Cloud size={24} strokeWidth={2.5} />
           </div>
 
-          <nav className="flex flex-col gap-6">
+          <nav className="flex flex-row gap-2 lg:flex-col lg:gap-6">
             <SidebarIcon icon={Home} active />
             <SidebarIcon icon={LayoutGrid} />
             <SidebarIcon icon={Utensils} />
@@ -232,7 +232,7 @@ export default function Dashboard() {
             <SidebarIcon icon={Settings} />
           </nav>
 
-          <div className="mt-auto flex flex-col gap-6 items-center">
+          <div className="mt-auto hidden flex-col items-center gap-6 lg:flex">
             <div className="h-10 w-10 rounded-full bg-slate-800 border border-white/10 overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#5dc7ec] transition-all">
               <img
                 src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || "Admin")}&background=0c1424&color=5dc7ec`}
@@ -244,9 +244,9 @@ export default function Dashboard() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 ml-[84px] p-8 max-w-[1600px] mx-auto w-full">
+        <main className="mx-auto min-w-0 w-full max-w-[1600px] px-4 pb-24 pt-4 sm:px-6 lg:ml-0 lg:pl-[100px] lg:pr-8 xl:pl-[108px] lg:py-8">
           {/* Header */}
-          <header className="flex items-center justify-between mb-8 gap-8">
+          <header className="mb-6 flex flex-col gap-4 lg:mb-8 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-black text-[#0c1424]">
                 {user?.businessName || "Ocean Blue Bistro"}
@@ -256,7 +256,7 @@ export default function Dashboard() {
               </span>
             </div>
 
-            <div className="flex-1 max-w-[400px] relative group mx-auto">
+            <div className="group relative mx-auto w-full max-w-[400px] flex-1">
               <Search
                 size={14}
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0c1424] transition-colors"
@@ -268,7 +268,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 self-end lg:self-auto">
               <button className="text-slate-400 hover:text-[#0c1424] transition-colors">
                 <Bell size={18} />
               </button>
@@ -285,9 +285,9 @@ export default function Dashboard() {
           </header>
 
           {/* Hero Banner */}
-          <div className="bg-[#0c1424] rounded-[24px] p-10 text-white relative overflow-hidden mb-8 shadow-2xl shadow-black/10">
+          <div className="relative mb-8 overflow-hidden rounded-[24px] bg-[#0c1424] p-6 text-white shadow-2xl shadow-black/10 sm:p-8 lg:p-10">
             <div className="relative z-10">
-              <h1 className="text-[32px] font-black tracking-tight mb-2">
+              <h1 className="mb-2 text-2xl font-black tracking-tight sm:text-3xl">
                 Welcome to TillCloud, {user?.businessName || "Ocean Blue Bistro"}!
               </h1>
               <p className="text-slate-400 font-medium">
@@ -296,7 +296,7 @@ export default function Dashboard() {
             </div>
 
             {/* POS Link Card */}
-            <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center gap-4">
+            <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:mt-8 sm:flex-row sm:items-center sm:gap-4 lg:absolute lg:right-10 lg:top-1/2 lg:mt-0 lg:-translate-y-1/2">
               <div className="flex flex-col">
                 <span className="text-[9px] font-black uppercase tracking-widest text-[#5dc7ec]">Your POS Link</span>
                 <span className="text-sm font-bold text-slate-300">pos.tillcloud.com/{user?.businessName?.toLowerCase().replace(/\s+/g, '-')}</span>
@@ -311,7 +311,7 @@ export default function Dashboard() {
           </div>
 
           {/* Setup Metric Cards (Horizontal Small) */}
-          <div className="grid grid-cols-4 gap-6 mb-10">
+          <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
               <div className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
                 <FileText size={18} />
@@ -354,9 +354,9 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-8">
+          <div className="flex flex-col gap-8 xl:flex-row">
             {/* Setup Guide Card */}
-            <div className="col-span-3 bg-gradient-to-b from-[#f8fafc] to-[#eef2ff] rounded-[32px] p-6 border border-slate-200 flex flex-col">
+            <div className="flex min-w-0 flex-col rounded-[32px] border border-slate-200 bg-gradient-to-b from-[#f8fafc] to-[#eef2ff] p-6 xl:w-1/4">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-lg font-black text-[#0c1424]">Setup Guide</h3>
                 <span className="px-3 py-1 rounded-full bg-[#0c1424] text-white text-[10px] font-black tracking-widest uppercase">100% Done</span>
@@ -396,20 +396,21 @@ export default function Dashboard() {
             </div>
 
             {/* Sales Overview Empty State */}
-            <div className="col-span-6 bg-white rounded-[40px] border border-slate-100 p-10 flex flex-col shadow-sm">
-              <div className="flex items-center justify-between mb-10">
+            <div className="flex min-w-0 flex-1 flex-col rounded-[40px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:mb-10">
                 <div>
                   <h3 className="text-lg font-black text-[#0c1424]">Sales Overview</h3>
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Last 7 days performance</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <span className="px-3 py-1 rounded-full bg-slate-50 text-[10px] font-bold text-slate-400">Daily</span>
                   <span className="px-3 py-1 rounded-full text-[10px] font-bold text-slate-400">Weekly</span>
+
                 </div>
               </div>
 
               <div className="flex-1 flex flex-col items-center justify-center text-center">
-                <div className="h-48 w-48 rounded-full bg-[#f0f9ff]/50 flex items-center justify-center mb-8 relative">
+                <div className="relative mb-8 flex h-40 w-40 items-center justify-center rounded-full bg-[#f0f9ff]/50 sm:h-48 sm:w-48">
                   <div className="h-32 w-32 bg-white rounded-[24px] shadow-xl shadow-blue-500/10 flex items-center justify-center relative rotate-6">
                      <BarChart3 className="text-[#5dc7ec]/30 h-12 w-12" />
                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow-lg border border-slate-50 flex items-center justify-center">
@@ -426,17 +427,18 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Actions Card */}
-            <div className="col-span-3 flex flex-col gap-6">
+            <div className="flex min-w-0 flex-col gap-6 xl:w-1/4">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Quick Actions</h3>
               
               {[
-                { label: "Open POS", sub: "Launch your terminal", icon: Store },
-                { label: "Add Menu Items", sub: "Expand your catalogue", icon: Utensils },
-                { label: "Invite Staff", sub: "Build your bistro team", icon: Users },
+                { label: "Open POS", sub: "Launch your terminal", icon: Store, path: "/pos" },
+                { label: "Add Menu Items", sub: "Expand your catalogue", icon: Utensils, path: "menu" },
+                { label: "Invite Staff", sub: "Build your bistro team", icon: Users, path: "staff" },
               ].map((action, idx) => (
                 <button 
                   key={idx} 
-                  className="group bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all text-left flex items-center gap-5"
+                  onClick={() => action.path.startsWith('/') ? navigate(action.path) : setCurrentView(action.path as any)}
+                  className="group flex items-center gap-4 rounded-[24px] border border-slate-100 bg-white p-5 text-left shadow-sm transition-all hover:shadow-md sm:gap-5 sm:p-6"
                 >
                   <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#0c1424] group-hover:text-white transition-colors duration-300">
                     <action.icon size={20} />
@@ -448,7 +450,10 @@ export default function Dashboard() {
                 </button>
               ))}
 
-              <div className="mt-auto bg-gradient-to-br from-slate-200 to-slate-300 h-40 rounded-[32px] relative overflow-hidden flex items-center justify-center group cursor-pointer shadow-lg shadow-blue-900/10">
+              <div 
+                onClick={() => navigate('/pos')}
+                className="mt-auto flex h-36 cursor-pointer items-center justify-center overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-200 to-slate-300 shadow-lg shadow-blue-900/10 sm:h-40 relative group"
+              >
                  <div className="absolute inset-0 bg-slate-900/20 group-hover:bg-transparent transition-colors duration-500"></div>
                  <div className="text-[40px] font-black text-white/40 tracking-tighter mix-blend-overlay">POS</div>
                  <div className="absolute bottom-4 right-4 h-8 w-8 rounded-full bg-white flex items-center justify-center text-[#0c1424] shadow-lg">
@@ -463,14 +468,14 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans flex text-[14px]">
+    <div className="min-h-screen bg-[#f8fafc] font-sans text-[14px] text-slate-900">
       {/* Sidebar */}
-      <aside className="w-[84px] bg-[#0c1424] fixed top-0 bottom-0 left-0 py-8 flex flex-col items-center z-50">
-        <div className="h-12 w-12 bg-gradient-to-br from-[#1e293b] to-[#0c1424] rounded-2xl flex items-center justify-center text-[#5dc7ec] mb-12 shadow-xl shadow-black/40 ring-1 ring-white/10">
+      <aside className="fixed bottom-0 left-0 right-0 z-50 flex h-16 flex-row items-center justify-around border-t border-white/10 bg-[#0c1424] px-4 py-2 lg:top-0 lg:bottom-0 lg:left-0 lg:right-auto lg:h-auto lg:w-[84px] lg:flex-col lg:items-center lg:justify-start lg:py-8">
+        <div className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1e293b] to-[#0c1424] text-[#5dc7ec] shadow-xl shadow-black/40 ring-1 ring-white/10 lg:mb-12 lg:flex">
           <Cloud size={24} strokeWidth={2.5} />
         </div>
 
-        <nav className="flex flex-col gap-6">
+        <nav className="flex flex-row gap-2 lg:flex-col lg:gap-6">
           <SidebarIcon icon={Home} active={currentView === 'home'} onClick={() => setCurrentView('home')} />
           <SidebarIcon icon={LayoutGrid} active={currentView === 'orders'} onClick={() => setCurrentView('orders')} />
           <SidebarIcon icon={Utensils} active={currentView === 'menu'} onClick={() => setCurrentView('menu')} />
@@ -481,7 +486,7 @@ export default function Dashboard() {
           <SidebarIcon icon={Settings} active={currentView === 'settings'} onClick={() => setCurrentView('settings')} />
         </nav>
 
-        <div className="mt-auto flex flex-col gap-6 items-center">
+        <div className="mt-auto hidden flex-col items-center gap-6 lg:flex">
           <div className="h-10 w-10 rounded-full bg-slate-800 border border-white/10 overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#5dc7ec] transition-all">
             <img
               src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || "Admin")}&background=0c1424&color=5dc7ec`}
@@ -493,10 +498,10 @@ export default function Dashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-[84px] p-8 max-w-[1600px] mx-auto w-full">
+      <main className="mx-auto min-w-0 w-full max-w-[1600px] px-4 pb-24 pt-4 sm:px-6 lg:ml-0 lg:pl-[100px] lg:pr-8 xl:pl-[108px] lg:py-8">
         {/* Header */}
-        <header className="flex items-center justify-between mb-10 gap-8">
-          <div className="relative group flex-1 max-w-[600px]">
+        <header className="mb-6 flex flex-col gap-4 lg:mb-10 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+          <div className="group relative w-full max-w-[600px] flex-1">
             <Search
               size={16}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0c1424] transition-colors"
@@ -508,7 +513,7 @@ export default function Dashboard() {
             />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 self-end lg:self-auto">
             <button className="h-12 w-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-500 hover:text-[#0c1424] transition-all relative">
               <Bell size={18} />
               <span className="absolute top-3.5 right-3.5 h-2 w-2 bg-rose-500 rounded-full border-2 border-white"></span>
@@ -519,7 +524,7 @@ export default function Dashboard() {
         {currentView === 'home' && (
           <>
             {/* Dash Title */}
-            <div className="flex items-end justify-between mb-10">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between lg:mb-10">
               <div>
                 <h1 className="text-[34px] font-black text-[#0c1424] leading-none tracking-tight">
                   Admin Dashboard
@@ -532,7 +537,7 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button className="h-11 px-6 rounded-full bg-white border border-slate-200 text-[13px] font-bold text-slate-700 hover:bg-slate-50 transition-colors inline-flex items-center gap-2">
                   <FileText size={14} />
                   Export Report
@@ -545,7 +550,7 @@ export default function Dashboard() {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 title="Bills Today"
                 value="84"
@@ -577,10 +582,10 @@ export default function Dashboard() {
             </div>
 
             {/* Middle Section: Chart and Peak Hour */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="mb-8 flex flex-col gap-6 lg:flex-row">
               {/* Sales Activity */}
-              <div className="lg:col-span-2 bg-white rounded-[28px] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div className="flex items-center justify-between mb-8">
+              <div className="relative min-w-0 w-full overflow-hidden rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8 lg:w-2/3">
+                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:mb-8">
                   <div>
                     <h3 className="text-lg font-black text-[#0c1424]">
                       Sales Activity
@@ -594,7 +599,7 @@ export default function Dashboard() {
                   </button>
                 </div>
 
-                <div className="h-[280px] flex items-end justify-between gap-4 px-2">
+                <div className="flex h-[240px] min-w-0 items-end justify-between gap-2 px-1 sm:h-[280px] sm:gap-4 sm:px-2">
                   {salesData.map((item) => (
                     <div
                       key={item.day}
@@ -602,7 +607,7 @@ export default function Dashboard() {
                     >
                       <div className="relative w-full flex justify-center items-end h-[220px]">
                         <div
-                          className={`w-[42px] rounded-xl transition-all duration-500 cursor-pointer ${
+                          className={`w-6 rounded-xl transition-all duration-500 cursor-pointer sm:w-[42px] ${
                             item.active
                               ? "bg-[#0c1424] shadow-[0_10px_30px_rgba(12,20,36,0.3)]"
                               : "bg-[#e2e8f0]/40 group-hover:bg-[#e2e8f0]"
@@ -619,12 +624,12 @@ export default function Dashboard() {
               </div>
 
               {/* Peak Hour Card */}
-              <div className="bg-[#0c1424] rounded-[28px] p-8 text-white relative overflow-hidden shadow-2xl shadow-black/20 flex flex-col justify-between group">
-                <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[#5dc7ec]/10 blur-[80px] -z-10 rounded-full translate-x-1/2 -translate-y-1/2" />
-                <div className="absolute bottom-0 left-0 w-[150px] h-[150px] bg-indigo-500/10 blur-[60px] -z-10 rounded-full -translate-x-1/2 translate-y-1/2" />
+              <div className="group relative flex min-w-0 w-full flex-col justify-between overflow-hidden rounded-[28px] bg-[#0c1424] p-6 text-white shadow-2xl shadow-black/20 sm:p-8 lg:w-1/3">
+                <div className="absolute top-0 right-0 -z-10 h-[160px] w-[160px] rounded-full bg-[#5dc7ec]/10 blur-[80px] translate-x-1/2 -translate-y-1/2 sm:h-[200px] sm:w-[200px]" />
+                <div className="absolute bottom-0 left-0 -z-10 h-[120px] w-[120px] rounded-full bg-indigo-500/10 blur-[60px] -translate-x-1/2 translate-y-1/2 sm:h-[150px] sm:w-[150px]" />
 
                 <div>
-                  <div className="h-8 w-[120px] rounded-full bg-white/5 border border-white/10 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#5dc7ec] mb-6">
+                  <div className="mb-6 flex h-8 w-[120px] items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-[#5dc7ec]">
                     <span className="h-2 w-2 rounded-full bg-[#5dc7ec] animate-pulse" />
                     Smart Insight
                   </div>
@@ -647,8 +652,8 @@ export default function Dashboard() {
             </div>
 
             {/* Staff Table */}
-            <div className="bg-white rounded-[28px] p-8 border border-slate-100 shadow-sm">
-              <div className="flex items-center justify-between mb-8">
+            <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+              <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:mb-8">
                 <div>
                   <h3 className="text-lg font-black text-[#0c1424]">Staff On Duty</h3>
                   <p className="text-[13px] text-slate-500 font-medium">

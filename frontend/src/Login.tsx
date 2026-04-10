@@ -81,7 +81,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-slate-900 flex flex-col">
-      <header className="px-10 py-8 flex items-center justify-between relative z-10">
+      <header className="relative z-10 flex items-center justify-between px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
         <div
           className="text-2xl font-black tracking-tight text-[#0b1b3d] cursor-pointer"
           onClick={() => navigate("/")}
@@ -96,20 +96,20 @@ export default function Login() {
         </Link>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center -mt-20 px-6">
+      <main className="flex flex-1 flex-col items-center justify-center px-4 -mt-10 sm:px-6 lg:-mt-20">
         <div className="text-center mb-10">
-          <h1 className="text-5xl font-black text-[#0b1b3d] mb-4">
+          <h1 className="mb-4 text-3xl font-black text-[#0b1b3d] sm:text-4xl lg:text-5xl">
             {method === "password" ? "Login to your Billing" : "Login with OTP"}
           </h1>
-          <p className="text-slate-500 font-medium text-lg">
+          <p className="text-base font-medium text-slate-500 sm:text-lg">
             Welcome back! Access your workspace via {method === "password" ? "password" : "secure code"}
           </p>
         </div>
 
-        <div className="w-full max-w-[540px] bg-white rounded-[2.5rem] p-12 shadow-[0_40px_100px_-20px_rgba(14,165,233,0.15)] border border-slate-50 relative">
+        <div className="relative w-full max-w-[540px] rounded-[2rem] border border-slate-50 bg-white p-6 shadow-[0_40px_100px_-20px_rgba(14,165,233,0.15)] sm:rounded-[2.5rem] sm:p-8 lg:p-12">
           <div className="absolute -inset-4 bg-sky-400/5 blur-[40px] -z-10 rounded-[3rem]"></div>
 
-          <div className="flex bg-[#f1f5f9] p-1.5 rounded-2xl mb-10">
+          <div className="mb-8 flex rounded-2xl bg-[#f1f5f9] p-1 sm:mb-10 sm:p-1.5">
             <button
               onClick={() => {
                 setMethod("password");
@@ -150,7 +150,7 @@ export default function Login() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="owner@restaurant.com"
-                    className="w-full h-[64px] pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all"
+                    className="w-full h-14 pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all sm:h-[64px]"
                   />
                 </div>
               </div>
@@ -167,7 +167,7 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full h-[64px] px-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all tracking-widest"
+                    className="w-full h-14 px-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all tracking-widest sm:h-[64px]"
                   />
                   <button
                     type="button"
@@ -182,7 +182,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full h-[72px] bg-[#0b1b3d] text-white rounded-full font-[950] text-sm uppercase tracking-[0.1em] hover:bg-[#152a55] transition-all shadow-2xl shadow-blue-900/30 mt-4 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center"
+                className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-[#0b1b3d] text-sm font-[950] uppercase tracking-[0.1em] text-white shadow-2xl shadow-blue-900/30 transition-all active:scale-[0.98] hover:bg-[#152a55] disabled:opacity-70 sm:h-[72px]"
               >
                 {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "LOGIN TO DASHBOARD"}
               </button>
@@ -203,7 +203,7 @@ export default function Login() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="email@example.com or 04XX XXX XXX"
-                        className="w-full h-[64px] pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all"
+                        className="w-full h-14 pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all sm:h-[64px]"
                       />
                     </div>
                     <p className="text-[11px] text-slate-400 ml-1">
@@ -214,7 +214,7 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={isSubmitting || !email}
-                    className="w-full h-[72px] bg-[#0b1b3d] text-white rounded-full font-[950] text-sm uppercase tracking-[0.1em] hover:bg-[#152a55] transition-all shadow-2xl shadow-blue-900/30 mt-4 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center"
+                    className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-[#0b1b3d] text-sm font-[950] uppercase tracking-[0.1em] text-white shadow-2xl shadow-blue-900/30 transition-all active:scale-[0.98] hover:bg-[#152a55] disabled:opacity-70 sm:h-[72px]"
                   >
                     {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "SEND VERIFICATION CODE"}
                   </button>
@@ -250,7 +250,7 @@ export default function Login() {
                           autoFocus
                           onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                           placeholder="0 0 0 0 0 0"
-                          className="w-full h-[72px] pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-[24px] font-black tracking-[0.5em] placeholder:text-slate-200 placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all text-center"
+                          className="w-full h-14 pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-[20px] font-black tracking-[0.35em] placeholder:text-slate-200 placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all text-center sm:h-[72px] sm:text-[24px] sm:tracking-[0.5em]"
                         />
                       </div>
                     </div>

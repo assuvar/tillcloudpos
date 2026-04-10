@@ -52,7 +52,7 @@ const DailySalesReport = () => (
     </div>
 
     {/* Chart and Summary */}
-    <div className="grid grid-cols-3 gap-8">
+   <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
        <div className="col-span-2 bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm relative overflow-hidden group">
           <div className="flex justify-between items-start mb-10">
              <div>
@@ -93,7 +93,7 @@ const DailySalesReport = () => (
                Dine-in revenue is the primary growth driver this week, contributing to 64% of total sales.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4 mt-8 pt-8 border-t border-white/5">
+          <div className="mt-8 grid grid-cols-1 gap-4 border-t border-white/5 pt-8 sm:grid-cols-2">
              <div>
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Avg Bill</span>
                 <div className="text-[20px] font-black mt-1">$42.50</div>
@@ -190,7 +190,7 @@ const MonthlySalesReport = () => (
     </div>
 
     {/* Main Stats Grid */}
-    <div className="grid grid-cols-4 gap-8">
+   <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 xl:grid-cols-4">
        <div className="col-span-1 bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm flex flex-col justify-between h-44 relative group">
           <div className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#0c1424] group-hover:text-white transition-all">
              <Wallet size={20} />
@@ -234,7 +234,7 @@ const MonthlySalesReport = () => (
     </div>
 
     {/* Bar Chart Section */}
-    <div className="grid grid-cols-3 gap-8">
+   <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
        <div className="col-span-2 bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm overflow-hidden flex flex-col">
           <div className="flex justify-between items-center mb-12">
              <div>
@@ -317,7 +317,7 @@ const CategorySalesReport = () => (
        </div>
     </div>
 
-    <div className="grid grid-cols-3 gap-8">
+   <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
        <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm flex flex-col justify-between h-[340px] relative">
           <div className="flex items-center gap-3">
              <TrendingUp size={20} className="text-[#5dc7ec]" />
@@ -339,7 +339,7 @@ const CategorySalesReport = () => (
        <div className="col-span-2 bg-[#0c1424] rounded-[32px] p-10 text-white shadow-xl shadow-black/20 flex items-center justify-center relative overflow-hidden group">
           <div className="flex-1 flex flex-col justify-center gap-2">
              <h3 className="text-xl font-black mb-10">Revenue Contribution</h3>
-             <div className="grid grid-cols-2 gap-y-8 gap-x-12">
+             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-y-8 sm:gap-x-12">
                 {[
                   { label: 'Mains', val: '45%', color: '#5dc7ec' },
                   { label: 'Starters', val: '25%', color: '#fff' },
@@ -356,7 +356,7 @@ const CategorySalesReport = () => (
                 ))}
              </div>
           </div>
-          <div className="w-[300px] h-[300px] relative flex items-center justify-center">
+          <div className="relative flex h-[220px] w-[220px] items-center justify-center sm:h-[300px] sm:w-[300px]">
              {/* Simple Doughnut Representation */}
              <div className="w-full h-full rounded-full border-[28px] border-[#1e293b]" />
              <div className="absolute w-full h-full rounded-full border-[28px] border-transparent border-t-[#5dc7ec] border-r-[#5dc7ec]/80 rotate-[30deg]" />
@@ -446,7 +446,7 @@ const InventoryStockReport = () => (
     </div>
 
     {/* Metric Cards */}
-    <div className="grid grid-cols-3 gap-8">
+   <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
        {[
          { label: 'Total Stock Value', val: '$1,248,500.00', icon: LayoutGrid, color: '#0c1424' },
          { label: 'Low Stock Alerts', val: '12 Items', icon: Clock, color: '#f59e0b' },
@@ -570,7 +570,7 @@ const PaymentMethodSummary = () => (
     </div>
 
     {/* Metric Cards Grid */}
-    <div className="grid grid-cols-2 gap-8">
+   <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
        <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm flex flex-col justify-between h-48 relative overflow-hidden group">
           <div className="flex justify-between items-start">
              <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#0c1424] group-hover:text-white transition-all duration-300">
@@ -713,7 +713,7 @@ const ItemWiseSalesReport = () => (
     </div>
 
     {/* Metric Cards */}
-    <div className="grid grid-cols-3 gap-8">
+   <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
       {/* Top Selling */}
       <div className="bg-[#0c1424] rounded-[32px] p-8 text-white shadow-xl shadow-black/10 relative overflow-hidden group h-56 flex flex-col justify-between">
         <div className="relative z-10">
@@ -837,9 +837,9 @@ export default function ReportsPage() {
   ];
 
   return (
-    <div className="flex -m-8 h-[calc(100vh-140px)] bg-[#f8fafc] rounded-[40px] overflow-hidden shadow-sm border border-slate-100">
+   <div className="flex min-h-[calc(100vh-140px)] flex-col overflow-hidden rounded-[40px] border border-slate-100 bg-[#f8fafc] shadow-sm lg:-m-8 lg:h-[calc(100vh-140px)] lg:flex-row">
        {/* Sidebar sub-nav */}
-       <div className="w-[300px] bg-white border-r border-slate-100 pt-10 flex flex-col">
+      <div className="flex flex-col border-r border-slate-100 bg-white pt-6 lg:w-[300px] lg:pt-10">
           <div className="px-8 flex flex-col gap-10">
              {['SALES REPORTS', 'FINANCIALS'].map(group => (
                <div key={group} className="space-y-4">
@@ -862,8 +862,8 @@ export default function ReportsPage() {
        </div>
 
        {/* Sub-view Content */}
-       <div className="flex-1 overflow-y-auto p-12 bg-[#f8fafc]">
-          <div className="max-w-[1200px] mx-auto">
+       <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-5 sm:p-8 lg:p-12">
+          <div className="mx-auto max-w-[1200px]">
              {activeReport === 'daily' && <DailySalesReport />}
              {activeReport === 'monthly' && <MonthlySalesReport />}
              {activeReport === 'category' && <CategorySalesReport />}

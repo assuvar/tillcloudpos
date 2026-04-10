@@ -33,13 +33,13 @@ export default function InviteStaffModal({ isOpen, onClose, onInvite }: InviteSt
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 p-2 backdrop-blur-sm animate-in fade-in duration-300 sm:items-center sm:p-4"
       onClick={handleBackdropClick}
     >
-      <div className="w-full max-w-[480px] bg-white rounded-[32px] shadow-2xl shadow-black/20 overflow-hidden relative animate-in zoom-in-95 duration-300">
+      <div className="relative w-full max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto rounded-[24px] bg-white shadow-2xl shadow-black/20 animate-in zoom-in-95 duration-300 sm:max-w-[480px] sm:rounded-[32px]">
         {/* Header */}
-        <div className="flex items-center justify-between p-8 pb-4">
-          <h2 className="text-[24px] font-black text-[#0c1424]">Invite Staff</h2>
+        <div className="flex items-center justify-between p-4 pb-4 sm:p-8">
+          <h2 className="text-[22px] font-black text-[#0c1424] sm:text-[24px]">Invite Staff</h2>
           <button
             onClick={onClose}
             className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-slate-50 text-slate-400 hover:text-[#0c1424] transition-all"
@@ -48,7 +48,7 @@ export default function InviteStaffModal({ isOpen, onClose, onInvite }: InviteSt
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 pt-0 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 p-4 pt-0 sm:p-8">
           <p className="text-[14px] text-slate-500 font-medium leading-relaxed">
             New team members will receive an email to set up their account and PIN.
           </p>
@@ -98,7 +98,7 @@ export default function InviteStaffModal({ isOpen, onClose, onInvite }: InviteSt
             </button>
 
             {isDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl z-10 py-2 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+              <div className="absolute top-full left-0 right-0 z-10 mt-2 max-h-60 overflow-y-auto rounded-2xl border border-slate-100 bg-white py-2 shadow-xl animate-in slide-in-from-top-2 duration-200">
                 {ROLES.map((r) => (
                   <button
                     key={r}
@@ -127,17 +127,17 @@ export default function InviteStaffModal({ isOpen, onClose, onInvite }: InviteSt
           </div>
 
           {/* Buttons */}
-          <div className="pt-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row">
              <button
                type="submit"
-               className="w-full h-14 bg-[#0c1424] text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-black/20 hover:bg-black transition-all"
+               className="h-14 w-full rounded-2xl bg-[#0c1424] text-white font-black uppercase tracking-widest shadow-xl shadow-black/20 transition-all hover:bg-black"
              >
                Send Invite
              </button>
              <button
                type="button"
                onClick={onClose}
-               className="w-full h-12 text-slate-400 font-black uppercase tracking-widest hover:text-[#0c1424] transition-all"
+               className="h-12 w-full font-black uppercase tracking-widest text-slate-400 transition-all hover:text-[#0c1424]"
              >
                Cancel
              </button>

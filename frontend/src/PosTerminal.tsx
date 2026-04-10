@@ -116,7 +116,7 @@ export default function PosTerminal() {
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
-                <div className="relative w-full min-w-[240px] sm:w-[320px]">
+                <div className="relative w-full sm:w-[320px]">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
@@ -296,7 +296,7 @@ export default function PosTerminal() {
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={handleSaveAndSend}

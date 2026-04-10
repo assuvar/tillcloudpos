@@ -126,17 +126,17 @@ export default function StaffManagementPage() {
   const cashierCount = displayData.filter((s) => s.role === 'CASHIER').length;
 
   return (
-    <div className="flex flex-col gap-10 animate-in fade-in duration-500">
+    <div className="flex flex-col gap-8 animate-in fade-in duration-500">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center md:gap-6">
         <div>
-          <h1 className="text-[34px] font-black text-[#0c1424] leading-none tracking-tight">Staff Management</h1>
-          <p className="text-slate-500 mt-3 font-medium">Manage your team, roles, and access to the system.</p>
+          <h1 className="text-3xl font-black leading-none tracking-tight text-[#0c1424] sm:text-[34px]">Staff Management</h1>
+          <p className="mt-3 font-medium text-slate-500">Manage your team, roles, and access to the system.</p>
         </div>
         
         <button 
           onClick={() => setIsInviteModalOpen(true)}
-          className="h-14 px-8 rounded-full bg-[#0c1424] text-white text-[14px] font-black uppercase tracking-widest shadow-xl shadow-black/20 hover:bg-black transition-all flex items-center gap-3"
+          className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-full bg-[#0c1424] px-8 text-[14px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black md:w-auto"
         >
           <div className="bg-white/20 rounded-lg p-1">
             <Plus size={16} />
@@ -146,7 +146,7 @@ export default function StaffManagementPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Members" value={totalMembers} icon={<Users size={20} />} />
         <StatCard title="Active Now" value={activeMembers} icon={<UserCheck size={20} />} isActive />
         <StatCard title="Admin Roles" value={adminCount} icon={<ShieldCheck size={20} />} />
@@ -154,11 +154,11 @@ export default function StaffManagementPage() {
       </div>
 
       {/* Staff Directory Table */}
-      <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+      <div className="flex flex-col overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm">
         {/* Table Toolbar */}
-        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+        <div className="flex flex-col items-start justify-between gap-4 border-b border-slate-50 bg-slate-50/30 p-4 sm:flex-row sm:items-center sm:p-8">
           <h2 className="text-lg font-black text-[#0c1424]">Staff Directory</h2>
-          <div className="flex gap-3">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
              <button className="h-10 px-6 rounded-xl bg-white border border-slate-200 text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm">
                <Filter size={14} />
                Filter
@@ -186,7 +186,7 @@ export default function StaffManagementPage() {
             <tbody className="divide-y divide-slate-50">
               {displayData.map((staff) => (
                 <tr key={staff.id} className="group hover:bg-slate-50/50 transition-colors">
-                  <td className="py-6 px-8">
+                  <td className="py-6 px-4 sm:px-8">
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-12 rounded-[18px] bg-[#0c1424] flex items-center justify-center text-[13px] font-black text-white shadow-lg overflow-hidden border-2 border-white">
                         {staff.initials}
@@ -216,7 +216,7 @@ export default function StaffManagementPage() {
                   <td className="py-6 px-4">
                     <span className="text-[13px] font-bold text-slate-500">{staff.lastLogin}</span>
                   </td>
-                  <td className="py-6 px-8">
+                  <td className="py-6 px-4 sm:px-8">
                     <div className="flex items-center justify-end gap-2">
                       <button className="h-10 w-10 rounded-xl text-slate-300 hover:text-[#0c1424] hover:bg-slate-50 transition-all flex items-center justify-center">
                         <Edit2 size={16} />
@@ -233,11 +233,11 @@ export default function StaffManagementPage() {
         </div>
 
         {/* Pagination */}
-        <div className="p-8 border-t border-slate-50 flex items-center justify-between">
+        <div className="flex flex-col items-start justify-between gap-4 border-t border-slate-50 p-4 sm:flex-row sm:items-center sm:p-8">
            <span className="text-[12px] font-bold text-slate-400">
              Showing 1-3 of 24 staff members
            </span>
-           <div className="flex items-center gap-2">
+           <div className="flex items-center gap-2 self-end sm:self-auto">
               <button className="h-9 w-9 rounded-xl border border-slate-100 flex items-center justify-center text-slate-300 hover:bg-slate-50 transition-colors">
                 <ChevronLeft size={16} />
               </button>

@@ -30,11 +30,11 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState(CUSTOMERS[0]);
 
   return (
-    <div className="flex bg-[#f8fafc] h-[calc(100vh-140px)] -m-8 rounded-[40px] overflow-hidden shadow-sm border border-slate-100">
+    <div className="flex min-h-[calc(100vh-140px)] flex-col overflow-hidden rounded-[40px] border border-slate-100 bg-[#f8fafc] shadow-sm lg:-m-8 lg:h-[calc(100vh-140px)] lg:flex-row">
       {/* Left Sidebar: Customer List */}
-      <div className="w-[400px] bg-white border-r border-slate-100 flex flex-col">
-        <div className="p-8">
-          <h2 className="text-[28px] font-black text-[#0c1424] mb-6">Customers</h2>
+      <div className="flex flex-col border-r border-slate-100 bg-white lg:w-[400px]">
+        <div className="p-5 sm:p-8">
+          <h2 className="mb-6 text-2xl font-black text-[#0c1424] sm:text-[28px]">Customers</h2>
           <div className="relative group">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
@@ -45,7 +45,7 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="max-h-[36vh] overflow-y-auto lg:max-h-none lg:flex-1">
           <table className="w-full">
             <thead>
               <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
@@ -91,11 +91,11 @@ export default function CustomersPage() {
       </div>
 
       {/* Right Pane: Customer Details */}
-      <div className="flex-1 bg-[#f8fafc] p-10 overflow-y-auto">
-        <div className="max-w-[1000px] mx-auto space-y-8">
+      <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-5 sm:p-8 lg:p-10">
+        <div className="mx-auto max-w-[1000px] space-y-8">
           {/* Header Card */}
-          <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex items-start justify-between relative overflow-hidden group">
-            <div className="flex gap-8 relative z-10">
+          <div className="group relative overflow-hidden rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+            <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:gap-8">
               <div className="h-24 w-24 rounded-[28px] bg-[#0c1424] flex items-center justify-center text-[32px] font-black text-white shadow-xl shadow-black/10">
                 {selectedCustomer.id}
               </div>
@@ -123,11 +123,11 @@ export default function CustomersPage() {
               </div>
             </div>
             
-            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-50 to-transparent -mr-32 -mt-32 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-opacity" />
+            <div className="absolute top-0 right-0 -mr-32 -mt-32 h-64 w-64 rounded-full bg-gradient-to-bl from-blue-50 to-transparent opacity-50 blur-3xl transition-opacity group-hover:opacity-80" />
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="bg-[#0c1424] rounded-[24px] p-8 text-white shadow-xl shadow-black/10 flex flex-col justify-between h-40">
               <span className="text-[10px] font-black uppercase tracking-widest text-[#5dc7ec]">Total Visits</span>
               <span className="text-[44px] font-black leading-none">42</span>
@@ -153,7 +153,7 @@ export default function CustomersPage() {
           </div>
 
           {/* Activity Tables */}
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
             <div className="space-y-4">
               <div className="flex items-center justify-between px-2">
                 <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Purchase History</h3>
@@ -212,7 +212,7 @@ export default function CustomersPage() {
           </div>
 
           {/* Bottom Grid: Notes and Adjust Points */}
-          <div className="grid grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
             {/* Private Notes */}
             <div className="col-span-2 space-y-4">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">Private Notes</h3>

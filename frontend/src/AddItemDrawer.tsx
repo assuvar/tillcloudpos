@@ -95,13 +95,13 @@ export default function AddItemDrawer() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex justify-end">
+    <div className="fixed inset-0 z-[100] flex justify-end p-2 sm:p-0">
       <div className="absolute inset-0 bg-[#0c1424]/30 backdrop-blur-sm animate-in fade-in duration-300" onClick={handleClose} />
 
-      <div className="relative w-full max-w-[560px] bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500 overflow-hidden">
-        <div className="p-8 pb-4 flex items-start justify-between border-b border-slate-50">
+      <div className="relative flex h-full max-h-[calc(100vh-1rem)] w-full max-w-[calc(100vw-1rem)] flex-col overflow-hidden bg-white shadow-2xl animate-in slide-in-from-right duration-500 sm:max-h-none sm:max-w-[560px]">
+        <div className="flex items-start justify-between border-b border-slate-50 p-4 pb-4 sm:p-8">
           <div>
-            <h2 className="text-[28px] font-black text-[#0c1424] leading-tight">
+            <h2 className="text-[24px] font-black leading-tight text-[#0c1424] sm:text-[28px]">
               {drawerMode === 'edit' ? 'Edit Item' : 'Add New Item'}
             </h2>
             <div className="mt-1 flex items-center gap-1.5">
@@ -120,7 +120,7 @@ export default function AddItemDrawer() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-8">
+        <div className="flex-1 space-y-6 overflow-y-auto p-4 pt-6 sm:space-y-8 sm:p-8">
           {localError ? (
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
               {localError}
@@ -140,7 +140,7 @@ export default function AddItemDrawer() {
 
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Item Image</label>
-            <div className="flex items-center gap-3 rounded-xl bg-blue-50/50 border border-transparent px-4 py-3">
+            <div className="flex flex-col gap-3 rounded-xl border border-transparent bg-blue-50/50 px-4 py-3 sm:flex-row sm:items-center">
               <input
                 type="text"
                 value={drawerForm.image}
@@ -158,7 +158,7 @@ export default function AddItemDrawer() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[11px] font-black uppercase tracking-widest text-[#0c1424] shadow-sm"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-2 text-[11px] font-black uppercase tracking-widest text-[#0c1424] shadow-sm"
               >
                 <ImagePlus size={14} />
                 Upload
@@ -166,7 +166,7 @@ export default function AddItemDrawer() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Price (AUD)</label>
               <div className="relative">
@@ -244,17 +244,17 @@ export default function AddItemDrawer() {
           </div>
         </div>
 
-        <div className="p-8 border-t border-slate-100 flex gap-4">
+        <div className="flex flex-col gap-3 border-t border-slate-100 p-4 sm:flex-row sm:gap-4 sm:p-8">
           <button
             onClick={handleClose}
-            className="flex-1 h-12 rounded-xl border border-slate-100 text-[13px] font-black uppercase tracking-widest text-[#0c1424] hover:bg-slate-50 transition-all"
+            className="h-12 flex-1 rounded-xl border border-slate-100 text-[13px] font-black uppercase tracking-widest text-[#0c1424] transition-all hover:bg-slate-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!isFormValid}
-            className="flex-1 h-12 rounded-xl bg-[#0c1424] text-white text-[13px] font-black uppercase tracking-widest shadow-xl shadow-black/20 hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-12 flex-1 rounded-xl bg-[#0c1424] text-[13px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
           >
             Save Item
           </button>

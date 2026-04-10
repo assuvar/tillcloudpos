@@ -15,12 +15,12 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0c1424]/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-[500px] rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center p-2 bg-[#0c1424]/40 backdrop-blur-sm animate-in fade-in duration-300 sm:items-center sm:p-4">
+      <div className="w-full max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto rounded-[24px] bg-white shadow-2xl animate-in zoom-in-95 duration-300 sm:max-w-[500px] sm:rounded-[32px]">
         {/* Header */}
-        <div className="p-8 pb-0 flex justify-between items-start">
+        <div className="flex items-start justify-between p-4 pb-0 sm:p-8">
           <div>
-            <h2 className="text-[24px] font-black text-[#0c1424] tracking-tight">New Inventory item</h2>
+            <h2 className="text-[22px] font-black tracking-tight text-[#0c1424] sm:text-[24px]">New Inventory item</h2>
             <p className="text-[13px] text-slate-400 font-medium mt-1">New items that adds to the inventory</p>
           </div>
           <button 
@@ -32,7 +32,7 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
         </div>
 
         {/* Content */}
-        <div className="p-8 space-y-6">
+        <div className="space-y-6 p-4 sm:p-8">
           {/* Name Field */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Name</label>
@@ -90,16 +90,16 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
           </div>
 
           {/* Actions */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
             <button 
                onClick={onClose}
-               className="flex-1 h-14 rounded-2xl bg-slate-50 text-[14px] font-black text-[#0c1424] uppercase tracking-widest hover:bg-slate-100 transition-all"
+               className="h-14 flex-1 rounded-2xl bg-slate-50 text-[14px] font-black uppercase tracking-widest text-[#0c1424] transition-all hover:bg-slate-100"
             >
               Cancel
             </button>
             <button 
                onClick={() => onAdd({ name, category, quantity })}
-               className="flex-1 h-14 rounded-2xl bg-[#0c1424] text-[14px] font-black text-white uppercase tracking-widest shadow-xl shadow-black/20 hover:bg-black transition-all"
+               className="h-14 flex-1 rounded-2xl bg-[#0c1424] text-[14px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black"
             >
               Add
             </button>
@@ -107,7 +107,7 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
         </div>
 
         {/* Footer info bar */}
-        <div className="bg-slate-50/50 border-t border-slate-100 p-6 flex items-start gap-3">
+        <div className="flex items-start gap-3 border-t border-slate-100 bg-slate-50/50 p-4 sm:p-6">
           <div className="h-5 w-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
             <Info size={12} />
           </div>
