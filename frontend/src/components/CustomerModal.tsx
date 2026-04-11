@@ -8,7 +8,7 @@ import {
 
 interface CustomerModalProps {
   onClose: () => void;
-  onSelect: (customer: {name: string, id: string}) => void;
+  onSelect: (customer: {name: string, id: string, phone: string, loyaltyPoints: number}) => void;
 }
 
 export default function CustomerModal({ onClose, onSelect }: CustomerModalProps) {
@@ -67,7 +67,7 @@ export default function CustomerModal({ onClose, onSelect }: CustomerModalProps)
                        <div className="text-sm font-black text-[#0c1424]">120 pts</div>
                     </div>
                     <button 
-                      onClick={() => onSelect({name: 'Sarah Johnson', id: 'SJ001'})}
+                      onClick={() => onSelect({name: 'Sarah Johnson', id: 'SJ001', phone: '0455 ••• •82', loyaltyPoints: 120})}
                       className="bg-white border-2 border-slate-100 h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-widest hover:border-[#0c1424] hover:bg-[#0c1424] hover:text-white transition-all shadow-sm"
                     >
                       Select

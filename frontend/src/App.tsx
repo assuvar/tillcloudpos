@@ -720,15 +720,7 @@ export default function App() {
       />
       <Route
         path="/checkout"
-        element={
-          <ProtectedRoute
-            allowedModes={["pos"]}
-            allowedRoles={["CASHIER", "ADMIN", "MANAGER"]}
-            redirectTo="/pos-login"
-          >
-            <Checkout />
-          </ProtectedRoute>
-        }
+        element={<Checkout />}
       />
       <Route
         path="/kitchen"
