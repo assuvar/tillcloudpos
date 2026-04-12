@@ -9,7 +9,11 @@ import * as bcrypt from 'bcrypt';
 import type { Prisma } from '../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '../auth/permissions/permissions.constants';
-import { CreateStaffDto, StaffRole, UpdateStaffDto } from './dto/staff-common.dto';
+import {
+  CreateStaffDto,
+  StaffRole,
+  UpdateStaffDto,
+} from './dto/staff-common.dto';
 
 type StaffActor = {
   userId: string;
@@ -79,12 +83,16 @@ export class StaffService {
   }
 
   private ensureAdminImmutable(targetRole: string) {
-    if (targetRole === StaffRole.ADMIN) {
+    if (targetRole === (StaffRole.ADMIN as string)) {
       throw new ForbiddenException('Admin account cannot be modified here');
     }
   }
 
-  private async assertEmailNotTaken(restaurantId: string, email: string, excludeId?: string) {
+  private async assertEmailNotTaken(
+    restaurantId: string,
+    email: string,
+    excludeId?: string,
+  ) {
     const existing = await this.prisma.user.findFirst({
       where: {
         restaurantId,
@@ -95,7 +103,9 @@ export class StaffService {
     });
 
     if (existing) {
-      throw new ConflictException('A staff member with this email already exists');
+      throw new ConflictException(
+        'A staff member with this email already exists',
+      );
     }
   }
 
@@ -162,17 +172,28 @@ export class StaffService {
       };
     } catch (error: any) {
       if (error?.code === 'P2002') {
-        throw new ConflictException('A staff member with this email already exists');
+        throw new ConflictException(
+          'A staff member with this email already exists',
+        );
       }
       throw error;
     }
   }
 
-  async update(restaurantId: string, id: string, actor: StaffActor, dto: UpdateStaffDto) {
+  async update(
+    restaurantId: string,
+    id: string,
+    actor: StaffActor,
+    dto: UpdateStaffDto,
+  ) {
     const target = await this.findTenantUserOrThrow(id, restaurantId);
     this.ensureAdminImmutable(target.role);
 
-    if (actor.userId === target.id && dto.role && dto.role !== target.role) {
+    if (
+      actor.userId === target.id &&
+      dto.role &&
+      (dto.role as string) !== target.role
+    ) {
       throw new BadRequestException('You cannot change your own role');
     }
 

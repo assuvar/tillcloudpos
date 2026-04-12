@@ -30,7 +30,10 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
     @Body() createUserDto: CreateUserDto,
   ) {
-    return this.usersService.create(req.user?.restaurantId || '', createUserDto);
+    return this.usersService.create(
+      req.user?.restaurantId || '',
+      createUserDto,
+    );
   }
 
   @Get(':restaurantId')

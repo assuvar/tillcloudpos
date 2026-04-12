@@ -65,7 +65,8 @@ export class PermissionsGuard implements CanActivate {
     });
 
     const stored = sanitizePermissionMap(
-      rolePermission?.permissions || getDefaultPermissionMapForRole(dbUser.role as UserRole),
+      rolePermission?.permissions ||
+        getDefaultPermissionMapForRole(dbUser.role as UserRole),
     );
 
     const granted = resolveRolePermissionCodes(

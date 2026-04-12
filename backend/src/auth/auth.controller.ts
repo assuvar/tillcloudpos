@@ -143,7 +143,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('pos-login')
   async posLogin(
-    @Body() posLoginDto: { role?: 'MANAGER' | 'CASHIER'; identifier?: string; pin?: string },
+    @Body()
+    posLoginDto: {
+      role?: 'MANAGER' | 'CASHIER';
+      identifier?: string;
+      pin?: string;
+    },
     @Res({ passthrough: true }) res: Response,
   ) {
     if (!posLoginDto?.role || !posLoginDto?.identifier || !posLoginDto?.pin) {

@@ -48,10 +48,13 @@ export class PermissionsController {
   ) {
     const requesterRole = req.user.role;
     const isOwnRole = requesterRole === params.role;
-    const canReadOtherRoles = requesterRole === 'ADMIN' || requesterRole === 'MANAGER';
+    const canReadOtherRoles =
+      requesterRole === 'ADMIN' || requesterRole === 'MANAGER';
 
     if (!isOwnRole && !canReadOtherRoles) {
-      throw new ForbiddenException('You can only access permissions for your role');
+      throw new ForbiddenException(
+        'You can only access permissions for your role',
+      );
     }
 
     return this.permissionsService.getRolePermissions(

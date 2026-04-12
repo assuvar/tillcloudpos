@@ -124,24 +124,24 @@ export type PermissionGroup = keyof typeof PERMISSION_CATALOG;
 type GroupActionKey<T extends PermissionGroup> =
   (typeof PERMISSION_CATALOG)[T]['actions'][number]['key'];
 
-export type PermissionCode =
-  {
-    [G in PermissionGroup]: `${G}:${GroupActionKey<G>}`;
-  }[PermissionGroup];
+export type PermissionCode = {
+  [G in PermissionGroup]: `${G}:${GroupActionKey<G>}`;
+}[PermissionGroup];
 
 export type PermissionMap = Partial<Record<PermissionGroup, string[]>>;
 
 const toCode = (group: PermissionGroup, action: string): PermissionCode =>
   `${group}:${action}` as PermissionCode;
 
-const allPermissionCodes: PermissionCode[] = Object.entries(PERMISSION_CATALOG)
-  .flatMap(([group, config]) =>
-    config.actions.map((action) => toCode(group as PermissionGroup, action.key)),
-  );
+const allPermissionCodes: PermissionCode[] = Object.entries(
+  PERMISSION_CATALOG,
+).flatMap(([group, config]) =>
+  config.actions.map((action) => toCode(group as PermissionGroup, action.key)),
+);
 
-const managerDefaultCodes: PermissionCode[] = [
-  ...allPermissionCodes,
-].filter((code) => code !== toCode('SETTINGS', 'CONFIGURE_ROLE_PERMISSIONS'));
+const managerDefaultCodes: PermissionCode[] = [...allPermissionCodes].filter(
+  (code) => code !== toCode('SETTINGS', 'CONFIGURE_ROLE_PERMISSIONS'),
+);
 
 const cashierDefaultCodes: PermissionCode[] = [
   toCode('BILLING', 'CREATE_BILL'),
@@ -194,7 +194,10 @@ export const PERMISSIONS = {
   CUSTOMERS_LOOKUP: toCode('CUSTOMERS', 'LOOK_UP_CUSTOMER'),
   CUSTOMERS_VIEW_PROFILES: toCode('CUSTOMERS', 'VIEW_CUSTOMER_PROFILES'),
   CUSTOMERS_VIEW_HISTORY: toCode('CUSTOMERS', 'VIEW_PURCHASE_HISTORY'),
-  CUSTOMERS_ADJUST_LOYALTY: toCode('CUSTOMERS', 'ADJUST_LOYALTY_POINTS_MANUALLY'),
+  CUSTOMERS_ADJUST_LOYALTY: toCode(
+    'CUSTOMERS',
+    'ADJUST_LOYALTY_POINTS_MANUALLY',
+  ),
 
   MENU_VIEW: toCode('MENU', 'HIDE_SHOW_ITEMS'),
   MENU_EDIT_ITEMS: toCode('MENU', 'ADD_EDIT_ITEMS'),
@@ -225,14 +228,19 @@ export const PERMISSIONS = {
   SETTINGS_SETUP_TYRO: toCode('SETTINGS', 'SET_UP_TYRO'),
   SETTINGS_PURCHASE_SMS: toCode('SETTINGS', 'PURCHASE_SMS_CREDITS'),
   SETTINGS_MANAGE_TERMINALS: toCode('SETTINGS', 'MANAGE_TERMINALS'),
-  SETTINGS_CONFIGURE_PERMISSIONS: toCode('SETTINGS', 'CONFIGURE_ROLE_PERMISSIONS'),
+  SETTINGS_CONFIGURE_PERMISSIONS: toCode(
+    'SETTINGS',
+    'CONFIGURE_ROLE_PERMISSIONS',
+  ),
   SETTINGS_MANAGE: toCode('SETTINGS', 'CONFIGURE_ROLE_PERMISSIONS'),
 } as const;
 
 export const isPermissionCode = (value: string): value is PermissionCode =>
   allPermissionCodes.includes(value as PermissionCode);
 
-export const flattenPermissionMap = (map: PermissionMap | undefined): PermissionCode[] => {
+export const flattenPermissionMap = (
+  map: PermissionMap | undefined,
+): PermissionCode[] => {
   if (!map) {
     return [];
   }
@@ -265,8 +273,8 @@ export const buildPermissionMap = (codes: string[]): PermissionMap => {
 
     const [group, action] = code.split(':') as [PermissionGroup, string];
     grouped[group] = grouped[group] || [];
-    if (!grouped[group]!.includes(action)) {
-      grouped[group]!.push(action);
+    if (!grouped[group].includes(action)) {
+      grouped[group].push(action);
     }
   }
 
@@ -280,13 +288,17 @@ export const sanitizePermissionMap = (map: unknown): PermissionMap => {
 
   const result: PermissionMap = {};
 
-  for (const [group, actions] of Object.entries(map as Record<string, unknown>)) {
+  for (const [group, actions] of Object.entries(
+    map as Record<string, unknown>,
+  )) {
     if (!(group in PERMISSION_CATALOG) || !Array.isArray(actions)) {
       continue;
     }
 
     const allowedActions = new Set(
-      PERMISSION_CATALOG[group as PermissionGroup].actions.map((action) => action.key),
+      PERMISSION_CATALOG[group as PermissionGroup].actions.map(
+        (action) => action.key,
+      ),
     );
 
     const filtered = actions
@@ -310,7 +322,9 @@ export const resolveRolePermissionCodes = (
     return ROLE_DEFAULT_CODES.ADMIN;
   }
 
-  const base = storedMap ? flattenPermissionMap(storedMap) : ROLE_DEFAULT_CODES[role];
+  const base = storedMap
+    ? flattenPermissionMap(storedMap)
+    : ROLE_DEFAULT_CODES[role];
   return Array.from(new Set(base));
 };
 

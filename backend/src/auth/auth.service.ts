@@ -422,7 +422,9 @@ export class AuthService {
         : user.role === 'MANAGER' || user.role === 'ADMIN';
 
     if (!validForSelectedRole) {
-      throw new UnauthorizedException('Role does not match selected POS login type');
+      throw new UnauthorizedException(
+        'Role does not match selected POS login type',
+      );
     }
 
     if (!user.isActive) {

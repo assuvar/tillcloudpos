@@ -12,7 +12,11 @@ import {
 } from '@nestjs/common';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
-import { CreateStaffDto, StaffIdParamDto, UpdateStaffDto } from './dto/staff-common.dto';
+import {
+  CreateStaffDto,
+  StaffIdParamDto,
+  UpdateStaffDto,
+} from './dto/staff-common.dto';
 import { StaffService } from './staff.service';
 
 type AuthenticatedRequest = {
@@ -53,7 +57,12 @@ export class StaffController {
     @Param() params: StaffIdParamDto,
     @Body() body: UpdateStaffDto,
   ) {
-    return this.staffService.update(req.user.restaurantId, params.id, req.user, body);
+    return this.staffService.update(
+      req.user.restaurantId,
+      params.id,
+      req.user,
+      body,
+    );
   }
 
   @Patch(':id/activate')
@@ -64,8 +73,15 @@ export class StaffController {
 
   @Patch(':id/deactivate')
   @RequirePermissions(PERMISSIONS.STAFF_DEACTIVATE)
-  deactivate(@Req() req: AuthenticatedRequest, @Param() params: StaffIdParamDto) {
-    return this.staffService.deactivate(req.user.restaurantId, params.id, req.user);
+  deactivate(
+    @Req() req: AuthenticatedRequest,
+    @Param() params: StaffIdParamDto,
+  ) {
+    return this.staffService.deactivate(
+      req.user.restaurantId,
+      params.id,
+      req.user,
+    );
   }
 
   @Patch(':id/pin')
