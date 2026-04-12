@@ -173,8 +173,8 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
       if (response.status === 201 || response.status === 200) {
-        // Clear the bill after successful submission
-        setBillItems([]);
+        // Do NOT clear bill items here — the bill persists for payment flow
+        // Bill is only cleared on payment completion via clearBill()
         
         return {
           success: true,

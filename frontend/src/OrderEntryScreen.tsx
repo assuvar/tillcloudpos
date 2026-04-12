@@ -13,10 +13,20 @@ import {
   Users,
   CreditCard,
   Split,
-  Send
+  Send,
+  X,
+  Diamond
 } from 'lucide-react';
 import { usePosCart } from './context/PosCartContext';
 import CustomerModal from './components/CustomerModal';
+import LoyaltyModal from './components/LoyaltyModal';
+
+interface CustomerData {
+  name: string;
+  id: string;
+  phone: string;
+  loyaltyPoints: number;
+}
 
 export default function OrderEntryScreen() {
   const navigate = useNavigate();
@@ -24,12 +34,26 @@ export default function OrderEntryScreen() {
   const type = searchParams.get('type') || 'dining';
   const detail = searchParams.get('detail') || '';
   
-  const { menuItems, billItems, billTotal, addItemToBill, removeItem } = usePosCart();
+  const { menuItems, billItems, billTotal, addItemToBill, removeItem, sendToKitchen } = usePosCart();
   const [selectedCategory, setSelectedCategory] = useState('Mains');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-  const [customer, setCustomer] = useState<{name: string, id: string} | null>(null);
+  const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
+  const [customer, setCustomer] = useState<CustomerData | null>(null);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
+  const [loyaltyPointsUsed, setLoyaltyPointsUsed] = useState(0);
+  const [kotSent, setKotSent] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [isSendingToKitchen, setIsSendingToKitchen] = useState(false);
 
   const categories = ['Starters', 'Mains', 'Desserts', 'Breakfast', 'Dinner', 'Lunch', 'Snacks'];
+
+  const TAX_RATE = 0.08;
+
+  // Dynamic bill calculations
+  const subtotal = billTotal;
+  const discountedSubtotal = subtotal - loyaltyDiscount;
+  const taxAmount = discountedSubtotal * TAX_RATE;
+  const totalDue = discountedSubtotal + taxAmount;
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('en-AU', {
     style: 'currency',
@@ -39,6 +63,73 @@ export default function OrderEntryScreen() {
   const handleItemClick = (item: any) => {
     if (!item.isActive || item.stock === 0) return;
     addItemToBill(item);
+  };
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    window.setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  // Customer selection flow
+  const handleCustomerSelect = (c: CustomerData) => {
+    setCustomer(c);
+    setShowCustomerModal(false);
+    
+    // If customer has loyalty points, show loyalty modal
+    if (c.loyaltyPoints > 0) {
+      setShowLoyaltyModal(true);
+    }
+  };
+
+  // Loyalty apply discount
+  const handleApplyDiscount = (amount: number, pointsUsed: number) => {
+    setLoyaltyDiscount(amount);
+    setLoyaltyPointsUsed(pointsUsed);
+    setShowLoyaltyModal(false);
+  };
+
+  // Loyalty skip
+  const handleSkipLoyalty = () => {
+    setLoyaltyDiscount(0);
+    setLoyaltyPointsUsed(0);
+    setShowLoyaltyModal(false);
+  };
+
+  // Send to kitchen
+  const handleSendToKitchen = async () => {
+    if (billItems.length === 0 || isSendingToKitchen) return;
+    
+    try {
+      setIsSendingToKitchen(true);
+      const result = await sendToKitchen(billItems);
+      if (result.success) {
+        setKotSent(true);
+        showToast('Order #042 saved and sent to kitchen');
+      } else {
+        showToast(result.error || 'Failed to send to kitchen');
+      }
+    } catch (err) {
+      showToast('Error sending to kitchen. Please try again.');
+    } finally {
+      setIsSendingToKitchen(false);
+    }
+  };
+
+  // Pay / Checkout navigation
+  const handlePay = () => {
+    navigate('/checkout', { 
+      state: { 
+        billItems, 
+        billTotal: subtotal, 
+        loyaltyDiscount,
+        loyaltyPointsUsed,
+        customer,
+        taxAmount,
+        totalDue,
+        orderType: type,
+        tableDetail: detail
+      } 
+    });
   };
 
   return (
@@ -148,22 +239,44 @@ export default function OrderEntryScreen() {
                 <div className="flex items-center gap-3 mt-1">
                   <span className="text-xs font-bold text-slate-400">Order #042</span>
                   <div className="h-1 w-1 bg-slate-200 rounded-full" />
-                  <span className="text-xs font-bold text-slate-400">{customer?.name || 'Guest User'}</span>
+                  <span className="text-xs font-bold text-slate-400">{customer?.name || 'Alex M.'}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                kotSent 
+                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                  : 'bg-rose-50 text-rose-500 border-rose-100'
+              }`}>
                 <CheckCircle2 size={12} strokeWidth={3} />
-                KOT Sent
+                {kotSent ? 'KOT Sent' : 'Not Sent'}
               </div>
             </div>
 
-            <button 
-              onClick={() => setShowCustomerModal(true)}
-              className="w-full h-14 bg-[#0c1424] text-white rounded-2xl flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest shadow-xl shadow-black/15 hover:bg-black transition-all active:scale-95"
-            >
-              <Plus size={18} />
-              Add Customer
-            </button>
+            {/* Customer Info - shown after customer selection */}
+            {customer ? (
+              <div className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-50">
+                <div className="h-12 w-12 rounded-full bg-[#0c1424] text-white flex items-center justify-center font-black text-sm">
+                  {customer.name.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-black text-[#0c1424]">{customer.name}</div>
+                  <div className="text-xs font-bold text-slate-400">{customer.phone}</div>
+                </div>
+                {loyaltyPointsUsed > 0 && (
+                  <div className="text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest">
+                    •{customer.loyaltyPoints - loyaltyPointsUsed} pts
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button 
+                onClick={() => setShowCustomerModal(true)}
+                className="w-full h-14 bg-[#0c1424] text-white rounded-2xl flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest shadow-xl shadow-black/15 hover:bg-black transition-all active:scale-95"
+              >
+                <Plus size={18} />
+                Add Customer
+              </button>
+            )}
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto p-8 space-y-6 custom-scrollbar">
@@ -173,22 +286,35 @@ export default function OrderEntryScreen() {
                   <p className="font-black text-sm uppercase tracking-widest">Bag is Empty</p>
                </div>
             ) : (
-              billItems.map((item) => (
-                <div key={item.id} className="flex justify-between gap-4 group">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                       <span className="text-lg font-black text-[#0c1424]">{item.quantity} × {item.name}</span>
+              <>
+                {billItems.map((item) => (
+                  <div key={item.id} className="flex justify-between gap-4 group">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                         <span className="text-lg font-black text-[#0c1424]">{item.quantity} × {item.name}</span>
+                      </div>
+                      <div className="text-xs font-bold text-slate-400 mt-1">
+                         {item.name.includes('Salmon') ? 'No lemon, extra butter' : 'Medium Rare, peppercorn sauce'}
+                      </div>
                     </div>
-                    <div className="text-xs font-bold text-slate-400 mt-1">
-                       {item.name.includes('Salmon') ? 'No lemon, extra butter' : 'Medium Rare, peppercorn sauce'}
+                    <div className="text-right">
+                      <div className="text-lg font-black text-[#0c1424]">{formatCurrency(item.price * item.quantity)}</div>
+                      <button onClick={() => removeItem(item.id)} className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-lg font-black text-[#0c1424]">{formatCurrency(item.price * item.quantity)}</div>
-                    <button onClick={() => removeItem(item.id)} className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
+                ))}
+
+                {/* Loyalty Reward Line */}
+                {loyaltyDiscount > 0 && (
+                  <div className="flex items-center justify-between bg-[#f0fdf4] rounded-2xl px-5 py-3 border border-emerald-50">
+                    <div className="flex items-center gap-2 text-emerald-600">
+                      <Diamond size={16} strokeWidth={2.5} />
+                      <span className="text-sm font-black uppercase tracking-wider">Loyalty Reward (10%)</span>
+                    </div>
+                    <span className="text-sm font-black text-emerald-600">-{formatCurrency(loyaltyDiscount)}</span>
                   </div>
-                </div>
-              ))
+                )}
+              </>
             )}
           </div>
 
@@ -196,19 +322,22 @@ export default function OrderEntryScreen() {
             <div className="space-y-4 mb-10">
               <div className="flex justify-between items-center text-sm font-bold text-slate-500 px-1">
                 <span>Subtotal</span>
-                <span>$118.00</span>
+                <span>{formatCurrency(subtotal)}</span>
               </div>
+              {loyaltyDiscount > 0 && (
+                <div className="flex justify-between items-center text-sm font-bold text-emerald-500 px-1">
+                  <span>Loyalty Discount</span>
+                  <span>-{formatCurrency(loyaltyDiscount)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-sm font-bold text-slate-500 px-1">
                 <span>Tax (8%)</span>
-                <span>$9.44</span>
+                <span>{formatCurrency(taxAmount)}</span>
               </div>
               <div className="flex justify-between items-end mt-4 px-1">
                 <div>
                   <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">Total Due</span>
-                  <span className="text-4xl font-[950] text-[#0c1424] tracking-tight">$115.64</span>
-                </div>
-                <div className="bg-[#0c1424] text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                  Ready to pay
+                  <span className="text-4xl font-[950] text-[#0c1424] tracking-tight">{formatCurrency(totalDue)}</span>
                 </div>
               </div>
             </div>
@@ -219,17 +348,21 @@ export default function OrderEntryScreen() {
                 Split Bill
               </button>
               <button 
-                className="h-16 rounded-[24px] bg-[#0c1424] text-white flex items-center justify-center gap-2 font-black text-[13px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10"
-                onClick={() => navigate('/Checkout', { state: { billItems, billTotal } })}
+                className="h-16 rounded-[24px] bg-[#0c1424] text-white flex items-center justify-center gap-2 font-black text-[13px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10 disabled:opacity-40"
+                onClick={handlePay}
               >
                 <CreditCard size={18} />
                 Pay
               </button>
             </div>
             
-            <button className="w-full h-16 mt-4 rounded-[24px] bg-[#4adeff] text-[#0c1424] flex items-center justify-center gap-3 font-black text-[13px] uppercase tracking-widest shadow-xl shadow-sky-400/20 hover:brightness-95 transition-all">
+            <button 
+              onClick={handleSendToKitchen}
+              disabled={billItems.length === 0 || isSendingToKitchen}
+              className="w-full h-16 mt-4 rounded-[24px] bg-[#4adeff] text-[#0c1424] flex items-center justify-center gap-3 font-black text-[13px] uppercase tracking-widest shadow-xl shadow-sky-400/20 hover:brightness-95 transition-all disabled:opacity-40"
+            >
               <Send size={18} strokeWidth={3} />
-              Save & Send to Kitchen
+              {isSendingToKitchen ? 'Sending...' : 'Save & Send to Kitchen'}
             </button>
           </div>
         </aside>
@@ -254,6 +387,11 @@ export default function OrderEntryScreen() {
         </nav>
 
         <div className="flex items-center gap-6 h-full">
+           {loyaltyDiscount > 0 && (
+             <div className="text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest opacity-60">
+               Loyalty Points Deducted
+             </div>
+           )}
            <button className="h-12 px-8 rounded-full bg-white/5 border border-white/10 text-xs font-black uppercase tracking-widest hover:bg-white/10">
               Switch User
            </button>
@@ -261,20 +399,51 @@ export default function OrderEntryScreen() {
         </div>
       </footer>
 
+      {/* Customer Modal */}
       {showCustomerModal && (
         <CustomerModal 
           onClose={() => setShowCustomerModal(false)} 
-          onSelect={(c) => {
-            setCustomer(c);
-            setShowCustomerModal(false);
-          }}
+          onSelect={handleCustomerSelect}
         />
+      )}
+
+      {/* Loyalty Modal */}
+      {showLoyaltyModal && customer && (
+        <LoyaltyModal
+          customer={customer}
+          onApplyDiscount={handleApplyDiscount}
+          onSkip={handleSkipLoyalty}
+          onClose={handleSkipLoyalty}
+        />
+      )}
+
+      {/* Kitchen Toast Notification */}
+      {toastMessage && (
+        <div 
+          className="fixed top-28 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#0c1424] text-white px-6 py-4 rounded-2xl shadow-2xl shadow-black/20 border border-white/5"
+          style={{ animation: 'toastSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
+        >
+          <div className="h-7 w-7 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+            <CheckCircle2 size={16} className="text-white" strokeWidth={3} />
+          </div>
+          <span className="text-sm font-bold whitespace-nowrap">{toastMessage}</span>
+          <button 
+            onClick={() => setToastMessage('')}
+            className="ml-2 text-white/40 hover:text-white transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
       )}
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        @keyframes toastSlideIn {
+          from { opacity: 0; transform: translate(-50%, -20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
       `}</style>
     </div>
   );
