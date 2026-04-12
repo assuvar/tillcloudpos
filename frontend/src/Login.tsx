@@ -37,7 +37,7 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       const response = await api.post('/auth/login', { email, password });
-      login(response.data.access_token, response.data.user);
+      await login(response.data.access_token, response.data.user);
       navigate(response.data.user.onboardingCompleted ? '/dashboard' : '/onboarding');
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid credentials. Please try again.");
@@ -70,7 +70,7 @@ export default function Login() {
     try {
       const channel = email.includes("@") ? "email" : "mobile";
       const response = await api.post('/auth/otp/verify', { channel, destination: email, code: otp });
-      login(response.data.access_token, response.data.user);
+      await login(response.data.access_token, response.data.user);
       navigate(response.data.user.onboardingCompleted ? '/dashboard' : '/onboarding');
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid or expired OTP.");

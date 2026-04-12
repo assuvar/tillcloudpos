@@ -24,10 +24,16 @@ export class UsersService {
       pinHash = await bcrypt.hash(pin, 10);
     }
 
+    const normalizedName =
+      createUserDto.fullName?.trim() || createUserDto.name?.trim();
+
     return this.prisma.user.create({
       data: {
         ...userData,
+        name: normalizedName,
+        fullName: normalizedName || createUserDto.email.trim().toLowerCase(),
         email: createUserDto.email.trim().toLowerCase(),
+        phone: createUserDto.phone?.trim() || null,
         passwordHash,
         pinHash,
         restaurantId,
@@ -38,6 +44,16 @@ export class UsersService {
   findByEmail(email: string) {
     return this.prisma.user.findFirst({
       where: { email: email.trim().toLowerCase() },
+      include: { restaurant: true },
+    });
+  }
+
+  findByEmailInRestaurant(email: string, restaurantId: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        email: email.trim().toLowerCase(),
+        restaurantId,
+      },
       include: { restaurant: true },
     });
   }
@@ -73,6 +89,17 @@ export class UsersService {
 
     if (email) {
       data.email = email.trim().toLowerCase();
+    }
+
+    if (updateUserDto.fullName || updateUserDto.name) {
+      const normalizedName =
+        updateUserDto.fullName?.trim() || updateUserDto.name?.trim();
+      data.fullName = normalizedName;
+      data.name = normalizedName;
+    }
+
+    if (updateUserDto.phone !== undefined) {
+      data.phone = updateUserDto.phone?.trim() || null;
     }
 
     return this.prisma.user.update({

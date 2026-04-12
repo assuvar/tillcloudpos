@@ -354,7 +354,7 @@ export default function Register() {
         serviceModels: formData.serviceModels
       });
       
-      login(response.data.access_token, response.data.user);
+      await login(response.data.access_token, response.data.user);
       navigate('/onboarding');
     } catch (err: any) {
       const backendMessage = err.response?.data?.message;

@@ -43,6 +43,7 @@ model Restaurant {
   smsLogs          SmsLog[]
   terminals        Terminal[]
   users            User[]
+  rolePermissions  RolePermission[]
 
   @@map("restaurants")
 }
@@ -50,12 +51,16 @@ model Restaurant {
 model User {
   id           String        @id @default(cuid())
   restaurantId String
+  name         String?
   fullName     String
   email        String
+  phone        String?
   passwordHash String?
   pinHash      String?
   role         UserRole      @default(CASHIER)
   isActive            Boolean       @default(true)
+  pinFailedAttempts   Int           @default(0)
+  pinLockedUntil      DateTime?
   onboardingCompleted Boolean       @default(false)
   lastLoginAt         DateTime?
   createdAt           DateTime      @default(now())
@@ -66,6 +71,19 @@ model User {
 
   @@unique([restaurantId, email])
   @@map("users")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  restaurantId String
+  role         UserRole
+  permissions  Json
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, role])
+  @@map("role_permissions")
 }
 
 model InviteToken {

@@ -24,7 +24,7 @@ export default function KitchenPair() {
       });
 
       localStorage.setItem(KITCHEN_PAIRING_KEY, cleanedToken);
-      login(response.data.access_token, response.data.user, 'kitchen');
+      await login(response.data.access_token, response.data.user, 'kitchen');
       navigate('/kitchen');
     } catch {
       setError('Pairing failed. Verify the token and try again.');

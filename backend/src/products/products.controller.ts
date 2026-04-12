@@ -16,6 +16,8 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { PERMISSIONS } from '../auth/permissions/permissions.constants';
 
 // Helper function to get restaurantId from request context
 const getRestaurantId = (req: any): string => {
@@ -38,24 +40,28 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
+  @RequirePermissions(PERMISSIONS.MENU_MANAGE)
   create(@Body() createProductDto: CreateProductDto, @Req() req: any) {
     createProductDto.restaurantId = getRestaurantId(req);
     return this.productsService.create(createProductDto);
   }
 
   @Get()
+  @RequirePermissions(PERMISSIONS.MENU_VIEW)
   findAll(@Req() req: any) {
     const restaurantId = getRestaurantId(req);
     return this.productsService.findAll(restaurantId);
   }
 
   @Get(':id')
+  @RequirePermissions(PERMISSIONS.MENU_VIEW)
   findOne(@Param('id') id: string, @Req() req: any) {
     const restaurantId = getRestaurantId(req);
     return this.productsService.findOne(id, restaurantId);
   }
 
   @Patch(':id')
+  @RequirePermissions(PERMISSIONS.MENU_MANAGE)
   update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
@@ -66,12 +72,14 @@ export class ProductsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PERMISSIONS.MENU_MANAGE)
   remove(@Param('id') id: string, @Req() req: any) {
     const restaurantId = getRestaurantId(req);
     return this.productsService.remove(id, restaurantId);
   }
 
   @Delete()
+  @RequirePermissions(PERMISSIONS.MENU_MANAGE)
   removeAll(@Req() req: any) {
     const restaurantId = getRestaurantId(req);
     return this.productsService.deleteAllForRestaurant(restaurantId);

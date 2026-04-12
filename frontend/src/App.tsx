@@ -668,7 +668,11 @@ export default function App() {
       />
       <Route
         path="/pos-login"
-        element={<PosLogin />}
+        element={
+          <PublicRoute>
+            <PosLogin />
+          </PublicRoute>
+        }
       />
       <Route
         path="/kitchen/pair"
@@ -712,15 +716,27 @@ export default function App() {
       />
       <Route
         path="/pos"
-        element={<POSEntryScreen />}
+        element={
+          <ProtectedRoute allowedModes={["pos"]} allowedRoles={["ADMIN", "MANAGER", "CASHIER"]} redirectTo="/pos-login">
+            <POSEntryScreen />
+          </ProtectedRoute>
+        }
       />
       <Route
         path="/pos/order-entry"
-        element={<OrderEntryScreen />}
+        element={
+          <ProtectedRoute allowedModes={["pos"]} allowedRoles={["ADMIN", "MANAGER", "CASHIER"]} redirectTo="/pos-login">
+            <OrderEntryScreen />
+          </ProtectedRoute>
+        }
       />
       <Route
         path="/checkout"
-        element={<Checkout />}
+        element={
+          <ProtectedRoute allowedModes={["pos"]} allowedRoles={["ADMIN", "MANAGER", "CASHIER"]} redirectTo="/pos-login">
+            <Checkout />
+          </ProtectedRoute>
+        }
       />
       <Route
         path="/kitchen"

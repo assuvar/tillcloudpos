@@ -14,6 +14,8 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
+import { RequirePermissions } from './decorators/permissions.decorator';
+import { PERMISSIONS } from './permissions/permissions.constants';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -141,20 +143,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('pos-login')
   async posLogin(
-    @Body() posLoginDto: { email?: string; pin?: string },
+    @Body() posLoginDto: { role?: 'MANAGER' | 'CASHIER'; identifier?: string; pin?: string },
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (!posLoginDto?.email || !posLoginDto?.pin) {
+    if (!posLoginDto?.role || !posLoginDto?.identifier || !posLoginDto?.pin) {
       throw new UnauthorizedException('Invalid POS credentials');
     }
 
     const user = await this.authService.validatePosUser(
-      posLoginDto.email,
+      posLoginDto.identifier,
       posLoginDto.pin,
+      posLoginDto.role,
     );
-    if (!user) {
-      throw new UnauthorizedException('Invalid POS credentials');
-    }
 
     const session = this.authService.loginPos(user);
     this.setRefreshCookie(res, session.refreshToken);
@@ -285,6 +285,7 @@ export class AuthController {
   }
 
   @Roles('ADMIN', 'MANAGER')
+  @RequirePermissions(PERMISSIONS.SETTINGS_MANAGE_TERMINALS)
   @Post('kitchen/pairing-token')
   async createKitchenPairingToken(
     @Req() req: AuthenticatedRequest,
@@ -310,6 +311,7 @@ export class AuthController {
   }
 
   @Roles('ADMIN', 'MANAGER')
+  @RequirePermissions(PERMISSIONS.STAFF_EDIT)
   @HttpCode(HttpStatus.OK)
   @Post('cashier/pin')
   async assignCashierPin(@Body() body: AssignPinBody) {

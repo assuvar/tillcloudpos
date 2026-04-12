@@ -11,6 +11,9 @@ import { AuthModule } from './auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
+import { PermissionsGuard } from './auth/guards/permissions.guard';
+import { StaffModule } from './staff/staff.module';
+import { PermissionsModule } from './permissions/permissions.module';
 
 @Module({
   imports: [
@@ -18,6 +21,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     PrismaModule,
     UsersModule,
     AuthModule,
+    StaffModule,
+    PermissionsModule,
     ProductsModule,
     CategoriesModule,
     OrdersModule,
@@ -32,6 +37,10 @@ import { RolesGuard } from './auth/guards/roles.guard';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
     },
   ],
 })

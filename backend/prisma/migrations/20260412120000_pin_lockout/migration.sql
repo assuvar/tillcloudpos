@@ -1,0 +1,4 @@
+-- POS PIN brute-force protection
+ALTER TABLE "users"
+ADD COLUMN IF NOT EXISTS "pinFailedAttempts" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "pinLockedUntil" TIMESTAMP(3);

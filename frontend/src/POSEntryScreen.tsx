@@ -12,6 +12,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 import NewBillModal from './components/NewBillModal';
+import { useAuth } from './context/AuthContext';
+import { FRONTEND_PERMISSIONS } from './permissions';
 
 interface BillCardProps {
   id: string;
@@ -60,7 +62,12 @@ const BillCard = ({ id, type, title, items, amount, time, kotSent, onClick }: Bi
 
 export default function POSEntryScreen() {
   const navigate = useNavigate();
+  const { user, logout, hasModuleAccess, hasPermission } = useAuth();
   const [showNewBillModal, setShowNewBillModal] = useState(false);
+
+  const canAccessBilling = hasModuleAccess('BILLING');
+  const canCreateBill = hasPermission(FRONTEND_PERMISSIONS.BILLING_CREATE);
+  const canAccessMenu = hasModuleAccess('MENU');
 
   const mockBills: BillCardProps[] = [
     { id: '042', type: 'DINE IN', title: 'Table 5', items: 4, amount: '$64.50', time: '14 mins', kotSent: true, onClick: () => navigate('/pos/order-entry?type=dining') },
@@ -88,8 +95,8 @@ export default function POSEntryScreen() {
                 <LayoutGrid size={18} />
              </div>
              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase text-slate-400 leading-none">Cashier</span>
-                <span className="text-sm font-black text-[#0c1424]">Cashier #42</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 leading-none">{user?.role || 'Staff'}</span>
+              <span className="text-sm font-black text-[#0c1424]">{user?.fullName || 'POS User'}</span>
              </div>
           </div>
           <div className="flex items-center gap-2">
@@ -100,7 +107,10 @@ export default function POSEntryScreen() {
               <HelpCircle size={20} />
             </button>
             <button 
-              onClick={() => navigate('/pos-login')}
+              onClick={() => {
+                void logout();
+                navigate('/pos-login');
+              }}
               className="h-10 w-10 rounded-xl hover:bg-rose-50 flex items-center justify-center text-rose-500 transition-colors"
             >
               <LogOut size={20} />
@@ -112,45 +122,54 @@ export default function POSEntryScreen() {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-12 relative min-h-0">
         <div className="max-w-[1400px] mx-auto">
-          <div className="flex items-center justify-between mb-12">
-            <h1 className="text-5xl font-black text-[#0c1424] tracking-tight">Open Bills</h1>
-            <button 
-              onClick={() => setShowNewBillModal(true)}
-              className="bg-[#0c1424] text-white h-16 px-10 rounded-2xl flex items-center gap-4 shadow-2xl shadow-black/20 hover:bg-black transition-all active:scale-95 group"
-            >
-              <div className="bg-[#5dc7ec] text-[#0c1424] h-7 w-7 rounded-lg flex items-center justify-center group-hover:rotate-90 transition-transform">
-                <Plus size={18} strokeWidth={3} />
+          {canAccessBilling ? (
+            <>
+              <div className="flex items-center justify-between mb-12">
+                <h1 className="text-5xl font-black text-[#0c1424] tracking-tight">Open Bills</h1>
+                <button 
+                  onClick={() => setShowNewBillModal(true)}
+                  disabled={!canCreateBill}
+                  className="bg-[#0c1424] text-white h-16 px-10 rounded-2xl flex items-center gap-4 shadow-2xl shadow-black/20 hover:bg-black transition-all active:scale-95 group disabled:opacity-50"
+                >
+                  <div className="bg-[#5dc7ec] text-[#0c1424] h-7 w-7 rounded-lg flex items-center justify-center group-hover:rotate-90 transition-transform">
+                    <Plus size={18} strokeWidth={3} />
+                  </div>
+                  <span className="text-lg font-black uppercase tracking-wider">New Bill</span>
+                </button>
               </div>
-              <span className="text-lg font-black uppercase tracking-wider">New Bill</span>
-            </button>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-20">
-            <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex items-center gap-6">
-              <div className="h-14 w-14 rounded-2xl bg-[#0c1424] flex items-center justify-center text-[#5dc7ec]">
-                <ShoppingBag size={24} />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-20">
+                <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex items-center gap-6">
+                  <div className="h-14 w-14 rounded-2xl bg-[#0c1424] flex items-center justify-center text-[#5dc7ec]">
+                    <ShoppingBag size={24} />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Bills Today</div>
+                    <div className="text-3xl font-black text-[#0c1424]">12</div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex items-center gap-6">
+                  <div className="h-14 w-14 rounded-2xl bg-[#0c1424] flex items-center justify-center text-[#5dc7ec]">
+                    <LayoutGrid size={24} />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Revenue Today</div>
+                    <div className="text-3xl font-black text-[#0c1424]">$480.00</div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Bills Today</div>
-                <div className="text-3xl font-black text-[#0c1424]">12</div>
-              </div>
-            </div>
-            <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex items-center gap-6">
-              <div className="h-14 w-14 rounded-2xl bg-[#0c1424] flex items-center justify-center text-[#5dc7ec]">
-                <LayoutGrid size={24} />
-              </div>
-              <div>
-                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Revenue Today</div>
-                <div className="text-3xl font-black text-[#0c1424]">$480.00</div>
-              </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {mockBills.map((bill) => (
-              <BillCard key={bill.id} {...bill} />
-            ))}
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {mockBills.map((bill) => (
+                  <BillCard key={bill.id} {...bill} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-[13px] font-semibold text-amber-800">
+              Billing module is disabled for your role.
+            </div>
+          )}
         </div>
       </main>
 
@@ -166,10 +185,12 @@ export default function POSEntryScreen() {
               <LayoutGrid size={20} />
               <span className="text-[10px] font-black uppercase tracking-widest">Tables</span>
            </button>
-           <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-              <UtensilsCrossed size={20} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
-           </button>
+            {canAccessMenu && (
+             <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+               <UtensilsCrossed size={20} />
+               <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
+             </button>
+            )}
         </nav>
 
         <div className="flex items-center gap-6 h-full">
