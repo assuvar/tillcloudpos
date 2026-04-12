@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -26,6 +27,7 @@ type AuthenticatedUser = {
   id: string;
   email: string;
   fullName: string;
+  phone?: string | null;
   role: UserRole;
   restaurantId: string;
   onboardingCompleted: boolean;
@@ -48,6 +50,9 @@ type OtpSendResult = {
 type OtpVerifyResult = {
   success: boolean;
 };
+
+const MAX_PIN_ATTEMPTS = 5;
+const PIN_LOCKOUT_MS = 5 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -281,6 +286,7 @@ export class AuthService {
     id: string;
     email: string;
     fullName: string;
+    phone?: string | null;
     role: string;
     restaurantId: string;
     onboardingCompleted: boolean;
@@ -289,10 +295,18 @@ export class AuthService {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
+      phone: user.phone,
       role: user.role as UserRole,
       restaurantId: user.restaurantId,
       onboardingCompleted: user.onboardingCompleted,
     };
+  }
+
+  private async markLastLogin(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastLoginAt: new Date() },
+    });
   }
 
   private buildSessionPayload(user: AuthenticatedUser): UserSessionPayload {
@@ -336,12 +350,32 @@ export class AuthService {
     );
   }
 
+  private async findLoginCandidateByEmail(email: string) {
+    const users = await this.prisma.user.findMany({
+      where: { email },
+      include: { restaurant: true },
+      take: 2,
+    });
+
+    if (users.length === 0) {
+      return null;
+    }
+
+    if (users.length > 1) {
+      throw new UnauthorizedException(
+        'Multiple accounts found for this email. Please contact support.',
+      );
+    }
+
+    return users[0];
+  }
+
   async validateDashboardUser(
     email: string,
     password: string,
   ): Promise<AuthenticatedUser | null> {
     const normalizedEmail = email.trim().toLowerCase();
-    const user = await this.usersService.findByEmail(normalizedEmail);
+    const user = await this.findLoginCandidateByEmail(normalizedEmail);
 
     if (
       user &&
@@ -351,6 +385,7 @@ export class AuthService {
     ) {
       const isMatch = await bcrypt.compare(password, user.passwordHash);
       if (isMatch) {
+        await this.markLastLogin(user.id);
         return this.mapUser(user);
       }
     }
@@ -359,24 +394,94 @@ export class AuthService {
   }
 
   async validatePosUser(
-    email: string,
+    identifier: string,
     pin: string,
-  ): Promise<AuthenticatedUser | null> {
-    if (!/^\d{4}$/.test(pin)) {
-      return null;
+    selectedRole: 'MANAGER' | 'CASHIER',
+  ): Promise<AuthenticatedUser> {
+    if (!/^\d{4,6}$/.test(pin)) {
+      throw new UnauthorizedException('Invalid PIN');
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await this.usersService.findByEmail(normalizedEmail);
+    const normalizedIdentifier = identifier.trim();
+    const maybeEmail = normalizedIdentifier.toLowerCase();
 
-    if (user && user.isActive && user.pinHash && user.role === 'CASHIER') {
-      const isMatch = await bcrypt.compare(pin, user.pinHash);
-      if (isMatch) {
-        return this.mapUser(user);
+    const user = normalizedIdentifier.includes('@')
+      ? await this.findLoginCandidateByEmail(maybeEmail)
+      : await this.prisma.user.findUnique({
+          where: { id: normalizedIdentifier },
+          include: { restaurant: true },
+        });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const validForSelectedRole =
+      selectedRole === 'CASHIER'
+        ? user.role === 'CASHIER'
+        : user.role === 'MANAGER' || user.role === 'ADMIN';
+
+    if (!validForSelectedRole) {
+      throw new UnauthorizedException(
+        'Role does not match selected POS login type',
+      );
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('User is inactive');
+    }
+
+    if (!user.pinHash) {
+      throw new UnauthorizedException('PIN is not configured for this user');
+    }
+
+    if (user.pinLockedUntil && user.pinLockedUntil > new Date()) {
+      throw new UnauthorizedException(
+        'Account temporarily locked. Please try again later.',
+      );
+    }
+
+    const isMatch = await bcrypt.compare(pin, user.pinHash);
+    if (!isMatch) {
+      const nextAttempts = (user.pinFailedAttempts || 0) + 1;
+      const shouldLock = nextAttempts >= MAX_PIN_ATTEMPTS;
+      const lockedUntil = shouldLock
+        ? new Date(Date.now() + PIN_LOCKOUT_MS)
+        : null;
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          pinFailedAttempts: shouldLock ? 0 : nextAttempts,
+          pinLockedUntil: lockedUntil,
+        },
+      });
+
+      console.warn(
+        `[POS_PIN_FAILED] user=${user.id} attempts=${nextAttempts}${
+          shouldLock ? ' LOCKED' : ''
+        }`,
+      );
+
+      if (shouldLock) {
+        throw new UnauthorizedException(
+          'Account temporarily locked. Please try again later.',
+        );
       }
+
+      throw new UnauthorizedException('Invalid PIN');
     }
 
-    return null;
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: new Date(),
+        pinFailedAttempts: 0,
+        pinLockedUntil: null,
+      },
+    });
+
+    return this.mapUser(user);
   }
 
   login(user: AuthenticatedUser) {
@@ -595,8 +700,8 @@ export class AuthService {
   }
 
   async hashPin(pin: string): Promise<string> {
-    if (!/^\d{4}$/.test(pin)) {
-      throw new BadRequestException('PIN must be exactly 4 digits');
+    if (!/^\d{4,6}$/.test(pin)) {
+      throw new BadRequestException('PIN must be 4 to 6 digits');
     }
 
     return bcrypt.hash(pin, 10);
@@ -607,7 +712,11 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { pinHash },
+      data: {
+        pinHash,
+        pinFailedAttempts: 0,
+        pinLockedUntil: null,
+      },
     });
 
     return { success: true };

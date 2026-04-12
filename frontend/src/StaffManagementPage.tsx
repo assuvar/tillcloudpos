@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   Users, 
   UserCheck, 
@@ -9,8 +9,7 @@ import {
   Edit2, 
   Trash2, 
   Plus,
-  ChevronLeft,
-  ChevronRight
+  LockKeyhole,
 } from 'lucide-react';
 import InviteStaffModal from './InviteStaffModal';
 import { useAuth } from './context/AuthContext';
@@ -46,84 +45,179 @@ function StatCard({ title, value, subValue, icon, isActive }: StatCardProps) {
   );
 }
 
-const STAFF_DATA = [
-  {
-    id: 'TC-0482',
-    name: 'Marcus Kovac',
-    email: 'marcus.k@tillcloud.com',
-    role: 'ADMIN',
-    status: 'Active',
-    lastLogin: '2 mins ago',
-    initials: 'MK'
-  },
-  {
-    id: 'TC-0483',
-    name: 'Sarah Chen',
-    email: 's.chen@tillcloud.com',
-    role: 'CASHIER',
-    status: 'Active',
-    lastLogin: 'Yesterday, 4:15 PM',
-    initials: 'SC'
-  },
-  {
-    id: 'TC-0332',
-    name: 'Jamie Dawson',
-    email: 'j.dawson@tillcloud.com',
-    role: 'CASHIER',
-    status: 'Inactive',
-    lastLogin: 'Mar 12, 2024',
-    initials: 'JD'
+type StaffRecord = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
+  isActive: boolean;
+  lastLoginAt?: string | null;
+};
+
+type StaffFormPayload = {
+  name: string;
+  email: string;
+  phone?: string;
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
+};
+
+const formatLastLogin = (value?: string | null) => {
+  if (!value) {
+    return 'Never';
   }
-];
+  return new Date(value).toLocaleString();
+};
 
 export default function StaffManagementPage() {
   const { user } = useAuth();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [staffData, setStaffData] = useState<any[]>([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [staffData, setStaffData] = useState<StaffRecord[]>([]);
+  const [selectedStaff, setSelectedStaff] = useState<StaffRecord | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [latestCashierPin, setLatestCashierPin] = useState<{
+    staffId: string;
+    staffName: string;
+    pin: string;
+  } | null>(null);
+  const [pinVisible, setPinVisible] = useState(false);
 
   const fetchStaffData = async () => {
-    if (!user?.restaurantId) {
+    if (!user?.restaurantId || !user?.id) {
       return;
     }
 
+    setIsLoading(true);
+    setFetchError(null);
+
     try {
-      const response = await api.get(`/users/${user.restaurantId}`);
-      const users = response.data;
-      
-      // Validate response is an array
-      if (!Array.isArray(users)) {
+      const response = await api.get('/staff');
+      const records = response.data;
+
+      if (!Array.isArray(records)) {
         throw new Error('Invalid response from server');
       }
-      
-      const formattedStaff = users.map((u: any) => ({
-        id: u.id,
-        name: u.fullName,
-        email: u.email,
-        role: u.role,
-        status: u.isActive ? 'Active' : 'Inactive',
-        lastLogin: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : 'Never',
-        initials: u.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
-      }));
-      
-      setStaffData(formattedStaff);
+
+      setStaffData(records);
     } catch (err: any) {
       console.error('Failed to fetch staff:', err);
+      const message = err?.response?.data?.message;
+      setFetchError(
+        Array.isArray(message) ? message.join(', ') : message || 'Failed to load staff data',
+      );
       setStaffData([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStaffData();
+    void fetchStaffData();
   }, [user?.restaurantId]);
 
-  // Use real data if available, fallback to mock
-  const displayData = staffData.length > 0 ? staffData : STAFF_DATA;
+  const staffRows = useMemo(
+    () =>
+      staffData.map((s) => ({
+        ...s,
+        status: s.isActive ? 'Active' : 'Inactive',
+        lastLogin: formatLastLogin(s.lastLoginAt),
+        initials: s.name
+          .split(' ')
+          .filter(Boolean)
+          .map((n) => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2),
+      })),
+    [staffData],
+  );
 
-  // Calculate stats from real data
-  const totalMembers = displayData.length;
-  const activeMembers = displayData.filter((s) => s.status === 'Active').length;
-  const adminCount = displayData.filter((s) => s.role === 'ADMIN').length;
-  const cashierCount = displayData.filter((s) => s.role === 'CASHIER').length;
+  const totalMembers = staffRows.length;
+  const activeMembers = staffRows.filter((s) => s.isActive).length;
+  const adminCount = staffRows.filter((s) => s.role === 'ADMIN').length;
+  const cashierCount = staffRows.filter((s) => s.role === 'CASHIER').length;
+
+  const extractErrorMessage = (err: any, fallback: string) => {
+    const message = err?.response?.data?.message;
+    if (Array.isArray(message)) {
+      return message.join(', ');
+    }
+    return message || fallback;
+  };
+
+  const handleCreateStaff = async (payload: StaffFormPayload) => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      const response = await api.post('/staff', payload);
+      await fetchStaffData();
+      setIsInviteModalOpen(false);
+      const pin = response?.data?.generatedPin;
+      const createdStaff = response?.data?.staff;
+      if (pin && createdStaff?.role === 'CASHIER') {
+        setLatestCashierPin({
+          staffId: createdStaff.id,
+          staffName: createdStaff.name,
+          pin,
+        });
+        setPinVisible(false);
+      }
+    } catch (err: any) {
+      setSubmitError(extractErrorMessage(err, 'Failed to create staff member'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditStaff = async (payload: StaffFormPayload) => {
+    if (!selectedStaff) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await api.patch(`/staff/${selectedStaff.id}`, payload);
+      await fetchStaffData();
+      setIsEditModalOpen(false);
+      setSelectedStaff(null);
+    } catch (err: any) {
+      setSubmitError(extractErrorMessage(err, 'Failed to update staff member'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const performRowAction = async (
+    staffId: string,
+    action: () => Promise<void>,
+    fallbackMessage: string,
+  ) => {
+    setActionLoadingId(staffId);
+    try {
+      await action();
+      await fetchStaffData();
+    } catch (err: any) {
+      window.alert(extractErrorMessage(err, fallbackMessage));
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const openEditModal = (staff: StaffRecord) => {
+    if (staff.role === 'ADMIN') {
+      window.alert('Admin account cannot be edited here.');
+      return;
+    }
+    setSelectedStaff(staff);
+    setSubmitError(null);
+    setIsEditModalOpen(true);
+  };
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-500">
@@ -153,6 +247,47 @@ export default function StaffManagementPage() {
         <StatCard title="Cashiers" value={cashierCount} icon={<Wallet size={20} />} />
       </div>
 
+      {latestCashierPin && (
+        <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-4 sm:px-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-amber-700">Cashier credentials</p>
+              <p className="text-[14px] font-bold text-amber-900 mt-1">
+                {latestCashierPin.staffName} ({latestCashierPin.staffId})
+              </p>
+              <p className="text-[13px] font-semibold text-amber-800 mt-1">
+                PIN: {pinVisible ? latestCashierPin.pin : '••••••'}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPinVisible((prev) => !prev)}
+                className="h-10 rounded-xl border border-amber-300 bg-white px-4 text-[11px] font-black uppercase tracking-widest text-amber-800"
+              >
+                {pinVisible ? 'Hide PIN' : 'Show PIN'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(latestCashierPin.pin);
+                }}
+                className="h-10 rounded-xl border border-amber-300 bg-white px-4 text-[11px] font-black uppercase tracking-widest text-amber-800"
+              >
+                Copy PIN
+              </button>
+              <button
+                type="button"
+                onClick={() => setLatestCashierPin(null)}
+                className="h-10 rounded-xl border border-amber-300 bg-white px-4 text-[11px] font-black uppercase tracking-widest text-amber-800"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Staff Directory Table */}
       <div className="flex flex-col overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm">
         {/* Table Toolbar */}
@@ -165,13 +300,18 @@ export default function StaffManagementPage() {
              </button>
              <button className="h-10 px-6 rounded-xl bg-white border border-slate-200 text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm">
                <Download size={14} />
-               Export CSV
+               Staff Export
              </button>
           </div>
         </div>
 
         {/* Table Content */}
         <div className="overflow-x-auto">
+          {fetchError && (
+            <div className="mx-4 mt-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-[13px] font-semibold text-rose-600 sm:mx-8">
+              {fetchError}
+            </div>
+          )}
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-50 bg-slate-50/10">
@@ -184,7 +324,20 @@ export default function StaffManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {displayData.map((staff) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-8 py-10 text-center text-[14px] font-semibold text-slate-400">
+                    Loading staff data...
+                  </td>
+                </tr>
+              ) : staffRows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-8 py-10 text-center text-[14px] font-semibold text-slate-400">
+                    No staff members yet. Add your first staff member to start assigning roles and PIN access.
+                  </td>
+                </tr>
+              ) : (
+              staffRows.map((staff) => (
                 <tr key={staff.id} className="group hover:bg-slate-50/50 transition-colors">
                   <td className="py-6 px-4 sm:px-8">
                     <div className="flex items-center gap-4">
@@ -218,45 +371,137 @@ export default function StaffManagementPage() {
                   </td>
                   <td className="py-6 px-4 sm:px-8">
                     <div className="flex items-center justify-end gap-2">
-                      <button className="h-10 w-10 rounded-xl text-slate-300 hover:text-[#0c1424] hover:bg-slate-50 transition-all flex items-center justify-center">
+                      <button
+                        onClick={() => openEditModal(staff)}
+                        disabled={actionLoadingId === staff.id || staff.role === 'ADMIN'}
+                        className="h-10 w-10 rounded-xl text-slate-300 hover:text-[#0c1424] hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-40"
+                      >
                         <Edit2 size={16} />
                       </button>
-                      <button className="h-10 w-10 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center">
+                      <button
+                        onClick={() => {
+                          if (staff.role === 'ADMIN') {
+                            window.alert('Admin account cannot be deleted here.');
+                            return;
+                          }
+                          if (!window.confirm(`Delete ${staff.name}? This action cannot be undone.`)) {
+                            return;
+                          }
+                          void performRowAction(
+                            staff.id,
+                            async () => {
+                              await api.delete(`/staff/${staff.id}`);
+                            },
+                            'Failed to delete staff member',
+                          );
+                        }}
+                        disabled={actionLoadingId === staff.id || staff.role === 'ADMIN'}
+                        className="h-10 w-10 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center disabled:opacity-40"
+                      >
                         <Trash2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (staff.role === 'ADMIN') {
+                            window.alert('Admin account cannot be updated here.');
+                            return;
+                          }
+                          const nextAction = staff.isActive ? 'deactivate' : 'activate';
+                          if (!window.confirm(`Are you sure you want to ${nextAction} ${staff.name}?`)) {
+                            return;
+                          }
+                          void performRowAction(
+                            staff.id,
+                            async () => {
+                              await api.patch(
+                                `/staff/${staff.id}/${staff.isActive ? 'deactivate' : 'activate'}`,
+                              );
+                            },
+                            `Failed to ${nextAction} staff member`,
+                          );
+                        }}
+                        disabled={actionLoadingId === staff.id || staff.role === 'ADMIN'}
+                        className="h-10 px-3 rounded-xl text-slate-300 hover:text-[#0c1424] hover:bg-slate-50 transition-all flex items-center justify-center text-[11px] font-black uppercase tracking-widest disabled:opacity-40"
+                      >
+                        {staff.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (staff.role === 'ADMIN') {
+                            window.alert('Admin PIN reset is restricted.');
+                            return;
+                          }
+                          if (!window.confirm(`Reset PIN for ${staff.name}?`)) {
+                            return;
+                          }
+                          void performRowAction(
+                            staff.id,
+                            async () => {
+                              const response = await api.patch(`/staff/${staff.id}/pin`);
+                              const pin = response?.data?.generatedPin;
+                              if (pin && staff.role === 'CASHIER') {
+                                setLatestCashierPin({
+                                  staffId: staff.id,
+                                  staffName: staff.name,
+                                  pin,
+                                });
+                                setPinVisible(false);
+                              }
+                            },
+                            'Failed to reset PIN',
+                          );
+                        }}
+                        disabled={actionLoadingId === staff.id || staff.role === 'ADMIN'}
+                        className="h-10 w-10 rounded-xl text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition-all flex items-center justify-center disabled:opacity-40"
+                      >
+                        <LockKeyhole size={16} />
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="flex flex-col items-start justify-between gap-4 border-t border-slate-50 p-4 sm:flex-row sm:items-center sm:p-8">
+        <div className="flex items-center justify-between border-t border-slate-50 p-4 sm:p-8">
            <span className="text-[12px] font-bold text-slate-400">
-             Showing 1-3 of 24 staff members
+             {totalMembers === 0
+               ? 'No staff records found'
+               : `Showing ${totalMembers} staff member${totalMembers > 1 ? 's' : ''}`}
            </span>
-           <div className="flex items-center gap-2 self-end sm:self-auto">
-              <button className="h-9 w-9 rounded-xl border border-slate-100 flex items-center justify-center text-slate-300 hover:bg-slate-50 transition-colors">
-                <ChevronLeft size={16} />
-              </button>
-              <button className="h-9 w-9 rounded-xl bg-[#0c1424] text-white text-[12px] font-black flex items-center justify-center shadow-lg shadow-black/10">1</button>
-              <button className="h-9 w-9 rounded-xl border border-slate-100 text-[#0c1424] text-[12px] font-black flex items-center justify-center hover:bg-slate-50 transition-colors">2</button>
-              <button className="h-9 w-9 rounded-xl border border-slate-100 flex items-center justify-center text-[#0c1424] hover:bg-slate-50 transition-colors">
-                <ChevronRight size={16} />
-              </button>
-           </div>
         </div>
       </div>
 
       <InviteStaffModal 
         isOpen={isInviteModalOpen} 
         onClose={() => setIsInviteModalOpen(false)} 
-        onInvite={(data) => {
-          console.log('Inviting staff:', data);
-          // Here you would typically call an API
+        mode="create"
+        onInvite={handleCreateStaff}
+        submitError={submitError}
+        isSubmitting={isSubmitting}
+      />
+
+      <InviteStaffModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedStaff(null);
         }}
+        mode="edit"
+        initialValues={
+          selectedStaff
+            ? {
+                name: selectedStaff.name,
+                email: selectedStaff.email,
+                phone: selectedStaff.phone || '',
+                role: selectedStaff.role,
+              }
+            : undefined
+        }
+        onInvite={handleEditStaff}
+        submitError={submitError}
+        isSubmitting={isSubmitting}
       />
     </div>
   );

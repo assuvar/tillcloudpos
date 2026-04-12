@@ -19,8 +19,12 @@ import {
   CheckCircle2,
   ChevronDown,
   TrendingUp,
-  Bell
+   Bell,
+   UserCog
 } from 'lucide-react';
+import PermissionsPage from './PermissionsPage';
+import { useAuth } from './context/AuthContext';
+import { FRONTEND_PERMISSIONS } from './permissions';
 
 /* --- Sub-Components --- */
 
@@ -694,10 +698,18 @@ const SMSCredits = () => (
 
 /* --- Main Settings Module --- */
 
-type SettingType = 'profile' | 'tax' | 'payment' | 'loyalty' | 'sms' | 'terminals';
+type SettingType =
+   | 'profile'
+   | 'permissions'
+   | 'tax'
+   | 'payment'
+   | 'loyalty'
+   | 'sms'
+   | 'terminals';
 
 export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState<SettingType>('profile');
+   const { user, hasPermission } = useAuth();
 
   // Handle cross-component navigation within settings
    useEffect(() => {
@@ -708,12 +720,59 @@ export default function SettingsPage() {
 
   const navItems = [
     { id: 'profile', label: 'Restaurant profile', icon: Building2 },
+      { id: 'permissions', label: 'Permissions', icon: UserCog },
     { id: 'tax', label: 'Tax Configuration', icon: Receipt },
     { id: 'payment', label: 'Payment methods', icon: Wallet },
     { id: 'loyalty', label: 'Loyalty Program', icon: Star },
     { id: 'sms', label: 'SMS Credits', icon: MessageSquare },
     { id: 'terminals', label: 'Terminals', icon: Monitor },
   ];
+
+   const isAdmin = user?.role === 'ADMIN';
+   const hasSettingsView = isAdmin || hasPermission(FRONTEND_PERMISSIONS.SETTINGS_VIEW);
+
+   const visibleNavItems = navItems.filter((item) => {
+      if (isAdmin) {
+         return true;
+      }
+
+      if (!hasSettingsView) {
+         return false;
+      }
+
+      if (item.id === 'profile') {
+         return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_EDIT_PROFILE);
+      }
+      if (item.id === 'permissions') {
+         return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_CONFIGURE_PERMISSIONS);
+      }
+      if (item.id === 'tax') {
+         return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_EDIT_TAX);
+      }
+      if (item.id === 'payment') {
+         return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_TYRO);
+      }
+      if (item.id === 'loyalty') {
+         return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_EDIT_LOYALTY);
+      }
+      if (item.id === 'sms') {
+         return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_SMS_CREDITS);
+      }
+      if (item.id === 'terminals') {
+         return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_TERMINALS);
+      }
+
+      return false;
+   });
+
+   useEffect(() => {
+      if (!visibleNavItems.some((item) => item.id === activeSetting)) {
+         const fallbackSetting = visibleNavItems[0]?.id as SettingType | undefined;
+         if (fallbackSetting) {
+            setActiveSetting(fallbackSetting);
+         }
+      }
+   }, [activeSetting, visibleNavItems]);
 
   return (
    <div className="flex min-h-[calc(100vh-140px)] flex-col overflow-hidden rounded-[40px] border border-slate-100 bg-[#f8fafc] shadow-sm lg:-m-8 lg:h-[calc(100vh-140px)] lg:flex-row">
@@ -723,7 +782,7 @@ export default function SettingsPage() {
              <div className="space-y-4">
                 <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] px-4">CONFIGURATION</h3>
                 <div className="space-y-1">
-                  {navItems.map(item => (
+                           {visibleNavItems.map(item => (
                      <button
                       key={item.id}
                       onClick={() => setActiveSetting(item.id as SettingType)}
@@ -742,6 +801,7 @@ export default function SettingsPage() {
        <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-5 sm:p-8 lg:p-12">
           <div className="mx-auto max-w-[1200px]">
              {activeSetting === 'profile' && <RestaurantProfile />}
+             {activeSetting === 'permissions' && <PermissionsPage />}
              {activeSetting === 'terminals' && <TerminalManagement />}
              {activeSetting === 'tax' && <TaxConfiguration />}
              {activeSetting === 'payment' && <PaymentMethods />}

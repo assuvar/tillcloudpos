@@ -36,6 +36,7 @@ import StockListPage from "./StockListPage";
 import CustomersPage from "./CustomersPage";
 import ReportsPage from "./ReportsPage";
 import SettingsPage from "./SettingsPage";
+import { getAccessibleDashboardViews } from "./dashboardNavigation";
 
 interface StatCardProps {
   title: string;
@@ -103,10 +104,12 @@ function StatCard({
 function SidebarIcon({
   icon: Icon,
   active = false,
+  label,
   onClick,
 }: {
   icon: any;
   active?: boolean;
+  label?: string;
   onClick?: () => void;
 }) {
   return (
@@ -119,12 +122,13 @@ function SidebarIcon({
       }`}
     >
       <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+      {label ? <span className="sr-only">{label}</span> : null}
     </button>
   );
 }
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasModuleAccess, permissionsLoading } = useAuth();
   const navigate = useNavigate();
   const [terminalLaunched, setTerminalLaunched] = useState<boolean>(() => {
     return localStorage.getItem("terminalLaunched") === "true";
@@ -132,6 +136,39 @@ export default function Dashboard() {
   const [isLaunching, setIsLaunching] = useState(false);
   const [currentView, setCurrentView] = useState<'home' | 'menu' | 'staff' | 'orders' | 'inventory' | 'customers' | 'analytics' | 'settings' | 'reports'>('home');
   const [realStaff, setRealStaff] = useState<any[]>([]);
+
+  const isAdmin = user?.role === 'ADMIN';
+  const accessibleViews = getAccessibleDashboardViews(
+    user?.role,
+    hasModuleAccess,
+  ).map((item) => ({
+    ...item,
+    icon:
+      item.id === 'home'
+        ? Home
+        : item.id === 'orders'
+          ? LayoutGrid
+          : item.id === 'menu'
+            ? Utensils
+            : item.id === 'staff'
+              ? Users
+              : item.id === 'inventory'
+                ? Package
+                : item.id === 'customers'
+                  ? User
+                  : item.id === 'reports'
+                    ? BarChart3
+                    : Settings,
+  }));
+
+  useEffect(() => {
+    if (!permissionsLoading && !accessibleViews.some((item) => item.id === currentView)) {
+      const fallbackView = accessibleViews[0]?.id;
+      if (fallbackView) {
+        setCurrentView(fallbackView);
+      }
+    }
+  }, [accessibleViews, currentView, permissionsLoading]);
 
   const fetchStaff = async () => {
     if (!user?.restaurantId) {
@@ -212,7 +249,7 @@ export default function Dashboard() {
     // ... more demo users if needed
   ];
 
-  if (!terminalLaunched) {
+  if (!terminalLaunched && isAdmin) {
     return (
       <div className="min-h-screen bg-[#f8fafc] font-sans text-[14px] text-slate-900">
         {/* Sidebar */}
@@ -475,16 +512,17 @@ export default function Dashboard() {
           <Cloud size={24} strokeWidth={2.5} />
         </div>
 
-        <nav className="flex flex-row gap-2 lg:flex-col lg:gap-6">
-          <SidebarIcon icon={Home} active={currentView === 'home'} onClick={() => setCurrentView('home')} />
-          <SidebarIcon icon={LayoutGrid} active={currentView === 'orders'} onClick={() => setCurrentView('orders')} />
-          <SidebarIcon icon={Utensils} active={currentView === 'menu'} onClick={() => setCurrentView('menu')} />
-          <SidebarIcon icon={Users} active={currentView === 'staff'} onClick={() => setCurrentView('staff')} />
-          <SidebarIcon icon={Package} active={currentView === 'inventory'} onClick={() => setCurrentView('inventory')} />
-          <SidebarIcon icon={User} active={currentView === 'customers'} onClick={() => setCurrentView('customers')} />
-          <SidebarIcon icon={BarChart3} active={currentView === 'reports'} onClick={() => setCurrentView('reports')} />
-          <SidebarIcon icon={Settings} active={currentView === 'settings'} onClick={() => setCurrentView('settings')} />
-        </nav>
+          <nav className="flex flex-row gap-2 lg:flex-col lg:gap-6">
+            {accessibleViews.map((item) => (
+              <SidebarIcon
+                key={item.id}
+                icon={item.icon}
+                active={currentView === item.id}
+                label={item.label}
+                onClick={() => setCurrentView(item.id)}
+              />
+            ))}
+          </nav>
 
         <div className="mt-auto hidden flex-col items-center gap-6 lg:flex">
           <div className="h-10 w-10 rounded-full bg-slate-800 border border-white/10 overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#5dc7ec] transition-all">
@@ -521,7 +559,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {currentView === 'home' && (
+        {currentView === 'home' && isAdmin && (
           <>
             {/* Dash Title */}
             <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between lg:mb-10">
@@ -766,6 +804,15 @@ export default function Dashboard() {
         )}
         {currentView === 'settings' && (
           <SettingsPage />
+        )}
+
+        {!permissionsLoading && !isAdmin && accessibleViews.length === 0 && (
+          <div className="rounded-[28px] border border-slate-100 bg-white p-8 shadow-sm">
+            <h2 className="text-xl font-black text-[#0c1424]">No modules enabled</h2>
+            <p className="mt-2 text-sm font-medium text-slate-500">
+              Your role currently has no enabled modules. Contact an admin to update role permissions.
+            </p>
+          </div>
         )}
       </main>
     </div>

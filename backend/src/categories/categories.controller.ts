@@ -16,6 +16,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { PERMISSIONS } from '../auth/permissions/permissions.constants';
 
 // Helper function to get restaurantId from request context
 const getRestaurantId = (req: any): string => {
@@ -43,6 +45,7 @@ export class CategoriesController {
    * POST /categories
    */
   @Post()
+  @RequirePermissions(PERMISSIONS.MENU_MANAGE)
   async create(@Body() createCategoryDto: CreateCategoryDto, @Req() req: any) {
     try {
       createCategoryDto.restaurantId = getRestaurantId(req);
@@ -60,6 +63,7 @@ export class CategoriesController {
    * GET /categories
    */
   @Get()
+  @RequirePermissions(PERMISSIONS.MENU_VIEW)
   async findAll(@Req() req: any) {
     try {
       const restaurantId = getRestaurantId(req);
@@ -77,6 +81,7 @@ export class CategoriesController {
    * GET /categories/:id
    */
   @Get(':id')
+  @RequirePermissions(PERMISSIONS.MENU_VIEW)
   async findOne(@Param('id') id: string, @Req() req: any) {
     try {
       const restaurantId = getRestaurantId(req);
@@ -94,6 +99,7 @@ export class CategoriesController {
    * PATCH /categories/:id
    */
   @Patch(':id')
+  @RequirePermissions(PERMISSIONS.MENU_MANAGE)
   async update(
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
@@ -119,6 +125,7 @@ export class CategoriesController {
    * DELETE /categories/:id
    */
   @Delete(':id')
+  @RequirePermissions(PERMISSIONS.MENU_MANAGE)
   async remove(@Param('id') id: string, @Req() req: any) {
     try {
       const restaurantId = getRestaurantId(req);
@@ -136,6 +143,7 @@ export class CategoriesController {
    * POST /categories/reorder
    */
   @Post('reorder')
+  @RequirePermissions(PERMISSIONS.MENU_MANAGE)
   async reorder(
     @Body() { categoryIds }: { categoryIds: string[] },
     @Req() req: any,
