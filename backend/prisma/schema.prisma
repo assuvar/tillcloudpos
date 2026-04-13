@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -36,10 +36,13 @@ model Restaurant {
   updatedAt        DateTime        @updatedAt
   bills            Bill[]
   customers        Customer[]
+  ingredients      Ingredient[]
+  ingredientMoves  IngredientMovement[]
   inventoryItems   InventoryItem[]
   inviteTokens     InviteToken[]
   menuCategories   MenuCategory[]
   menuItems        MenuItem[]
+  pinAuditLogs     PinAuditLog[]
   smsLogs          SmsLog[]
   terminals        Terminal[]
   users            User[]
@@ -57,6 +60,7 @@ model User {
   phone        String?
   passwordHash String?
   pinHash      String?
+  pinEncrypted String?
   role         UserRole      @default(CASHIER)
   isActive            Boolean       @default(true)
   pinFailedAttempts   Int           @default(0)
@@ -149,10 +153,63 @@ model MenuItem {
   updatedAt      DateTime       @updatedAt
   billItems      BillItem[]
   inventoryItem  InventoryItem?
+  recipeItems    RecipeItem[]
   category       MenuCategory   @relation(fields: [categoryId], references: [id])
   restaurant     Restaurant     @relation(fields: [restaurantId], references: [id])
 
   @@map("menu_items")
+}
+
+model Ingredient {
+  id                String               @id @default(cuid())
+  restaurantId      String
+  name              String
+  unit              String               @default("units")
+  quantity          Decimal              @default(0) @db.Decimal(10, 3)
+  lowStockThreshold Decimal              @default(0) @db.Decimal(10, 3)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  restaurant        Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  recipeItems       RecipeItem[]
+  movements         IngredientMovement[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@map("ingredients")
+}
+
+model RecipeItem {
+  id           String     @id @default(cuid())
+  menuItemId   String
+  ingredientId String
+  quantity     Decimal    @db.Decimal(10, 3)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, ingredientId])
+  @@index([ingredientId])
+  @@map("recipe_items")
+}
+
+model IngredientMovement {
+  id             String                 @id @default(cuid())
+  ingredientId   String
+  restaurantId   String
+  type           IngredientMovementType
+  quantityChange Decimal                @db.Decimal(10, 3)
+  quantityAfter  Decimal                @db.Decimal(10, 3)
+  reason         String?
+  referenceId    String?
+  performedById  String?
+  createdAt      DateTime               @default(now())
+  ingredient     Ingredient             @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  restaurant     Restaurant             @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, createdAt])
+  @@index([ingredientId, createdAt])
+  @@map("ingredient_movements")
 }
 
 model InventoryItem {
@@ -346,6 +403,23 @@ model SmsLog {
   @@map("sms_logs")
 }
 
+model PinAuditLog {
+  id           String          @id @default(cuid())
+  restaurantId String
+  actorUserId  String
+  staffUserId  String
+  action       PinAction
+  status       PinActionStatus
+  reason       String?
+  createdAt    DateTime        @default(now())
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, createdAt])
+  @@index([staffUserId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("pin_audit_logs")
+}
+
 enum UserRole {
   ADMIN
   MANAGER
@@ -416,10 +490,27 @@ enum InventoryMovementType {
   ADJUSTMENT
 }
 
+enum IngredientMovementType {
+  MANUAL_ADD
+  MANUAL_REMOVE
+  SET_FIXED
+  ORDER_DEDUCTION
+}
+
 enum LoyaltyTransactionType {
   EARN
   REDEEM
   MANUAL_ADD
   MANUAL_DEDUCT
   EXPIRE
+}
+
+enum PinAction {
+  VIEW
+  RESET
+}
+
+enum PinActionStatus {
+  SUCCESS
+  FAILED
 }

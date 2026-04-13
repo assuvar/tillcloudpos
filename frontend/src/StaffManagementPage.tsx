@@ -62,6 +62,18 @@ type StaffFormPayload = {
   role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
 };
 
+type PinAuditLog = {
+  id: string;
+  actorUserId: string;
+  actorName: string;
+  staffUserId: string;
+  staffName: string;
+  action: 'VIEW' | 'RESET';
+  status: 'SUCCESS' | 'FAILED';
+  reason?: string | null;
+  createdAt: string;
+};
+
 const formatLastLogin = (value?: string | null) => {
   if (!value) {
     return 'Never';
@@ -80,12 +92,19 @@ export default function StaffManagementPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [latestCashierPin, setLatestCashierPin] = useState<{
+  const [latestStaffPin, setLatestStaffPin] = useState<{
     staffId: string;
     staffName: string;
+    staffRole: StaffRecord['role'];
     pin: string;
   } | null>(null);
   const [pinVisible, setPinVisible] = useState(false);
+  const [pinResetTarget, setPinResetTarget] = useState<StaffRecord | null>(null);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [pinResetError, setPinResetError] = useState<string | null>(null);
+  const [pinAuditLogs, setPinAuditLogs] = useState<PinAuditLog[]>([]);
+  const [pinAuditLoading, setPinAuditLoading] = useState(false);
+  const [pinAuditError, setPinAuditError] = useState<string | null>(null);
 
   const fetchStaffData = async () => {
     if (!user?.restaurantId || !user?.id) {
@@ -150,6 +169,36 @@ export default function StaffManagementPage() {
     return message || fallback;
   };
 
+  const fetchPinAuditLogs = async () => {
+    if (!user?.restaurantId || user.role !== 'ADMIN') {
+      setPinAuditLogs([]);
+      setPinAuditError(null);
+      return;
+    }
+
+    setPinAuditLoading(true);
+    setPinAuditError(null);
+    try {
+      const response = await api.get('/staff/pin-audit-logs', {
+        params: { limit: 20 },
+      });
+      const records = response?.data;
+      if (!Array.isArray(records)) {
+        throw new Error('Invalid audit log response');
+      }
+      setPinAuditLogs(records);
+    } catch (err: any) {
+      setPinAuditError(extractErrorMessage(err, 'Failed to load PIN audit logs'));
+      setPinAuditLogs([]);
+    } finally {
+      setPinAuditLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchPinAuditLogs();
+  }, [user?.restaurantId, user?.role]);
+
   const handleCreateStaff = async (payload: StaffFormPayload) => {
     setIsSubmitting(true);
     setSubmitError(null);
@@ -159,13 +208,14 @@ export default function StaffManagementPage() {
       setIsInviteModalOpen(false);
       const pin = response?.data?.generatedPin;
       const createdStaff = response?.data?.staff;
-      if (pin && createdStaff?.role === 'CASHIER') {
-        setLatestCashierPin({
+      if (pin && createdStaff) {
+        setLatestStaffPin({
           staffId: createdStaff.id,
           staffName: createdStaff.name,
+          staffRole: createdStaff.role,
           pin,
         });
-        setPinVisible(false);
+        setPinVisible(true);
       }
     } catch (err: any) {
       setSubmitError(extractErrorMessage(err, 'Failed to create staff member'));
@@ -219,6 +269,114 @@ export default function StaffManagementPage() {
     setIsEditModalOpen(true);
   };
 
+  const openPinResetModal = (staff: StaffRecord) => {
+    if (user?.role !== 'ADMIN') {
+      window.alert('Only admins can view or reset staff PINs.');
+      return;
+    }
+    if (staff.role === 'ADMIN') {
+      window.alert('Admin PIN reset is restricted.');
+      return;
+    }
+    setPinResetTarget(staff);
+    setAdminPassword('');
+    setPinResetError(null);
+  };
+
+  const closePinResetModal = () => {
+    if (actionLoadingId) {
+      return;
+    }
+    setPinResetTarget(null);
+    setAdminPassword('');
+    setPinResetError(null);
+  };
+
+  const confirmPinReset = async () => {
+    if (!pinResetTarget) {
+      return;
+    }
+
+    if (!adminPassword.trim()) {
+      setPinResetError('Admin password is required to reset a PIN.');
+      return;
+    }
+
+    setPinResetError(null);
+    setActionLoadingId(pinResetTarget.id);
+    try {
+      const response = await api.post(`/staff/${pinResetTarget.id}/pin/reset`, {
+        adminPassword,
+      });
+      const pin = response?.data?.generatedPin;
+      if (pin) {
+        setLatestStaffPin({
+          staffId: pinResetTarget.id,
+          staffName: pinResetTarget.name,
+          staffRole: pinResetTarget.role,
+          pin,
+        });
+        setPinVisible(true);
+      }
+      setPinResetTarget(null);
+      setAdminPassword('');
+      await fetchStaffData();
+      await fetchPinAuditLogs();
+    } catch (err: any) {
+      setPinResetError(extractErrorMessage(err, 'Failed to reset PIN'));
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const confirmViewPin = async () => {
+    if (!pinResetTarget) {
+      return;
+    }
+
+    if (!adminPassword.trim()) {
+      setPinResetError('Admin password is required to view a PIN.');
+      return;
+    }
+
+    setPinResetError(null);
+    setActionLoadingId(pinResetTarget.id);
+    try {
+      const response = await api.post(`/staff/${pinResetTarget.id}/pin/reveal`, {
+        adminPassword,
+      });
+
+      const pin = response?.data?.pin;
+      if (pin) {
+        setLatestStaffPin({
+          staffId: pinResetTarget.id,
+          staffName: pinResetTarget.name,
+          staffRole: pinResetTarget.role,
+          pin,
+        });
+        setPinVisible(true);
+      } else {
+        setPinResetError(
+          response?.data?.message ||
+            'PIN is not available for this staff member. Use Reset PIN to create a new one.',
+        );
+        return;
+      }
+      setPinResetTarget(null);
+      setAdminPassword('');
+      await fetchPinAuditLogs();
+    } catch (err: any) {
+      setPinResetError(
+        extractErrorMessage(
+          err,
+          'Failed to view PIN. Make sure backend is restarted with the latest staff PIN reveal route.',
+        ),
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-500">
       {/* Header Section */}
@@ -239,6 +397,68 @@ export default function StaffManagementPage() {
         </button>
       </div>
 
+      {user?.role === 'ADMIN' && (
+        <div className="flex flex-col overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm">
+          <div className="border-b border-slate-50 bg-slate-50/30 px-4 py-5 sm:px-8">
+            <h2 className="text-lg font-black text-[#0c1424]">PIN Audit History</h2>
+            <p className="mt-1 text-[12px] font-semibold text-slate-500">
+              Recent staff PIN view and reset activity.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            {pinAuditError && (
+              <div className="mx-4 mt-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-[13px] font-semibold text-rose-600 sm:mx-8">
+                {pinAuditError}
+              </div>
+            )}
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-50 bg-slate-50/10">
+                  <th className="text-left py-5 px-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time</th>
+                  <th className="text-left py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</th>
+                  <th className="text-left py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                  <th className="text-left py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Admin</th>
+                  <th className="text-left py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Staff</th>
+                  <th className="text-left py-5 px-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {pinAuditLoading ? (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-8 text-center text-[13px] font-semibold text-slate-400">
+                      Loading PIN audit logs...
+                    </td>
+                  </tr>
+                ) : pinAuditLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-8 text-center text-[13px] font-semibold text-slate-400">
+                      No PIN audit records yet.
+                    </td>
+                  </tr>
+                ) : (
+                  pinAuditLogs.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-slate-50/40 transition-colors">
+                      <td className="py-4 px-8 text-[12px] font-semibold text-slate-500">
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </td>
+                      <td className="py-4 px-4 text-[12px] font-black text-[#0c1424]">{entry.action}</td>
+                      <td className="py-4 px-4">
+                        <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${entry.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                          {entry.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-[12px] font-semibold text-slate-500">{entry.actorName}</td>
+                      <td className="py-4 px-4 text-[12px] font-semibold text-slate-500">{entry.staffName}</td>
+                      <td className="py-4 px-8 text-[12px] font-semibold text-slate-400">{entry.reason || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Members" value={totalMembers} icon={<Users size={20} />} />
@@ -247,16 +467,16 @@ export default function StaffManagementPage() {
         <StatCard title="Cashiers" value={cashierCount} icon={<Wallet size={20} />} />
       </div>
 
-      {latestCashierPin && (
+      {latestStaffPin && (
         <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-4 sm:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-widest text-amber-700">Cashier credentials</p>
+              <p className="text-[11px] font-black uppercase tracking-widest text-amber-700">Staff credentials</p>
               <p className="text-[14px] font-bold text-amber-900 mt-1">
-                {latestCashierPin.staffName} ({latestCashierPin.staffId})
+                {latestStaffPin.staffName} ({latestStaffPin.staffRole})
               </p>
               <p className="text-[13px] font-semibold text-amber-800 mt-1">
-                PIN: {pinVisible ? latestCashierPin.pin : '••••••'}
+                PIN: {pinVisible ? latestStaffPin.pin : '••••••'}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -270,7 +490,7 @@ export default function StaffManagementPage() {
               <button
                 type="button"
                 onClick={() => {
-                  void navigator.clipboard.writeText(latestCashierPin.pin);
+                  void navigator.clipboard.writeText(latestStaffPin.pin);
                 }}
                 className="h-10 rounded-xl border border-amber-300 bg-white px-4 text-[11px] font-black uppercase tracking-widest text-amber-800"
               >
@@ -278,7 +498,7 @@ export default function StaffManagementPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setLatestCashierPin(null)}
+                onClick={() => setLatestStaffPin(null)}
                 className="h-10 rounded-xl border border-amber-300 bg-white px-4 text-[11px] font-black uppercase tracking-widest text-amber-800"
               >
                 Dismiss
@@ -427,31 +647,13 @@ export default function StaffManagementPage() {
                       </button>
                       <button
                         onClick={() => {
-                          if (staff.role === 'ADMIN') {
-                            window.alert('Admin PIN reset is restricted.');
-                            return;
-                          }
-                          if (!window.confirm(`Reset PIN for ${staff.name}?`)) {
-                            return;
-                          }
-                          void performRowAction(
-                            staff.id,
-                            async () => {
-                              const response = await api.patch(`/staff/${staff.id}/pin`);
-                              const pin = response?.data?.generatedPin;
-                              if (pin && staff.role === 'CASHIER') {
-                                setLatestCashierPin({
-                                  staffId: staff.id,
-                                  staffName: staff.name,
-                                  pin,
-                                });
-                                setPinVisible(false);
-                              }
-                            },
-                            'Failed to reset PIN',
-                          );
+                          openPinResetModal(staff);
                         }}
-                        disabled={actionLoadingId === staff.id || staff.role === 'ADMIN'}
+                        disabled={
+                          actionLoadingId === staff.id ||
+                          staff.role === 'ADMIN' ||
+                          user?.role !== 'ADMIN'
+                        }
                         className="h-10 w-10 rounded-xl text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition-all flex items-center justify-center disabled:opacity-40"
                       >
                         <LockKeyhole size={16} />
@@ -472,6 +674,61 @@ export default function StaffManagementPage() {
            </span>
         </div>
       </div>
+
+      {pinResetTarget && (
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-900/50 p-2 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="w-full max-w-[calc(100vw-1rem)] rounded-[28px] bg-white p-5 shadow-2xl sm:max-w-[440px] sm:p-8">
+            <h3 className="text-[20px] font-black text-[#0c1424]">Manage Staff PIN</h3>
+            <p className="mt-2 text-[13px] font-semibold text-slate-500">
+              Enter your admin password to view or reset PIN for {pinResetTarget.name}.
+            </p>
+            <div className="mt-5 space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Admin Password</label>
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                disabled={actionLoadingId === pinResetTarget.id}
+                className="h-12 w-full rounded-2xl border border-slate-100 bg-slate-50 px-4 text-[14px] font-bold text-[#0c1424] focus:outline-none focus:ring-2 focus:ring-[#0c1424]/10"
+                placeholder="Enter your current password"
+              />
+            </div>
+
+            {pinResetError && (
+              <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-[13px] font-semibold text-rose-600">
+                {pinResetError}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => void confirmViewPin()}
+                disabled={actionLoadingId === pinResetTarget.id}
+                className="h-12 w-full rounded-2xl border border-[#0c1424] bg-white text-[12px] font-black uppercase tracking-widest text-[#0c1424] disabled:opacity-50"
+              >
+                {actionLoadingId === pinResetTarget.id ? 'Loading...' : 'View PIN'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmPinReset()}
+                disabled={actionLoadingId === pinResetTarget.id}
+                className="h-12 w-full rounded-2xl bg-[#0c1424] text-[12px] font-black uppercase tracking-widest text-white disabled:opacity-50"
+              >
+                {actionLoadingId === pinResetTarget.id ? 'Resetting...' : 'Reset PIN'}
+              </button>
+              <button
+                type="button"
+                onClick={closePinResetModal}
+                disabled={actionLoadingId === pinResetTarget.id}
+                className="h-12 w-full rounded-2xl border border-slate-200 text-[12px] font-black uppercase tracking-widest text-slate-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <InviteStaffModal 
         isOpen={isInviteModalOpen} 

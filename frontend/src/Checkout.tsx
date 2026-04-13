@@ -16,10 +16,12 @@ import {
 } from 'lucide-react';
 import { BillItem, usePosCart } from './context/PosCartContext';
 import CashPaymentModal from './components/CashPaymentModal';
+import api from './services/api';
 
 type CheckoutLocationState = {
   billItems?: BillItem[];
   billTotal?: number;
+  orderId?: string;
   loyaltyDiscount?: number;
   loyaltyPointsUsed?: number;
   customer?: { name: string; id: string; phone: string; loyaltyPoints: number } | null;
@@ -32,7 +34,7 @@ type CheckoutLocationState = {
 export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { billItems: liveBillItems, billTotal: liveBillTotal, clearBill } = usePosCart();
+  const { billItems: liveBillItems, billTotal: liveBillTotal, clearBill, sendToKitchen } = usePosCart();
 
   const locationState = (location.state || {}) as CheckoutLocationState;
 
@@ -50,6 +52,7 @@ export default function Checkout() {
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'cash' | 'eftpos' | 'split'>('eftpos');
   const [showCashModal, setShowCashModal] = useState(false);
+  const [isCompletingOrder, setIsCompletingOrder] = useState(false);
 
   const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
 
@@ -71,10 +74,31 @@ export default function Checkout() {
     }
   };
 
-  const handlePaymentComplete = () => {
-    setShowCashModal(false);
-    clearBill();
-    navigate('/pos');
+  const handlePaymentComplete = async () => {
+    try {
+      setIsCompletingOrder(true);
+
+      let orderId = locationState.orderId;
+      if (!orderId) {
+        const result = await sendToKitchen(billItems);
+        if (!result.success || !result.orderId) {
+          throw new Error(result.error || 'Failed to create order before payment');
+        }
+        orderId = result.orderId;
+      }
+
+      await api.post(`/orders/${orderId}/complete`, {
+        paymentMethod: selectedPaymentMethod,
+      });
+
+      setShowCashModal(false);
+      clearBill();
+      navigate('/pos');
+    } catch (err) {
+      console.error('Payment completion failed:', err);
+    } finally {
+      setIsCompletingOrder(false);
+    }
   };
 
   const handleBack = () => {
@@ -300,7 +324,11 @@ export default function Checkout() {
       {showCashModal && (
         <CashPaymentModal
           amountDue={totalDue}
-          onComplete={handlePaymentComplete}
+          onComplete={() => {
+            if (!isCompletingOrder) {
+              void handlePaymentComplete();
+            }
+          }}
           onCancel={() => setShowCashModal(false)}
         />
       )}

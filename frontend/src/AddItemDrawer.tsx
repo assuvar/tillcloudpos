@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ImagePlus, X } from 'lucide-react';
+import { ChevronDown, ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { useMenuManagement } from './context/MenuManagementContext';
 
 export default function AddItemDrawer() {
   const {
     categories,
+    ingredientOptions,
     drawerOpen,
     drawerMode,
     drawerForm,
@@ -14,16 +15,16 @@ export default function AddItemDrawer() {
     saveDrawerItem,
   } = useMenuManagement();
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const objectUrlRef = useRef<string | null>(null);
   const [localError, setLocalError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!drawerOpen) {
       setLocalError('');
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
       }
     }
   }, [drawerOpen]);
@@ -41,7 +42,8 @@ export default function AddItemDrawer() {
     drawerForm.name.trim() &&
     drawerForm.categoryId &&
     !Number.isNaN(parsedPrice) &&
-    parsedPrice >= 0
+    parsedPrice >= 0 &&
+    (drawerMode === 'edit' || Boolean(drawerForm.imageFile))
   );
 
   const handleClose = () => {
@@ -49,49 +51,42 @@ export default function AddItemDrawer() {
     closeDrawer();
   };
 
-  const handleSave = () => {
-    const success = saveDrawerItem();
-    if (!success) {
-      setLocalError('Please complete item name, category, and price.');
-    }
-  };
-
   const handleFileSelect = (file: File | null) => {
     if (!file) {
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setLocalError('Image size must be less than 5MB');
-      return;
-    }
-
-    // Validate file type
     if (!file.type.startsWith('image/')) {
-      setLocalError('Please select a valid image file');
+      setLocalError('Please select an image file');
       return;
     }
 
-    setLocalError('');
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+    }
 
-    // Read file as base64 data URL
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      
-      // Revoke old object URL if exists
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-      }
-      
-      // Store the data URL for display
-      updateDrawerField('image', dataUrl);
-    };
-    reader.onerror = () => {
-      setLocalError('Failed to read image file');
-    };
-    reader.readAsDataURL(file);
+    const previewUrl = URL.createObjectURL(file);
+    previewUrlRef.current = previewUrl;
+    updateDrawerField('imageFile', file);
+    updateDrawerField('image', previewUrl);
+    setLocalError('');
+  };
+
+  const clearImage = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+
+    updateDrawerField('imageFile', null);
+    updateDrawerField('image', '');
+  };
+
+  const handleSave = async () => {
+    const success = await saveDrawerItem();
+    if (!success) {
+      setLocalError('Please complete item name, category, and price.');
+    }
   };
 
   return (
@@ -140,29 +135,60 @@ export default function AddItemDrawer() {
 
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Item Image</label>
-            <div className="flex flex-col gap-3 rounded-xl border border-transparent bg-blue-50/50 px-4 py-3 sm:flex-row sm:items-center">
-              <input
-                type="text"
-                value={drawerForm.image}
-                onChange={(event) => updateDrawerField('image', event.target.value)}
-                placeholder="Paste image URL or upload a file"
-                className="flex-1 bg-transparent text-[14px] font-bold text-[#0c1424] focus:outline-none placeholder:font-medium"
-              />
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => handleFileSelect(event.target.files?.[0] || null)}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-2 text-[11px] font-black uppercase tracking-widest text-[#0c1424] shadow-sm"
-              >
-                <ImagePlus size={14} />
-                Upload
-              </button>
+            <div className="rounded-xl bg-blue-50/50 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => handleFileSelect(event.target.files?.[0] || null)}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-[11px] font-black uppercase tracking-widest text-[#0c1424] shadow-sm"
+                >
+                  <ImagePlus size={14} />
+                  Choose File
+                </button>
+                <div className="text-[12px] font-semibold text-slate-500">
+                  {drawerForm.imageFile ? drawerForm.imageFile.name : drawerMode === 'edit' && drawerForm.image ? 'Current image retained until replaced' : 'No file selected'}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-4">
+                <div className="h-20 w-20 overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                  {drawerForm.image ? (
+                    <img src={drawerForm.image} alt="Menu preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-slate-300">
+                      <ImagePlus size={22} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className="text-[12px] font-semibold text-slate-500">Upload an image file. The backend stores it as a file and serves it from the uploads folder.</p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-full bg-[#0c1424] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white"
+                    >
+                      Select Image
+                    </button>
+                    {drawerForm.imageFile && (
+                      <button
+                        type="button"
+                        onClick={clearImage}
+                        className="rounded-full border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -228,6 +254,94 @@ export default function AddItemDrawer() {
                 className="h-5 w-5 rounded border-slate-300 text-[#0c1424] focus:ring-[#0c1424]"
               />
             </label>
+
+            {drawerForm.trackInventory ? (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[13px] font-black text-[#0c1424] leading-tight">Recipe Ingredients</div>
+                    <div className="text-[11px] text-slate-400 font-bold tracking-tight">Quantity consumed per item sale</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateDrawerField('recipeItems', [
+                        ...drawerForm.recipeItems,
+                        { ingredientId: '', quantity: '1' },
+                      ])
+                    }
+                    className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#0c1424] shadow-sm"
+                  >
+                    <Plus size={12} />
+                    Add
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {drawerForm.recipeItems.map((recipeItem, index) => (
+                    <div key={`recipe-${index}`} className="grid grid-cols-[1fr_120px_auto] gap-2">
+                      <div className="relative">
+                        <select
+                          value={recipeItem.ingredientId}
+                          onChange={(event) => {
+                            const nextRecipe = drawerForm.recipeItems.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, ingredientId: event.target.value }
+                                : item,
+                            );
+                            updateDrawerField('recipeItems', nextRecipe);
+                          }}
+                          className="w-full h-11 appearance-none bg-white border border-slate-100 rounded-xl px-3 text-[13px] font-bold text-[#0c1424] focus:outline-none"
+                        >
+                          <option value="">Select ingredient</option>
+                          {ingredientOptions.map((ingredient) => (
+                            <option key={ingredient.id} value={ingredient.id}>
+                              {ingredient.name} ({ingredient.unit})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
+
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={recipeItem.quantity}
+                        onChange={(event) => {
+                          const nextRecipe = drawerForm.recipeItems.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, quantity: event.target.value }
+                              : item,
+                          );
+                          updateDrawerField('recipeItems', nextRecipe);
+                        }}
+                        className="h-11 bg-white border border-slate-100 rounded-xl px-3 text-[13px] font-bold text-[#0c1424] focus:outline-none"
+                        placeholder="Qty"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextRecipe = drawerForm.recipeItems.filter(
+                            (_, itemIndex) => itemIndex !== index,
+                          );
+                          updateDrawerField(
+                            'recipeItems',
+                            nextRecipe.length > 0
+                              ? nextRecipe
+                              : [{ ingredientId: '', quantity: '1' }],
+                          );
+                        }}
+                        className="h-11 w-11 rounded-xl border border-slate-100 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <label className="flex items-center justify-between gap-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
               <div>

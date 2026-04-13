@@ -16,16 +16,37 @@ export interface MenuItem {
   categoryId: string;
   image: string;
   trackInventory: boolean;
+  recipeItems: {
+    ingredientId: string;
+    ingredientName: string;
+    unit: string;
+    quantity: number;
+  }[];
   isActive: boolean;
+}
+
+export interface IngredientOption {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  isLowStock: boolean;
+}
+
+export interface DrawerRecipeItem {
+  ingredientId: string;
+  quantity: string;
 }
 
 export interface DrawerFormState {
   name: string;
   image: string;
+  imageFile: File | null;
   price: string;
   categoryId: string;
   description: string;
   trackInventory: boolean;
+  recipeItems: DrawerRecipeItem[];
   isActive: boolean;
 }
 
@@ -34,6 +55,7 @@ type DrawerMode = 'add' | 'edit';
 interface MenuManagementContextType {
   categories: MenuCategory[];
   items: MenuItem[];
+  ingredientOptions: IngredientOption[];
   selectedCategoryId: string;
   filteredItems: MenuItem[];
   isCreatingCategory: boolean;
@@ -65,10 +87,12 @@ interface MenuManagementContextType {
 const initialDrawerForm: DrawerFormState = {
   name: '',
   image: '',
+  imageFile: null,
   price: '',
   categoryId: '',
   description: '',
   trackInventory: true,
+  recipeItems: [{ ingredientId: '', quantity: '1' }],
   isActive: true,
 };
 
@@ -76,8 +100,10 @@ const MenuManagementContext = createContext<MenuManagementContextType | undefine
 
 export function MenuManagementProvider({ children }: { children: React.ReactNode }) {
   const { user, accessToken } = useAuth();
+  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3100';
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
+  const [ingredientOptions, setIngredientOptions] = useState<IngredientOption[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -102,6 +128,18 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
     toastTimerRef.current = window.setTimeout(() => setToastMessage(''), 2400);
   };
 
+  const resolveImageUrl = (value?: string | null) => {
+    if (!value) {
+      return 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop';
+    }
+
+    if (value.startsWith('/uploads/')) {
+      return `${apiBaseUrl}${value}`;
+    }
+
+    return value;
+  };
+
   /**
    * Load categories and items from backend
    */
@@ -117,14 +155,18 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       setError(null);
 
       // Fetch categories and products in parallel
-      const [categoriesResponse, productsResponse] = await Promise.all([
+      const [categoriesResponse, productsResponse, ingredientsResponse] = await Promise.all([
         api.get(`/categories`),
         api.get(`/products`),
+        api.get('/inventory/ingredients'),
       ]);
 
       // Validate responses are arrays
       const categoriesArray = Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [];
       const productsArray = Array.isArray(productsResponse.data) ? productsResponse.data : [];
+      const ingredientsArray = Array.isArray(ingredientsResponse.data)
+        ? ingredientsResponse.data
+        : [];
 
       const categoriesData = categoriesArray.map((cat: any) => ({
         id: cat.id,
@@ -138,13 +180,30 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
         description: product.description || '',
         price: product.priceInCents / 100, // Convert cents to dollars
         categoryId: product.categoryId,
-        image: product.imageUrl || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop',
+        image: resolveImageUrl(product.imageUrl),
         trackInventory: product.trackInventory || false,
+        recipeItems: Array.isArray(product.recipeItems)
+          ? product.recipeItems.map((recipeItem: any) => ({
+              ingredientId: recipeItem.ingredientId,
+              ingredientName: recipeItem.ingredient?.name || 'Unknown ingredient',
+              unit: recipeItem.ingredient?.unit || 'units',
+              quantity: Number(recipeItem.quantity || 0),
+            }))
+          : [],
         isActive: product.isActive !== false,
+      }));
+
+      const ingredientsData = ingredientsArray.map((ingredient: any) => ({
+        id: ingredient.id,
+        name: ingredient.name,
+        unit: ingredient.unit,
+        quantity: Number(ingredient.quantity || 0),
+        isLowStock: Boolean(ingredient.isLowStock),
       }));
 
       setCategories(categoriesData);
       setItems(productsData);
+      setIngredientOptions(ingredientsData);
       setError(null);
     } catch (err: any) {
       const errorMsg = err?.response?.data?.message || err?.message || 'Failed to load menu data';
@@ -152,6 +211,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       console.error('Failed to load menu data:', err);
       setCategories([]);
       setItems([]);
+      setIngredientOptions([]);
     } finally {
       setIsLoading(false);
     }
@@ -214,6 +274,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
         selectedCategoryId === 'all'
           ? categories[0]?.id || ''
           : selectedCategoryId,
+      recipeItems: [{ ingredientId: '', quantity: '1' }],
     });
     setDrawerOpen(true);
   };
@@ -232,10 +293,18 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
     setDrawerForm({
       name: item.name,
       image: item.image,
+      imageFile: null,
       price: item.price.toString(),
       categoryId: item.categoryId,
       description: item.description,
       trackInventory: item.trackInventory,
+      recipeItems:
+        item.recipeItems.length > 0
+          ? item.recipeItems.map((recipeItem) => ({
+              ingredientId: recipeItem.ingredientId,
+              quantity: recipeItem.quantity.toString(),
+            }))
+          : [{ ingredientId: '', quantity: '1' }],
       isActive: item.isActive,
     });
     setDrawerOpen(true);
@@ -274,25 +343,49 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       return false;
     }
 
+    const normalizedRecipeItems = drawerForm.recipeItems
+      .filter((recipeItem) => recipeItem.ingredientId)
+      .map((recipeItem) => ({
+        ingredientId: recipeItem.ingredientId,
+        quantity: Number.parseFloat(recipeItem.quantity),
+      }));
+
+    if (drawerForm.trackInventory && normalizedRecipeItems.length === 0) {
+      setError('Tracked inventory items must have at least one ingredient recipe');
+      return false;
+    }
+
+    if (normalizedRecipeItems.some((recipeItem) => Number.isNaN(recipeItem.quantity) || recipeItem.quantity <= 0)) {
+      setError('Recipe ingredient quantities must be greater than 0');
+      return false;
+    }
+
+    if (drawerMode === 'add' && !drawerForm.imageFile) {
+      setError('Please upload an image file for this menu item');
+      return false;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
 
       const priceInCents = Math.round(price * 100);
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('description', drawerForm.description.trim());
+      formData.append('priceInCents', String(priceInCents));
+      formData.append('categoryId', categoryId);
+      formData.append('trackInventory', String(drawerForm.trackInventory));
+      formData.append('isActive', String(drawerForm.isActive));
+      formData.append('recipeItems', JSON.stringify(normalizedRecipeItems));
+
+      if (drawerForm.imageFile) {
+        formData.append('image', drawerForm.imageFile);
+      }
 
       if (drawerMode === 'edit' && drawerEditingItemId) {
         // Update existing item
-        await api.patch(`/products/${drawerEditingItemId}`, {
-          name,
-          description: drawerForm.description.trim(),
-          priceInCents,
-          categoryId,
-          imageUrl:
-            drawerForm.image.trim() ||
-            'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop',
-          trackInventory: drawerForm.trackInventory,
-          isActive: drawerForm.isActive,
-        });
+        const response = await api.patch(`/products/${drawerEditingItemId}`, formData);
 
         // Update local state
         setItems((currentItems) =>
@@ -304,10 +397,17 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
                   description: drawerForm.description.trim(),
                   price,
                   categoryId,
-                  image:
-                    drawerForm.image.trim() ||
-                    'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop',
+                  image: resolveImageUrl(response.data.imageUrl || item.image),
                   trackInventory: drawerForm.trackInventory,
+                  recipeItems: normalizedRecipeItems.map((recipeItem) => {
+                    const ingredient = ingredientOptions.find((option) => option.id === recipeItem.ingredientId);
+                    return {
+                      ingredientId: recipeItem.ingredientId,
+                      ingredientName: ingredient?.name || 'Unknown ingredient',
+                      unit: ingredient?.unit || 'units',
+                      quantity: recipeItem.quantity,
+                    };
+                  }),
                   isActive: drawerForm.isActive,
                 }
               : item
@@ -317,17 +417,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
         showToast('Item updated successfully');
       } else {
         // Create new item
-        const response = await api.post('/products', {
-          name,
-          description: drawerForm.description.trim(),
-          priceInCents,
-          categoryId,
-          imageUrl:
-            drawerForm.image.trim() ||
-            'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop',
-          trackInventory: drawerForm.trackInventory,
-          isActive: drawerForm.isActive,
-        });
+        const response = await api.post('/products', formData);
 
         // Add to local state
         const newItem: MenuItem = {
@@ -336,10 +426,17 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
           description: drawerForm.description.trim(),
           price,
           categoryId,
-          image:
-            drawerForm.image.trim() ||
-            'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop',
+          image: resolveImageUrl(response.data.imageUrl),
           trackInventory: drawerForm.trackInventory,
+          recipeItems: normalizedRecipeItems.map((recipeItem) => {
+            const ingredient = ingredientOptions.find((option) => option.id === recipeItem.ingredientId);
+            return {
+              ingredientId: recipeItem.ingredientId,
+              ingredientName: ingredient?.name || 'Unknown ingredient',
+              unit: ingredient?.unit || 'units',
+              quantity: recipeItem.quantity,
+            };
+          }),
           isActive: drawerForm.isActive,
         };
 
@@ -425,6 +522,11 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
   const toggleInventory = async (itemId: string) => {
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
+
+    if (!item.trackInventory && item.recipeItems.length === 0) {
+      showToast('Add a recipe before enabling inventory tracking');
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -532,6 +634,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
   const value: MenuManagementContextType = {
     categories,
     items,
+    ingredientOptions,
     selectedCategoryId,
     filteredItems,
     isCreatingCategory,
