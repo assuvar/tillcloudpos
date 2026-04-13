@@ -14,6 +14,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { StaffModule } from './staff/staff.module';
 import { PermissionsModule } from './permissions/permissions.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PermissionsModule } from './permissions/permissions.module';
     AuthModule,
     StaffModule,
     PermissionsModule,
+    InventoryModule,
     ProductsModule,
     CategoriesModule,
     OrdersModule,

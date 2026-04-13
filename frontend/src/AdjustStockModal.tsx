@@ -4,8 +4,18 @@ import { X, Plus, Minus, Info, PlusCircle, MinusCircle, Edit3, ChevronDown } fro
 interface AdjustStockModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item: any;
-  onUpdate: (adjustment: any) => void;
+  item: {
+    id: string;
+    name: string;
+    quantity: number;
+    unit: string;
+  } | null;
+  onUpdate: (adjustment: {
+    mode: AdjustmentMode;
+    quantity: number;
+    reason: string;
+    itemId: string;
+  }) => void;
 }
 
 type AdjustmentMode = 'ADD' | 'REMOVE' | 'SET_FIXED';
@@ -27,7 +37,7 @@ export default function AdjustStockModal({ isOpen, onClose, item, onUpdate }: Ad
             <div className="flex flex-col mt-1 gap-0.5">
               <p className="text-[13px] text-slate-400 font-medium">Modifying: <span className="text-[#0c1424] font-bold">{item.name}</span></p>
               {mode === 'SET_FIXED' && (
-                <p className="text-[13px] text-slate-400 font-medium">Available: <span className="text-[#0c1424] font-bold">{item.quantity}</span></p>
+                <p className="text-[13px] text-slate-400 font-medium">Available: <span className="text-[#0c1424] font-bold">{item.quantity} {item.unit}</span></p>
               )}
             </div>
           </div>
@@ -79,7 +89,7 @@ export default function AdjustStockModal({ isOpen, onClose, item, onUpdate }: Ad
                   onChange={(e) => setQuantity(Number(e.target.value))}
                   className="bg-transparent w-full text-[15px] font-black text-[#0c1424] outline-none"
                 />
-                <span className="text-[13px] font-bold text-slate-400">Units</span>
+                <span className="text-[13px] font-bold text-slate-400">{item.unit}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <button 

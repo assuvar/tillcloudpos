@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import * as express from 'express';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
@@ -19,6 +20,8 @@ async function bootstrap() {
     origin: allowedOrigins,
     credentials: true,
   });
+
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   const port = configService.get<number>('PORT') || 3100;
   await app.listen(port);

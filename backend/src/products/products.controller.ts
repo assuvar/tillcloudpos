@@ -6,16 +6,14 @@ import {
   Patch,
   Param,
   Delete,
-  UseGuards,
-  Request,
   Req,
-  HttpException,
-  HttpStatus,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
 
@@ -35,15 +33,74 @@ const getRestaurantId = (req: any): string => {
   return 'default-restaurant';
 };
 
+const parseBoolean = (value: unknown, fallback = false): boolean => {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    return ['true', '1', 'yes', 'on'].includes(String(value).toLowerCase());
+  }
+
+  return fallback;
+};
+
+const parseRecipeItems = (value: unknown) => {
+  if (!value) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+};
+
+const buildProductDto = (
+  body: any,
+  restaurantId: string,
+): CreateProductDto => ({
+  name: body?.name,
+  categoryId: body?.categoryId,
+  description: body?.description,
+  priceInCents: Number(body?.priceInCents),
+  trackInventory: parseBoolean(body?.trackInventory, false),
+  recipeItems: parseRecipeItems(body?.recipeItems),
+  isActive: parseBoolean(body?.isActive, true),
+  restaurantId,
+  imageUrl: body?.imageUrl,
+});
+
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+    }),
+  )
   @RequirePermissions(PERMISSIONS.MENU_MANAGE)
-  create(@Body() createProductDto: CreateProductDto, @Req() req: any) {
-    createProductDto.restaurantId = getRestaurantId(req);
-    return this.productsService.create(createProductDto);
+  create(@Body() body: any, @UploadedFile() imageFile: any, @Req() req: any) {
+    const restaurantId = getRestaurantId(req);
+    const createProductDto = buildProductDto(body, restaurantId);
+    return this.productsService.create(createProductDto, imageFile);
   }
 
   @Get()
@@ -61,14 +118,31 @@ export class ProductsController {
   }
 
   @Patch(':id')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+    }),
+  )
   @RequirePermissions(PERMISSIONS.MENU_MANAGE)
   update(
     @Param('id') id: string,
-    @Body() updateProductDto: UpdateProductDto,
+    @Body() body: any,
+    @UploadedFile() imageFile: any,
     @Req() req: any,
   ) {
     const restaurantId = getRestaurantId(req);
-    return this.productsService.update(id, updateProductDto, restaurantId);
+    const updateProductDto = buildProductDto(
+      body,
+      restaurantId,
+    ) as UpdateProductDto;
+    return this.productsService.update(
+      id,
+      updateProductDto,
+      restaurantId,
+      imageFile,
+    );
   }
 
   @Delete(':id')

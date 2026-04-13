@@ -64,3 +64,7 @@ Thumbs.db
 # (If you are using sqlite, you might want to ignore the DB file here)
 # prisma/dev.db
 # prisma/dev.db-journal
+
+# Local generated/runtime artifacts
+backend/generated/
+backend/uploads/

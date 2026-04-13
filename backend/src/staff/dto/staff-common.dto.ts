@@ -1,13 +1,17 @@
 import {
   IsEmail,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   Length,
   Matches,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum StaffRole {
   ADMIN = 'ADMIN',
@@ -57,4 +61,20 @@ export class StaffIdParamDto {
   @IsString()
   @Length(10, 64)
   id!: string;
+}
+
+export class ResetStaffPinDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  adminPassword!: string;
+}
+
+export class PinAuditQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
 }

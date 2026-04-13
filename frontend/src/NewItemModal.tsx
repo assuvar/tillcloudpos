@@ -4,13 +4,19 @@ import { X, Plus, Minus, Info } from 'lucide-react';
 interface NewItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (item: any) => void;
+  onAdd: (item: {
+    name: string;
+    unit: string;
+    quantity: number;
+    lowStockThreshold: number;
+  }) => void;
 }
 
 export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalProps) {
-  const [name, setName] = useState('Puffs');
-  const [category, setCategory] = useState('Snacks');
-  const [quantity, setQuantity] = useState(12);
+  const [name, setName] = useState('');
+  const [unit, setUnit] = useState('units');
+  const [quantity, setQuantity] = useState(0);
+  const [lowStockThreshold, setLowStockThreshold] = useState(0);
 
   if (!isOpen) return null;
 
@@ -46,14 +52,14 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
             </div>
           </div>
 
-          {/* Category Field */}
+          {/* Unit Field */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit</label>
             <div className="h-14 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center px-6">
               <input 
                 type="text" 
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
                 className="bg-transparent w-full text-[15px] font-bold text-[#0c1424] outline-none"
               />
             </div>
@@ -89,6 +95,18 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
             </div>
           </div>
 
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Low Stock Threshold</label>
+            <div className="h-14 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center gap-4 px-6">
+              <input
+                type="number"
+                value={lowStockThreshold}
+                onChange={(e) => setLowStockThreshold(Number(e.target.value))}
+                className="bg-transparent w-full text-[15px] font-black text-[#0c1424] outline-none"
+              />
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
             <button 
@@ -98,7 +116,7 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
               Cancel
             </button>
             <button 
-               onClick={() => onAdd({ name, category, quantity })}
+              onClick={() => onAdd({ name, unit, quantity, lowStockThreshold })}
                className="h-14 flex-1 rounded-2xl bg-[#0c1424] text-[14px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black"
             >
               Add

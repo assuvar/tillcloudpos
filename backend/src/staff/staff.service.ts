@@ -2,13 +2,21 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  InternalServerErrorException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import type { Prisma } from '../generated/prisma';
+import { ConfigService } from '@nestjs/config';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from 'crypto';
+import type { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserRole } from '../auth/permissions/permissions.constants';
+import type { UserRole } from '../auth/permissions/permissions.constants';
 import {
   CreateStaffDto,
   StaffRole,
@@ -23,7 +31,10 @@ type StaffActor = {
 
 @Injectable()
 export class StaffService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   private normalizeEmail(email: string) {
     return email.trim().toLowerCase();
@@ -35,6 +46,172 @@ export class StaffService {
     return Math.floor(Math.random() * maxValue)
       .toString()
       .padStart(pinLength, '0');
+  }
+
+  private async generateUniquePin(
+    restaurantId: string,
+    excludeUserId?: string,
+  ) {
+    const existingUsers = await this.prisma.user.findMany({
+      where: {
+        restaurantId,
+        ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+        pinHash: { not: null },
+      },
+      select: {
+        pinHash: true,
+      },
+    });
+
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      const candidate = this.generatePin();
+      let isDuplicate = false;
+
+      for (const user of existingUsers) {
+        if (!user.pinHash) {
+          continue;
+        }
+        const isMatch = await bcrypt.compare(candidate, user.pinHash);
+        if (isMatch) {
+          isDuplicate = true;
+          break;
+        }
+      }
+
+      if (!isDuplicate) {
+        return candidate;
+      }
+    }
+
+    throw new InternalServerErrorException(
+      'Could not generate a unique PIN, please try again',
+    );
+  }
+
+  private getPinEncryptionKey() {
+    const secret =
+      this.configService.get<string>('STAFF_PIN_ENCRYPTION_KEY') ||
+      this.configService.get<string>('PIN_ENCRYPTION_KEY') ||
+      this.configService.get<string>('JWT_SECRET');
+
+    if (!secret?.trim()) {
+      throw new InternalServerErrorException(
+        'PIN encryption key is not configured',
+      );
+    }
+
+    return createHash('sha256').update(secret.trim(), 'utf8').digest();
+  }
+
+  private encryptPin(pin: string) {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv(
+      'aes-256-gcm',
+      this.getPinEncryptionKey(),
+      iv,
+    );
+    const encrypted = Buffer.concat([
+      cipher.update(pin, 'utf8'),
+      cipher.final(),
+    ]);
+    const authTag = cipher.getAuthTag();
+
+    return `${iv.toString('base64')}.${authTag.toString('base64')}.${encrypted.toString('base64')}`;
+  }
+
+  private decryptPin(payload: string) {
+    const parts = payload.split('.');
+    if (parts.length !== 3) {
+      throw new InternalServerErrorException('Stored PIN format is invalid');
+    }
+
+    const [ivEncoded, tagEncoded, encryptedEncoded] = parts;
+    const iv = Buffer.from(ivEncoded, 'base64');
+    const authTag = Buffer.from(tagEncoded, 'base64');
+    const encrypted = Buffer.from(encryptedEncoded, 'base64');
+
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      this.getPinEncryptionKey(),
+      iv,
+    );
+    decipher.setAuthTag(authTag);
+
+    const decrypted = Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]);
+    return decrypted.toString('utf8');
+  }
+
+  private async verifyAdminActor(
+    restaurantId: string,
+    actor: StaffActor,
+    adminPassword: string,
+  ) {
+    if (actor.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can manage staff PINs');
+    }
+
+    const actorUser = await this.prisma.user.findUnique({
+      where: { id: actor.userId },
+      select: {
+        id: true,
+        restaurantId: true,
+        isActive: true,
+        passwordHash: true,
+      },
+    });
+
+    if (
+      !actorUser ||
+      actorUser.restaurantId !== restaurantId ||
+      !actorUser.isActive
+    ) {
+      throw new ForbiddenException('Unauthorized PIN request');
+    }
+
+    if (!actorUser.passwordHash) {
+      throw new BadRequestException(
+        'Set an admin password before managing staff PINs',
+      );
+    }
+
+    if (!adminPassword?.trim()) {
+      throw new BadRequestException('Admin password is required');
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      adminPassword.trim(),
+      actorUser.passwordHash,
+    );
+    if (!isPasswordValid) {
+      throw new BadRequestException('Invalid admin password');
+    }
+  }
+
+  private async logPinAction(
+    restaurantId: string,
+    actorUserId: string,
+    staffUserId: string,
+    action: 'VIEW' | 'RESET',
+    status: 'SUCCESS' | 'FAILED',
+    reason?: string,
+  ) {
+    try {
+      await this.prisma.pinAuditLog.create({
+        data: {
+          restaurantId,
+          actorUserId,
+          staffUserId,
+          action,
+          status,
+          reason,
+        },
+      });
+    } catch {
+      // Audit logging should not block PIN management operations.
+    }
   }
 
   private sanitizeStaff(user: {
@@ -131,13 +308,63 @@ export class StaffService {
     return users.map((user) => this.sanitizeStaff(user));
   }
 
+  async getPinAuditLogs(restaurantId: string, actor: StaffActor, limit = 25) {
+    if (actor.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can view PIN audit logs');
+    }
+
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const logs = await this.prisma.pinAuditLog.findMany({
+      where: { restaurantId },
+      orderBy: { createdAt: 'desc' },
+      take: safeLimit,
+      select: {
+        id: true,
+        actorUserId: true,
+        staffUserId: true,
+        action: true,
+        status: true,
+        reason: true,
+        createdAt: true,
+      },
+    });
+
+    const userIds = Array.from(
+      new Set(logs.flatMap((entry) => [entry.actorUserId, entry.staffUserId])),
+    );
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        restaurantId,
+        id: { in: userIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        fullName: true,
+        email: true,
+      },
+    });
+
+    const userLookup = new Map(
+      users.map((u) => [u.id, u.name || u.fullName || u.email]),
+    );
+
+    return logs.map((entry) => ({
+      ...entry,
+      actorName: userLookup.get(entry.actorUserId) || entry.actorUserId,
+      staffName: userLookup.get(entry.staffUserId) || entry.staffUserId,
+    }));
+  }
+
   async create(restaurantId: string, dto: CreateStaffDto) {
     const email = this.normalizeEmail(dto.email);
     const name = dto.name.trim();
     await this.assertEmailNotTaken(restaurantId, email);
 
-    const pin = this.generatePin();
+    const pin = await this.generateUniquePin(restaurantId);
     const pinHash = await bcrypt.hash(pin, 10);
+    const pinEncrypted = this.encryptPin(pin);
 
     try {
       const user = await this.prisma.user.create({
@@ -150,6 +377,7 @@ export class StaffService {
           role: dto.role,
           isActive: true,
           pinHash,
+          pinEncrypted,
         },
         select: {
           id: true,
@@ -292,22 +520,137 @@ export class StaffService {
     return this.sanitizeStaff(updated);
   }
 
-  async resetPin(restaurantId: string, id: string) {
-    const target = await this.findTenantUserOrThrow(id, restaurantId);
-    this.ensureAdminImmutable(target.role);
+  async resetPin(
+    restaurantId: string,
+    id: string,
+    actor: StaffActor,
+    adminPassword: string,
+  ) {
+    try {
+      await this.verifyAdminActor(restaurantId, actor, adminPassword);
 
-    const pin = this.generatePin();
-    const pinHash = await bcrypt.hash(pin, 10);
+      const target = await this.findTenantUserOrThrow(id, restaurantId);
+      this.ensureAdminImmutable(target.role);
 
-    await this.prisma.user.update({
-      where: { id },
-      data: { pinHash },
-    });
+      const existingUser = await this.prisma.user.findUnique({
+        where: { id },
+        select: { pinEncrypted: true },
+      });
 
-    return {
-      id,
-      generatedPin: pin,
-    };
+      let previousPin: string | null = null;
+      if (existingUser?.pinEncrypted) {
+        try {
+          previousPin = this.decryptPin(existingUser.pinEncrypted);
+        } catch {
+          previousPin = null;
+        }
+      }
+
+      let pin = await this.generateUniquePin(restaurantId, id);
+      if (previousPin && pin === previousPin) {
+        let guard = 0;
+        while (pin === previousPin && guard < 8) {
+          pin = await this.generateUniquePin(restaurantId, id);
+          guard += 1;
+        }
+      }
+
+      const pinHash = await bcrypt.hash(pin, 10);
+      const pinEncrypted = this.encryptPin(pin);
+
+      await this.prisma.user.update({
+        where: { id },
+        data: {
+          pinHash,
+          pinEncrypted,
+        },
+      });
+
+      await this.logPinAction(
+        restaurantId,
+        actor.userId,
+        id,
+        'RESET',
+        'SUCCESS',
+      );
+
+      return {
+        id,
+        generatedPin: pin,
+      };
+    } catch (error: any) {
+      await this.logPinAction(
+        restaurantId,
+        actor.userId,
+        id,
+        'RESET',
+        'FAILED',
+        error?.message || 'Unknown error',
+      );
+      throw error;
+    }
+  }
+
+  async revealPin(
+    restaurantId: string,
+    id: string,
+    actor: StaffActor,
+    adminPassword: string,
+  ) {
+    try {
+      await this.verifyAdminActor(restaurantId, actor, adminPassword);
+
+      const target = await this.findTenantUserOrThrow(id, restaurantId);
+      this.ensureAdminImmutable(target.role);
+
+      const targetUser = await this.prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          pinEncrypted: true,
+        },
+      });
+
+      if (!targetUser || !targetUser.pinEncrypted) {
+        await this.logPinAction(
+          restaurantId,
+          actor.userId,
+          id,
+          'VIEW',
+          'FAILED',
+          'No stored PIN found for this staff member. Reset PIN first.',
+        );
+        return {
+          id,
+          pin: null,
+          message:
+            'No stored PIN found for this staff member. Reset PIN first.',
+        };
+      }
+
+      const pin = this.decryptPin(targetUser.pinEncrypted);
+      await this.logPinAction(
+        restaurantId,
+        actor.userId,
+        id,
+        'VIEW',
+        'SUCCESS',
+      );
+      return {
+        id,
+        pin,
+      };
+    } catch (error: any) {
+      await this.logPinAction(
+        restaurantId,
+        actor.userId,
+        id,
+        'VIEW',
+        'FAILED',
+        error?.message || 'Unknown error',
+      );
+      throw error;
+    }
   }
 
   async remove(restaurantId: string, id: string, actor: StaffActor) {

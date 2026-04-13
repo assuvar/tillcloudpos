@@ -6,15 +6,74 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join, extname } from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async saveUploadedImage(file?: any) {
+    if (!file) {
+      return null;
+    }
+
+    const uploadDir = join(process.cwd(), 'uploads', 'menu-images');
+    await mkdir(uploadDir, { recursive: true });
+
+    const fileName = `${randomUUID()}${extname(file.originalname || '') || '.jpg'}`;
+    const filePath = join(uploadDir, fileName);
+
+    await writeFile(filePath, file.buffer);
+
+    return `/uploads/menu-images/${fileName}`;
+  }
+
+  private async validateRecipeItems(
+    restaurantId: string,
+    recipeItems: { ingredientId: string; quantity: number }[] | undefined,
+    trackInventory: boolean,
+  ) {
+    if (!trackInventory) {
+      return [];
+    }
+
+    if (!recipeItems || recipeItems.length === 0) {
+      throw new BadRequestException(
+        'Recipe items are required when inventory tracking is enabled',
+      );
+    }
+
+    const invalidQuantity = recipeItems.some((item) => item.quantity <= 0);
+    if (invalidQuantity) {
+      throw new BadRequestException('Recipe quantity must be greater than 0');
+    }
+
+    const ingredientIds = Array.from(
+      new Set(recipeItems.map((item) => item.ingredientId)),
+    );
+    const existingIngredients = await this.prisma.ingredient.findMany({
+      where: {
+        restaurantId,
+        id: { in: ingredientIds },
+      },
+      select: { id: true },
+    });
+
+    if (existingIngredients.length !== ingredientIds.length) {
+      throw new BadRequestException(
+        'One or more selected ingredients are invalid for this restaurant',
+      );
+    }
+
+    return recipeItems;
+  }
+
   /**
    * Create a new product (menu item)
    */
-  async create(createProductDto: CreateProductDto) {
+  async create(createProductDto: CreateProductDto, imageFile?: any) {
     const {
       name,
       categoryId,
@@ -22,6 +81,7 @@ export class ProductsService {
       priceInCents,
       imageUrl,
       trackInventory,
+      recipeItems,
       isActive,
       restaurantId,
     } = createProductDto;
@@ -47,19 +107,41 @@ export class ProductsService {
       );
     }
 
+    const normalizedTrackInventory = trackInventory ?? false;
+    const validatedRecipeItems = await this.validateRecipeItems(
+      restaurantId,
+      recipeItems,
+      normalizedTrackInventory,
+    );
+
+    const uploadedImageUrl = await this.saveUploadedImage(imageFile);
+
     return await this.prisma.menuItem.create({
       data: {
         name: name.trim(),
         categoryId,
         description: description?.trim(),
         priceInCents,
-        imageUrl: imageUrl?.trim() || null,
-        trackInventory: trackInventory ?? false,
+        imageUrl: uploadedImageUrl || imageUrl?.trim() || null,
+        trackInventory: normalizedTrackInventory,
         isActive: isActive ?? true,
         restaurantId,
+        recipeItems: normalizedTrackInventory
+          ? {
+              create: validatedRecipeItems.map((item) => ({
+                ingredientId: item.ingredientId,
+                quantity: item.quantity,
+              })),
+            }
+          : undefined,
       },
       include: {
         category: true,
+        recipeItems: {
+          include: {
+            ingredient: true,
+          },
+        },
       },
     });
   }
@@ -72,6 +154,11 @@ export class ProductsService {
       where: { restaurantId },
       include: {
         category: true,
+        recipeItems: {
+          include: {
+            ingredient: true,
+          },
+        },
       },
       orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
     });
@@ -86,6 +173,11 @@ export class ProductsService {
       include: {
         category: true,
         inventoryItem: true,
+        recipeItems: {
+          include: {
+            ingredient: true,
+          },
+        },
       },
     });
 
@@ -107,6 +199,7 @@ export class ProductsService {
     id: string,
     updateProductDto: UpdateProductDto,
     restaurantId: string,
+    imageFile?: any,
   ) {
     // Verify product exists and belongs to this restaurant
     const existingProduct = await this.prisma.menuItem.findUnique({
@@ -169,12 +262,60 @@ export class ProductsService {
       updateData.isActive = updateProductDto.isActive;
     }
 
-    return await this.prisma.menuItem.update({
-      where: { id },
-      data: updateData,
-      include: {
-        category: true,
-      },
+    const nextTrackInventory =
+      updateProductDto.trackInventory ?? existingProduct.trackInventory;
+    const hasRecipeUpdate = updateProductDto.recipeItems !== undefined;
+
+    const validatedRecipeItems = await this.validateRecipeItems(
+      restaurantId,
+      hasRecipeUpdate
+        ? updateProductDto.recipeItems
+        : await this.prisma.recipeItem
+            .findMany({
+              where: { menuItemId: id },
+              select: { ingredientId: true, quantity: true },
+            })
+            .then((items) =>
+              items.map((item) => ({
+                ingredientId: item.ingredientId,
+                quantity: Number(item.quantity),
+              })),
+            ),
+      nextTrackInventory,
+    );
+
+    const uploadedImageUrl = await this.saveUploadedImage(imageFile);
+    if (uploadedImageUrl) {
+      updateData.imageUrl = uploadedImageUrl;
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      if (hasRecipeUpdate || !nextTrackInventory) {
+        await tx.recipeItem.deleteMany({ where: { menuItemId: id } });
+      }
+
+      if (nextTrackInventory && hasRecipeUpdate) {
+        await tx.recipeItem.createMany({
+          data: validatedRecipeItems.map((item) => ({
+            menuItemId: id,
+            ingredientId: item.ingredientId,
+            quantity: item.quantity,
+          })),
+        });
+      }
+
+      return tx.menuItem.update({
+        where: { id },
+        data: updateData,
+        include: {
+          category: true,
+          recipeItems: {
+            include: {
+              ingredient: true,
+            },
+          },
+        },
+      });
     });
   }
 

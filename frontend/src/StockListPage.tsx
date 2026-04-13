@@ -1,18 +1,13 @@
 import React from 'react';
-import { 
-  Package, 
-  AlertTriangle, 
-  Download, 
-  Plus, 
-  ChevronLeft, 
-  ChevronRight,
-  Wine,
-  Coffee,
-  IceCream,
-  Croissant
+import {
+  Package,
+  AlertTriangle,
+  Download,
+  Plus,
 } from 'lucide-react';
 import NewItemModal from './NewItemModal';
 import AdjustStockModal from './AdjustStockModal';
+import api from './services/api';
 
 interface StatCardProps {
   title: string;
@@ -42,66 +37,110 @@ function StatCard({ title, value, subValue, icon, type = 'default' }: StatCardPr
   );
 }
 
-const STOCK_DATA = [
-  {
-    id: 'WH-992',
-    name: 'Bourbon Whiskey (Premium)',
-    category: 'Spirits',
-    linkedMenu: 'Old Fashioned',
-    quantity: '42 Units',
-    threshold: '12 Units',
-    status: 'OK',
-    lastUpdated: 'Today, 09:42 AM',
-    icon: <Wine size={20} />
-  },
-  {
-    id: 'BE-201',
-    name: 'Arabica Coffee Beans',
-    category: 'Coffee',
-    linkedMenu: 'Old Fashioned',
-    quantity: '8.5 kg',
-    threshold: '10 kg',
-    status: 'LOW',
-    lastUpdated: 'Today, 09:42 AM',
-    icon: <Coffee size={20} />
-  },
-  {
-    id: 'IC-004',
-    name: 'Madagascar Vanilla Bean',
-    category: 'Ice Cream',
-    linkedMenu: 'Old Fashioned',
-    quantity: '0.0 kg',
-    threshold: '2 kg',
-    status: 'OUT',
-    lastUpdated: 'Today, 09:42 AM',
-    icon: <IceCream size={20} />
-  },
-  {
-    id: 'BR-882',
-    name: 'Sourdough Loaves',
-    category: 'Bakery',
-    linkedMenu: 'Old Fashioned',
-    quantity: '18 units',
-    threshold: '5 units',
-    status: 'OK',
-    lastUpdated: 'Today, 09:42 AM',
-    icon: <Croissant size={20} />
-  }
-];
+type IngredientRow = {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  lowStockThreshold: number;
+  isLowStock: boolean;
+  recipeCount: number;
+  updatedAt: string;
+};
 
 export default function StockListPage() {
+  const [ingredients, setIngredients] = React.useState<IngredientRow[]>([]);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const [isNewItemOpen, setIsNewItemOpen] = React.useState(false);
-  const [adjustingItem, setAdjustingItem] = React.useState<any>(null);
+  const [adjustingItem, setAdjustingItem] = React.useState<IngredientRow | null>(null);
 
-  const handleAddNew = (item: any) => {
-    console.log('Adding new item:', item);
-    setIsNewItemOpen(false);
+  const exportCsv = () => {
+    const header = 'Ingredient,Quantity,Unit,LowStockThreshold,Status\n';
+    const rows = ingredients
+      .map((item) => {
+        const status = item.quantity <= 0 ? 'OUT' : item.isLowStock ? 'LOW' : 'OK';
+        return `${item.name},${item.quantity},${item.unit},${item.lowStockThreshold},${status}`;
+      })
+      .join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'inventory.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  const handleAdjust = (adjustment: any) => {
-    console.log('Adjusting stock:', adjustment);
-    setAdjustingItem(null);
+  const loadIngredients = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await api.get('/inventory/ingredients');
+      const rows = Array.isArray(response.data) ? response.data : [];
+      setIngredients(
+        rows.map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          unit: row.unit || 'units',
+          quantity: Number(row.quantity || 0),
+          lowStockThreshold: Number(row.lowStockThreshold || 0),
+          isLowStock: Boolean(row.isLowStock),
+          recipeCount: Number(row.recipeCount || 0),
+          updatedAt: row.updatedAt,
+        })),
+      );
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to load ingredients');
+      setIngredients([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadIngredients();
+  }, [loadIngredients]);
+
+  const handleAddNew = async (item: {
+    name: string;
+    unit: string;
+    quantity: number;
+    lowStockThreshold: number;
+  }) => {
+    try {
+      await api.post('/inventory/ingredients', item);
+      setIsNewItemOpen(false);
+      await loadIngredients();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to create ingredient');
+    }
   };
+
+  const handleAdjust = async (adjustment: {
+    mode: 'ADD' | 'REMOVE' | 'SET_FIXED';
+    quantity: number;
+    reason: string;
+    itemId: string;
+  }) => {
+    try {
+      await api.post(`/inventory/ingredients/${adjustment.itemId}/adjust`, {
+        mode: adjustment.mode,
+        quantity: adjustment.quantity,
+        reason: adjustment.reason,
+      });
+      setAdjustingItem(null);
+      await loadIngredients();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to adjust stock');
+    }
+  };
+
+  const totalStockItems = ingredients.length;
+  const lowStockCount = ingredients.filter((ingredient) => ingredient.isLowStock).length;
+  const outOfStockCount = ingredients.filter((ingredient) => ingredient.quantity <= 0).length;
 
   return (
     <div className="flex flex-col gap-10 animate-in fade-in duration-500">
@@ -113,7 +152,10 @@ export default function StockListPage() {
         </div>
         
         <div className="flex gap-3">
-          <button className="h-14 px-8 rounded-full bg-white border border-slate-100 text-[#0c1424] text-[14px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center gap-3">
+          <button
+            onClick={exportCsv}
+            className="h-14 px-8 rounded-full bg-white border border-slate-100 text-[#0c1424] text-[14px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center gap-3"
+          >
             <Download size={18} />
             Export CSV
           </button>
@@ -131,16 +173,16 @@ export default function StockListPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1">
           <StatCard 
-            title="Total Inventory Value" 
-            value="$42,890" 
-            subValue="+4.2%" 
+            title="Tracked Ingredients" 
+            value={totalStockItems} 
+            subValue={`${lowStockCount} low stock`} 
             icon={<Package size={24} />} 
           />
         </div>
         <div className="lg:col-span-1">
           <StatCard 
             title="Out of Stock" 
-            value="03" 
+            value={outOfStockCount.toString().padStart(2, '0')} 
             icon={<AlertTriangle size={24} />} 
             type="error"
           />
@@ -157,11 +199,14 @@ export default function StockListPage() {
       <div className="bg-white rounded-[40px] border border-slate-50 shadow-sm overflow-hidden flex flex-col">
         {/* Table Content */}
         <div className="overflow-x-auto">
+          {error ? (
+            <div className="px-10 py-4 text-sm font-semibold text-rose-600">{error}</div>
+          ) : null}
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-50 bg-slate-50/20">
                 <th className="text-left py-8 px-10 text-[10px] font-black text-slate-400 uppercase tracking-widest">Item Name</th>
-                <th className="text-center py-8 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Linked Menu Item</th>
+                <th className="text-center py-8 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Linked Recipes</th>
                 <th className="text-center py-8 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Quantity</th>
                 <th className="text-center py-8 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Threshold</th>
                 <th className="text-center py-8 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
@@ -170,12 +215,12 @@ export default function StockListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {STOCK_DATA.map((item) => (
+              {ingredients.map((item) => (
                 <tr key={item.id} className="group hover:bg-slate-50/40 transition-colors">
                   <td className="py-8 px-10">
                     <div className="flex items-center gap-5">
                       <div className="h-14 w-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#0c1424] group-hover:text-[#5dc7ec] transition-all duration-300">
-                        {item.icon}
+                        <Package size={20} />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[16px] font-black text-[#0c1424]">{item.name}</span>
@@ -185,29 +230,29 @@ export default function StockListPage() {
                   </td>
                   <td className="py-8 px-4 text-center">
                     <span className="bg-blue-50 text-[10px] font-black text-[#5dc7ec] px-4 py-1 rounded-full uppercase tracking-widest">
-                      {item.linkedMenu}
+                      {item.recipeCount}
                     </span>
                   </td>
                   <td className="py-8 px-4 text-center">
-                    <span className={`text-[15px] font-black ${item.status === 'OUT' ? 'text-rose-500' : item.status === 'LOW' ? 'text-amber-500' : 'text-[#0c1424]'}`}>
-                      {item.quantity}
+                    <span className={`text-[15px] font-black ${item.quantity <= 0 ? 'text-rose-500' : item.isLowStock ? 'text-amber-500' : 'text-[#0c1424]'}`}>
+                      {item.quantity.toFixed(3)} {item.unit}
                     </span>
                   </td>
                   <td className="py-8 px-4 text-center text-slate-400 font-bold text-[14px]">
-                    {item.threshold}
+                    {item.lowStockThreshold.toFixed(3)} {item.unit}
                   </td>
                   <td className="py-8 px-4">
                     <div className="flex justify-center">
                       <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${item.status === 'OK' ? 'bg-emerald-500' : item.status === 'LOW' ? 'bg-amber-500' : 'bg-rose-500'} shadow-sm`} />
-                        <span className={`text-[10px] font-black uppercase tracking-[0.1em] ${item.status === 'OK' ? 'text-emerald-500' : item.status === 'LOW' ? 'text-amber-500' : 'text-rose-500'}`}>
-                          {item.status}
+                        <div className={`h-2 w-2 rounded-full ${item.quantity <= 0 ? 'bg-rose-500' : item.isLowStock ? 'bg-amber-500' : 'bg-emerald-500'} shadow-sm`} />
+                        <span className={`text-[10px] font-black uppercase tracking-[0.1em] ${item.quantity <= 0 ? 'text-rose-500' : item.isLowStock ? 'text-amber-500' : 'text-emerald-500'}`}>
+                          {item.quantity <= 0 ? 'OUT' : item.isLowStock ? 'LOW' : 'OK'}
                         </span>
                       </div>
                     </div>
                   </td>
                   <td className="py-8 px-4 text-[13px] font-bold text-slate-400">
-                    {item.lastUpdated}
+                    {new Date(item.updatedAt).toLocaleString()}
                   </td>
                   <td className="py-8 px-10 text-right">
                     <button 
@@ -219,6 +264,13 @@ export default function StockListPage() {
                   </td>
                 </tr>
               ))}
+              {!isLoading && ingredients.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-slate-400 font-semibold">
+                    No ingredients found. Add your first ingredient to start tracking stock.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -226,19 +278,9 @@ export default function StockListPage() {
         {/* Pagination */}
         <div className="p-10 border-t border-slate-50 flex items-center justify-between">
            <span className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">
-             Showing 1 to 4 of 128 items
+             Showing {ingredients.length} ingredients
            </span>
-           <div className="flex items-center gap-3">
-              <button className="h-10 w-10 rounded-2xl border border-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-50 transition-colors">
-                <ChevronLeft size={18} />
-              </button>
-              <button className="h-10 w-10 rounded-2xl bg-[#0c1424] text-white text-[13px] font-black flex items-center justify-center shadow-xl shadow-black/20">1</button>
-              <button className="h-10 w-10 rounded-2xl text-slate-400 text-[13px] font-bold hover:bg-slate-50 flex items-center justify-center transition-colors">2</button>
-              <button className="h-10 w-10 rounded-2xl text-slate-400 text-[13px] font-bold hover:bg-slate-50 flex items-center justify-center transition-colors">3</button>
-              <button className="h-10 w-10 rounded-2xl border border-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-50 transition-colors">
-                <ChevronRight size={18} />
-              </button>
-           </div>
+           <div className="text-xs font-bold text-slate-400">Live inventory</div>
         </div>
       </div>
 
