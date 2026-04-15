@@ -149,6 +149,7 @@ const cashierDefaultCodes: PermissionCode[] = [
   toCode('PAYMENTS', 'CASH'),
   toCode('PAYMENTS', 'CARD'),
   toCode('PAYMENTS', 'SPLIT'),
+  toCode('KITCHEN', 'SAVE_AND_SEND_TO_KITCHEN'),
   toCode('RECEIPTS', 'PRINT_RECEIPT'),
   toCode('RECEIPTS', 'SEND_SMS_RECEIPT'),
   toCode('CUSTOMERS', 'LOOK_UP_CUSTOMER'),

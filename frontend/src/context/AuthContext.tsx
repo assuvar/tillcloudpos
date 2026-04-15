@@ -46,7 +46,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const USER_KEY = 'user';
 const MODE_KEY = 'auth_mode';
 const POS_SESSION_KEY = 'pos_session_token';
-const KITCHEN_PAIRING_KEY = 'kitchen_pairing_token';
 const PERMISSIONS_KEY = 'role_permissions';
 
 const isTokenExpired = (token: string): boolean => {
@@ -127,7 +126,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(MODE_KEY);
     localStorage.removeItem(POS_SESSION_KEY);
-    localStorage.removeItem(KITCHEN_PAIRING_KEY);
     localStorage.removeItem(PERMISSIONS_KEY);
   };
 
@@ -135,29 +133,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const currentMode = (localStorage.getItem(MODE_KEY) as AuthMode | null) || mode;
       const posSessionToken = localStorage.getItem(POS_SESSION_KEY);
-      const kitchenPairingToken = localStorage.getItem(KITCHEN_PAIRING_KEY);
 
       if (currentMode === 'pos' && posSessionToken && isTokenExpired(posSessionToken)) {
         await logout(true);
         return null;
-      }
-
-      if (currentMode === 'kitchen' && kitchenPairingToken) {
-        const response = await api.post('/auth/kitchen/authorize', {
-          pairingToken: kitchenPairingToken,
-        });
-        const nextToken = response.data.access_token as string;
-        const nextUser = response.data.user as User;
-
-        setAccessToken(nextToken);
-        setUser(nextUser);
-        setMode('kitchen');
-        setPermissions(null);
-        localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
-        localStorage.setItem(MODE_KEY, 'kitchen');
-        localStorage.removeItem(PERMISSIONS_KEY);
-
-        return nextToken;
       }
 
       const response = await api.post('/auth/refresh', {
@@ -174,17 +153,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem(MODE_KEY, currentMode);
       }
 
-      if (nextUser.role !== 'KITCHEN') {
-        setPermissionsLoading(true);
-        const loadedPermissions = await fetchRolePermissions(nextUser.role, nextToken);
-        setPermissions(loadedPermissions);
-        if (loadedPermissions) {
-          localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(loadedPermissions));
-        } else {
-          localStorage.removeItem(PERMISSIONS_KEY);
-        }
-        setPermissionsLoading(false);
+      setPermissionsLoading(true);
+      const loadedPermissions = await fetchRolePermissions(nextUser.role, nextToken);
+      setPermissions(loadedPermissions);
+      if (loadedPermissions) {
+        localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(loadedPermissions));
+      } else {
+        localStorage.removeItem(PERMISSIONS_KEY);
       }
+      setPermissionsLoading(false);
 
       return nextToken;
     } catch (error: unknown) {
@@ -257,12 +234,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(POS_SESSION_KEY, posSessionToken);
     } else {
       localStorage.removeItem(POS_SESSION_KEY);
-    }
-
-    if (userData.role === 'KITCHEN') {
-      setPermissions(null);
-      localStorage.removeItem(PERMISSIONS_KEY);
-      return;
     }
 
     setPermissionsLoading(true);

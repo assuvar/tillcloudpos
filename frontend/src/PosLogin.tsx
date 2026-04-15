@@ -11,9 +11,10 @@ import {
   Globe,
   UserCog,
   CreditCard,
+  ChefHat,
 } from 'lucide-react';
 
-type PosRole = 'MANAGER' | 'CASHIER';
+type PosRole = 'MANAGER' | 'CASHIER' | 'KITCHEN';
 
 export default function PosLogin() {
   const [role, setRole] = useState<PosRole>('CASHIER');
@@ -55,7 +56,7 @@ export default function PosLogin() {
     setError('');
 
     try {
-      const response = await api.post('/auth/pos-login', {
+      const response = await api.post('/auth/pin-login', {
         role,
         identifier: identifier.trim(),
         pin,
@@ -64,7 +65,7 @@ export default function PosLogin() {
       await login(
         response.data.access_token,
         response.data.user,
-        'pos',
+        role === 'KITCHEN' ? 'kitchen' : 'pos',
         response.data.pos_session_token,
       );
 
@@ -74,7 +75,7 @@ export default function PosLogin() {
         localStorage.removeItem('pos_last_identifier');
       }
 
-      navigate('/pos');
+      navigate(role === 'KITCHEN' ? '/kitchen' : '/pos');
     } catch (err: any) {
       const message = err?.response?.data?.message;
       setError(Array.isArray(message) ? message.join(', ') : message || 'POS login failed');
@@ -166,6 +167,15 @@ export default function PosLogin() {
                   <CreditCard size={14} /> Cashier Login
                 </span>
               </button>
+              <button
+                type="button"
+                onClick={() => setRole('KITCHEN')}
+                className={`flex-1 h-11 rounded-lg text-[13px] font-black tracking-wide transition-all ${role === 'KITCHEN' ? 'bg-white text-[#0b1b3d] shadow-sm' : 'text-slate-500 hover:text-[#0b1b3d]'}`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <ChefHat size={14} /> Kitchen Login
+                </span>
+              </button>
             </div>
 
             {/* Staff identifier field */}
@@ -177,7 +187,7 @@ export default function PosLogin() {
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder={role === 'MANAGER' ? 'manager@restaurant.com' : 'staff-id or cashier@email.com'}
+                placeholder={role === 'MANAGER' ? 'manager@restaurant.com' : role === 'KITCHEN' ? 'kitchen staff id or email' : 'staff-id or cashier@email.com'}
                 className="w-full h-16 px-6 rounded-2xl bg-[#f0f7ff] border-none focus:ring-2 focus:ring-[#5899ff]/30 text-lg font-bold placeholder:text-slate-300 transition-all"
               />
             </div>
