@@ -75,7 +75,11 @@ export class BillsService {
   }
 
   private isLockedStatus(status: BillStatus) {
-    return status === BillStatus.PAID || status === BillStatus.VOIDED || status === BillStatus.KOT_SENT;
+    return (
+      status === BillStatus.PAID ||
+      status === BillStatus.VOIDED ||
+      status === BillStatus.KOT_SENT
+    );
   }
 
   private normalizeBill(bill: any): NormalizedBill {
@@ -105,7 +109,10 @@ export class BillsService {
       paidAt: bill.paidAt ? bill.paidAt.toISOString() : null,
       createdAt: bill.createdAt.toISOString(),
       updatedAt: bill.updatedAt.toISOString(),
-      itemCount: items.reduce((sum: number, item: BillItemSnapshot) => sum + item.quantity, 0),
+      itemCount: items.reduce(
+        (sum: number, item: BillItemSnapshot) => sum + item.quantity,
+        0,
+      ),
       items,
     };
   }
@@ -147,7 +154,9 @@ export class BillsService {
     }
 
     if (bill.status === BillStatus.PAID || bill.status === BillStatus.VOIDED) {
-      throw new BadRequestException('Completed bills cannot be sent to kitchen');
+      throw new BadRequestException(
+        'Completed bills cannot be sent to kitchen',
+      );
     }
 
     const kotCount = await tx.kitchenOrder.count({
@@ -181,7 +190,10 @@ export class BillsService {
     };
   }
 
-  private async recalculateBillTotals(tx: Prisma.TransactionClient, billId: string) {
+  private async recalculateBillTotals(
+    tx: Prisma.TransactionClient,
+    billId: string,
+  ) {
     const items = await tx.billItem.findMany({
       where: { billId },
       select: {
@@ -278,11 +290,7 @@ export class BillsService {
     return this.normalizeBill(bill);
   }
 
-  async addBillItem(
-    billId: string,
-    restaurantId: string,
-    dto: AddBillItemDto,
-  ) {
+  async addBillItem(billId: string, restaurantId: string, dto: AddBillItemDto) {
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, restaurantId },
@@ -394,7 +402,8 @@ export class BillsService {
         where: { id: itemId },
         data: {
           quantity: nextQuantity,
-          notes: nextNotes === undefined ? currentItem.notes : nextNotes || null,
+          notes:
+            nextNotes === undefined ? currentItem.notes : nextNotes || null,
           lineTotalCents: nextQuantity * currentItem.unitPriceInCents,
         },
       });
@@ -549,11 +558,15 @@ export class BillsService {
       const cashReceived = Number(dto.cashReceived);
 
       if (Math.abs(requestedAmount - totalAmount) > 0.001) {
-        throw new BadRequestException('Payment amount must match the bill total');
+        throw new BadRequestException(
+          'Payment amount must match the bill total',
+        );
       }
 
       if (cashReceived < totalAmount) {
-        throw new BadRequestException('Cash received is less than the bill total');
+        throw new BadRequestException(
+          'Cash received is less than the bill total',
+        );
       }
 
       const payment = await tx.payment.create({

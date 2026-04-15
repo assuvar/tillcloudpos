@@ -12,7 +12,11 @@ import {
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
 import { BillsService } from './bills.service';
-import { AddBillItemDto, CreateBillDto, UpdateBillItemDto } from './dto/create-bill.dto';
+import {
+  AddBillItemDto,
+  CreateBillDto,
+  UpdateBillItemDto,
+} from './dto/create-bill.dto';
 
 const getRestaurantId = (req: any): string => {
   if (req.user?.restaurantId) {
@@ -54,7 +58,11 @@ export class BillsController {
 
   @Post(':id/items')
   @RequirePermissions(PERMISSIONS.BILLING_CREATE)
-  addItem(@Param('id') id: string, @Body() dto: AddBillItemDto, @Req() req: any) {
+  addItem(
+    @Param('id') id: string,
+    @Body() dto: AddBillItemDto,
+    @Req() req: any,
+  ) {
     return this.billsService.addBillItem(id, getRestaurantId(req), dto);
   }
 
@@ -76,7 +84,11 @@ export class BillsController {
 
   @Delete(':id/items/:itemId')
   @RequirePermissions(PERMISSIONS.BILLING_CREATE)
-  removeItem(@Param('id') id: string, @Param('itemId') itemId: string, @Req() req: any) {
+  removeItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Req() req: any,
+  ) {
     return this.billsService.deleteBillItem(id, itemId, getRestaurantId(req));
   }
 

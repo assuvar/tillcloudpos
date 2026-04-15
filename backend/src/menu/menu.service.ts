@@ -61,7 +61,11 @@ export class MenuService {
           isActive: true,
         },
       },
-      orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }],
+      orderBy: [
+        { category: { sortOrder: 'asc' } },
+        { sortOrder: 'asc' },
+        { name: 'asc' },
+      ],
       select: {
         id: true,
         name: true,
