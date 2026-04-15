@@ -26,10 +26,7 @@ export class MenuController {
   }
 
   @Get('items')
-  async findItems(
-    @Req() req: any,
-    @Query('categoryId') categoryId?: string,
-  ) {
+  async findItems(@Req() req: any, @Query('categoryId') categoryId?: string) {
     const restaurantId = getRestaurantId(req);
     return this.menuService.findItems(restaurantId, categoryId);
   }

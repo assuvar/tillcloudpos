@@ -145,10 +145,7 @@ export class BillsService {
     });
   }
 
-  private async createKotForBill(
-    tx: Prisma.TransactionClient,
-    bill: any,
-  ) {
+  private async createKotForBill(tx: Prisma.TransactionClient, bill: any) {
     if (bill.items.length === 0) {
       throw new BadRequestException('Add items before sending to kitchen');
     }
@@ -337,7 +334,8 @@ export class BillsService {
           where: { id: existing.id },
           data: {
             quantity: existing.quantity + quantity,
-            lineTotalCents: (existing.quantity + quantity) * menuItem.priceInCents,
+            lineTotalCents:
+              (existing.quantity + quantity) * menuItem.priceInCents,
           },
         });
       } else {
