@@ -6,220 +6,376 @@ export interface MenuItem {
   id: string;
   name: string;
   price: number;
-  category: string;
-  image: string;
+  categoryId: string;
+  categoryName: string;
+  image?: string | null;
   isActive: boolean;
-  stock: number;
   isOutOfStock?: boolean;
   description: string;
 }
 
-export interface BillItem {
+export interface MenuCategory {
   id: string;
   name: string;
+  items: MenuItem[];
+}
+
+export interface BillItem {
+  id: string;
+  menuItemId: string | null;
+  name: string;
+  categoryName: string;
   price: number;
   quantity: number;
+  lineTotal: number;
+  notes: string | null;
+}
+
+export interface BillRecord {
+  id: string;
+  orderNumber: number;
+  orderType: string;
+  status: string;
+  tableNumber: string | null;
+  subtotalAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  kotSentAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  itemCount: number;
+  items: BillItem[];
 }
 
 interface SendToKitchenResult {
   success: boolean;
-  orderId?: string;
+  billId?: string;
+  kitchenOrderId?: string;
+  error?: string;
+}
+
+interface CashPaymentResult {
+  success: boolean;
+  bill?: BillRecord;
+  payment?: {
+    id: string;
+    amount: number;
+    cashReceived: number;
+    change: number;
+  };
   error?: string;
 }
 
 interface PosCartContextType {
+  categories: MenuCategory[];
   menuItems: MenuItem[];
+  openBills: BillRecord[];
+  activeBill: BillRecord | null;
   billItems: BillItem[];
   totalItems: number;
   billTotal: number;
   isLoading: boolean;
   error: string | null;
-  addItemToBill: (item: MenuItem) => boolean;
-  removeItem: (itemId: string) => void;
-  updateQuantity: (itemId: string, action: 'increase' | 'decrease') => void;
+  loadOpenBills: () => Promise<void>;
+  createBillSession: (orderType: string, tableNumber?: string | null) => Promise<BillRecord>;
+  loadBill: (billId: string) => Promise<BillRecord | null>;
+  addItemToBill: (item: MenuItem) => Promise<boolean>;
+  removeItem: (itemId: string) => Promise<void>;
+  updateQuantity: (itemId: string, action: 'increase' | 'decrease') => Promise<void>;
   clearBill: () => void;
-  sendToKitchen: (items?: BillItem[]) => Promise<SendToKitchenResult>;
+  sendToKitchen: () => Promise<SendToKitchenResult>;
+  processCashPayment: (amount: number, cashReceived: number) => Promise<CashPaymentResult>;
   loadMenuItems: () => Promise<void>;
 }
 
 const PosCartContext = createContext<PosCartContextType | undefined>(undefined);
+const ACTIVE_BILL_KEY = 'active_pos_bill_id';
 
 export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, accessToken } = useAuth();
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [billItems, setBillItems] = useState<BillItem[]>([]);
+  const [openBills, setOpenBills] = useState<BillRecord[]>([]);
+  const [activeBill, setActiveBill] = useState<BillRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load menu items from API on mount
+  const normalizeMenuCategories = (responseData: unknown): MenuCategory[] => {
+    if (!Array.isArray(responseData)) {
+      throw new Error('Invalid response from server');
+    }
+
+    return responseData.map((category: any) => {
+      const categoryItems = Array.isArray(category.items) ? category.items : [];
+
+      return {
+        id: category.id,
+        name: category.name,
+        items: categoryItems.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          price: Number(item.price ?? 0),
+          categoryId: item.categoryId || category.id,
+          categoryName: category.name,
+          image: item.image ?? item.imageUrl ?? null,
+          isActive: item.isActive !== false,
+          isOutOfStock: item.isOutOfStock,
+          description: item.description || '',
+        })),
+      };
+    });
+  };
+
+  const normalizeBill = (bill: any): BillRecord => ({
+    id: bill.id,
+    orderNumber: Number(bill.orderNumber ?? 0),
+    orderType: bill.orderType,
+    status: bill.status,
+    tableNumber: bill.tableNumber || null,
+    subtotalAmount: Number(bill.subtotalAmount ?? 0),
+    taxAmount: Number(bill.taxAmount ?? 0),
+    totalAmount: Number(bill.totalAmount ?? 0),
+    kotSentAt: bill.kotSentAt || null,
+    paidAt: bill.paidAt || null,
+    createdAt: bill.createdAt,
+    updatedAt: bill.updatedAt,
+    itemCount: Number(bill.itemCount ?? 0),
+    items: Array.isArray(bill.items)
+      ? bill.items.map((item: any) => ({
+          id: item.id,
+          menuItemId: item.menuItemId || null,
+          name: item.name,
+          categoryName: item.categoryName,
+          price: Number(item.price ?? 0),
+          quantity: Number(item.quantity ?? 0),
+          lineTotal: Number(item.lineTotal ?? 0),
+          notes: item.notes || null,
+        }))
+      : [],
+  });
+
+  const syncBill = (nextBill: BillRecord | null) => {
+    setActiveBill(nextBill);
+    if (nextBill) {
+      localStorage.setItem(ACTIVE_BILL_KEY, nextBill.id);
+    } else {
+      localStorage.removeItem(ACTIVE_BILL_KEY);
+    }
+  };
+
   const loadMenuItems = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      const response = await api.get('/products');
-      const products = response.data;
-      
-      // Validate response is an array
-      if (!Array.isArray(products)) {
-        throw new Error('Invalid response from server');
-      }
-      
-      // Transform backend response to MenuItem format
-      const transformedItems: MenuItem[] = products
-        .filter((product: any) => product.isActive !== false)
-        .map((product: any) => ({
-          id: product.id,
-          name: product.name,
-          price: product.priceInCents / 100, // Convert cents to dollars
-          category: product.category?.name || 'Uncategorized',
-          image: product.imageUrl || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=400&h=300&fit=crop',
-          isActive: product.isActive !== false,
-          stock: 999, // Placeholder - would need inventory API
-          description: product.description || '',
-        }));
 
-      setMenuItems(transformedItems);
+      const response = await api.get('/menu/categories');
+      const transformedCategories = normalizeMenuCategories(response.data);
+
+      setCategories(transformedCategories);
+      setMenuItems(transformedCategories.flatMap((category) => category.items));
       setError(null);
     } catch (err: any) {
       const errorMsg = err?.response?.data?.message || err?.message || 'Failed to load menu items';
       setError(errorMsg);
       console.error('Error loading menu items:', err);
+      setCategories([]);
       setMenuItems([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Load menu items on component mount and when user authenticates
+  const loadOpenBills = async () => {
+    const response = await api.get('/bills');
+    setOpenBills(Array.isArray(response.data) ? response.data.map(normalizeBill) : []);
+  };
+
+  const createBillSession = async (orderType: string, tableNumber?: string | null) => {
+    const response = await api.post('/bills', {
+      orderType,
+      tableNumber: tableNumber || undefined,
+    });
+
+    const bill = normalizeBill(response.data);
+    syncBill(bill);
+    return bill;
+  };
+
+  const loadBill = async (billId: string) => {
+    try {
+      const response = await api.get(`/bills/${billId}`);
+      const bill = normalizeBill(response.data);
+      syncBill(bill);
+      return bill;
+    } catch (err) {
+      console.error('Error loading bill:', err);
+      syncBill(null);
+      return null;
+    }
+  };
+
   useEffect(() => {
-    if (user?.id && accessToken) {
-      loadMenuItems();
-    } else {
+    if (!user?.id || !accessToken) {
+      setCategories([]);
       setMenuItems([]);
+      setOpenBills([]);
+      syncBill(null);
       setError(null);
       setIsLoading(false);
+      return;
     }
+
+    const hydrate = async () => {
+      await loadMenuItems();
+
+      const storedBillId = localStorage.getItem(ACTIVE_BILL_KEY);
+      if (storedBillId) {
+        await loadBill(storedBillId);
+      }
+    };
+
+    void hydrate();
   }, [user?.id, accessToken]);
 
-  const addItemToBill = (item: MenuItem) => {
-    if (!item.isActive || item.stock === 0 || item.isOutOfStock) {
+  const addItemToBill = async (item: MenuItem) => {
+    if (!item.isActive || item.isOutOfStock) {
       return false;
     }
 
-    setBillItems((currentItems) => {
-      const existing = currentItems.find((billItem) => billItem.id === item.id);
-      if (existing) {
-        return currentItems.map((billItem) => (
-          billItem.id === item.id
-            ? { ...billItem, quantity: billItem.quantity + 1 }
-            : billItem
-        ));
-      }
-
-      return [
-        ...currentItems,
-        {
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: 1,
-        },
-      ];
-    });
-
-    return true;
-  };
-
-  const removeItem = (itemId: string) => {
-    setBillItems((currentItems) => currentItems.filter((item) => item.id !== itemId));
-  };
-
-  const updateQuantity = (itemId: string, action: 'increase' | 'decrease') => {
-    setBillItems((currentItems) =>
-      currentItems
-        .map((item) => {
-          if (item.id !== itemId) {
-            return item;
-          }
-
-          if (action === 'increase') {
-            return { ...item, quantity: item.quantity + 1 };
-          }
-
-          return { ...item, quantity: item.quantity - 1 };
-        })
-        .filter((item) => item.quantity > 0)
-    );
-  };
-
-  const clearBill = () => {
-    setBillItems([]);
-  };
-
-  const sendToKitchen = async (items: BillItem[] = billItems): Promise<SendToKitchenResult> => {
-    if (items.length === 0) {
-      return { success: false, error: 'No items in bill' };
+    if (!activeBill) {
+      return false;
     }
 
     try {
-      // Call backend API to create a bill/order
-      const response = await api.post('/orders', {
-        items: items.map(item => ({
-          menuItemId: item.id,
-          quantity: item.quantity,
-        })),
-        orderType: 'DINE_IN',
+      const response = await api.post(`/bills/${activeBill.id}/items`, {
+        menuItemId: item.id,
+        quantity: 1,
       });
 
-      if (response.status === 201 || response.status === 200) {
-        // Do NOT clear bill items here — the bill persists for payment flow
-        // Bill is only cleared on payment completion via clearBill()
-        
-        return {
-          success: true,
-          orderId: response.data.id || `KOT-${Date.now().toString().slice(-6)}`,
-        };
-      }
+      syncBill(normalizeBill(response.data));
+      return true;
+    } catch (err) {
+      console.error('Error adding bill item:', err);
+      return false;
+    }
+  };
 
-      return { 
-        success: false, 
-        error: 'Failed to send order to kitchen' 
+  const removeItem = async (itemId: string) => {
+    if (!activeBill) {
+      return;
+    }
+
+    const response = await api.delete(`/bills/${activeBill.id}/items/${itemId}`);
+    syncBill(normalizeBill(response.data));
+  };
+
+  const updateQuantity = async (itemId: string, action: 'increase' | 'decrease') => {
+    if (!activeBill) {
+      return;
+    }
+
+    const item = activeBill.items.find((entry) => entry.id === itemId);
+    if (!item) {
+      return;
+    }
+
+    if (action === 'decrease' && item.quantity <= 1) {
+      await removeItem(itemId);
+      return;
+    }
+
+    const response = await api.patch(`/bills/${activeBill.id}/items/${itemId}`, {
+      quantity: action === 'increase' ? item.quantity + 1 : item.quantity - 1,
+    });
+
+    syncBill(normalizeBill(response.data));
+  };
+
+  const clearBill = () => {
+    syncBill(null);
+  };
+
+  const sendToKitchen = async (): Promise<SendToKitchenResult> => {
+    if (!activeBill) {
+      return { success: false, error: 'No active bill' };
+    }
+
+    try {
+      const response = await api.post(`/bills/${activeBill.id}/kot`);
+      syncBill(normalizeBill(response.data.bill));
+      return {
+        success: true,
+        billId: response.data.bill?.id || activeBill.id,
+        kitchenOrderId: response.data.kitchenOrder?.id,
       };
     } catch (err: any) {
       const errorMsg = err?.response?.data?.message || 'Error sending order to kitchen';
       console.error('Send to kitchen error:', err);
-      return { 
-        success: false, 
-        error: errorMsg 
-      };
+      return { success: false, error: errorMsg };
     }
   };
+
+  const processCashPayment = async (
+    amount: number,
+    cashReceived: number,
+  ): Promise<CashPaymentResult> => {
+    if (!activeBill) {
+      return { success: false, error: 'No active bill' };
+    }
+
+    try {
+      const response = await api.post('/payments/cash', {
+        billId: activeBill.id,
+        amount,
+        cashReceived,
+      });
+
+      const nextBill = normalizeBill(response.data.bill);
+      syncBill(nextBill);
+
+      return {
+        success: true,
+        bill: nextBill,
+        payment: response.data.payment,
+      };
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || 'Error processing cash payment';
+      console.error('Cash payment error:', err);
+      return { success: false, error: errorMsg };
+    }
+  };
+
+  const billItems = activeBill?.items || [];
 
   const totalItems = useMemo(
     () => billItems.reduce((sum, item) => sum + item.quantity, 0),
     [billItems],
   );
 
-  const billTotal = useMemo(
-    () => billItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    [billItems],
-  );
+  const billTotal = activeBill?.totalAmount ?? 0;
 
   return (
     <PosCartContext.Provider
       value={{
+        categories,
         menuItems,
+        openBills,
+        activeBill,
         billItems,
         totalItems,
         billTotal,
         isLoading,
         error,
+        loadOpenBills,
+        createBillSession,
+        loadBill,
         addItemToBill,
         removeItem,
         updateQuantity,
         clearBill,
         sendToKitchen,
+        processCashPayment,
         loadMenuItems,
       }}
     >

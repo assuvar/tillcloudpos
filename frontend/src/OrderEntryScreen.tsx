@@ -1,25 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  Bell, 
-  HelpCircle, 
-  LogOut, 
-  Plus, 
-  ShoppingBag, 
-  LayoutGrid, 
-  UtensilsCrossed,
-  Info,
+import {
+  Bell,
   CheckCircle2,
-  Users,
   CreditCard,
-  Split,
+  HelpCircle,
+  LayoutGrid,
+  Loader2,
+  LogOut,
+  Plus,
   Send,
+  ShoppingBag,
+  Trash2,
+  UtensilsCrossed,
   X,
-  Diamond
 } from 'lucide-react';
-import { usePosCart } from './context/PosCartContext';
 import CustomerModal from './components/CustomerModal';
 import LoyaltyModal from './components/LoyaltyModal';
+import { useAuth } from './context/AuthContext';
+import { usePosCart } from './context/PosCartContext';
+import { FRONTEND_PERMISSIONS } from './permissions';
 
 interface CustomerData {
   name: string;
@@ -31,28 +31,79 @@ interface CustomerData {
 export default function OrderEntryScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const type = searchParams.get('type') || 'dining';
-  const detail = searchParams.get('detail') || '';
-  
-  const { menuItems, billItems, billTotal, addItemToBill, removeItem, sendToKitchen } = usePosCart();
-  const [selectedCategory, setSelectedCategory] = useState('Mains');
+  const { user, hasPermission } = useAuth();
+  const billId = searchParams.get('billId') || '';
+  const tableNumber = searchParams.get('detail') || '';
+
+  const {
+    categories,
+    menuItems,
+    billItems,
+    billTotal,
+    addItemToBill,
+    removeItem,
+    updateQuantity,
+    sendToKitchen,
+    isLoading,
+    error,
+    loadMenuItems,
+    createBillSession,
+    loadBill,
+    activeBill,
+  } = usePosCart();
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
   const [loyaltyPointsUsed, setLoyaltyPointsUsed] = useState(0);
-  const [kotSent, setKotSent] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isSendingToKitchen, setIsSendingToKitchen] = useState(false);
+  const [isCreatingBill, setIsCreatingBill] = useState(false);
 
-  const categories = ['Starters', 'Mains', 'Desserts', 'Breakfast', 'Dinner', 'Lunch', 'Snacks'];
+  const canSendToKitchen = hasPermission(FRONTEND_PERMISSIONS.KITCHEN_SEND);
 
-  const TAX_RATE = 0.08;
+  useEffect(() => {
+    if (!selectedCategoryId && categories.length > 0) {
+      setSelectedCategoryId(categories[0].id);
+      return;
+    }
 
-  // Dynamic bill calculations
+    if (selectedCategoryId && !categories.some((category) => category.id === selectedCategoryId)) {
+      setSelectedCategoryId(categories[0]?.id || '');
+    }
+  }, [categories, selectedCategoryId]);
+
+  useEffect(() => {
+    if (billId) {
+      void loadBill(billId);
+      return;
+    }
+
+    if (!activeBill && !isCreatingBill) {
+      const createDraftBill = async () => {
+        try {
+          setIsCreatingBill(true);
+          await createBillSession('DINE_IN', tableNumber || null);
+        } finally {
+          setIsCreatingBill(false);
+        }
+      };
+
+      void createDraftBill();
+    }
+  }, [billId, activeBill?.id, tableNumber]);
+
+  const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+  const visibleItems = useMemo(
+    () => menuItems.filter((item) => !selectedCategoryId || item.categoryId === selectedCategoryId),
+    [menuItems, selectedCategoryId],
+  );
+
   const subtotal = billTotal;
   const discountedSubtotal = subtotal - loyaltyDiscount;
-  const taxAmount = discountedSubtotal * TAX_RATE;
+  const taxAmount = discountedSubtotal * 0.08;
   const totalDue = discountedSubtotal + taxAmount;
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('en-AU', {
@@ -60,391 +111,431 @@ export default function OrderEntryScreen() {
     currency: 'AUD',
   }).format(value);
 
-  const handleItemClick = (item: any) => {
-    if (!item.isActive || item.stock === 0) return;
-    addItemToBill(item);
-  };
-
   const showToast = (message: string) => {
     setToastMessage(message);
-    window.setTimeout(() => setToastMessage(''), 4000);
+    window.setTimeout(() => setToastMessage(''), 3500);
   };
 
-  // Customer selection flow
+  const handleRetryLoad = async () => {
+    await loadMenuItems();
+  };
+
   const handleCustomerSelect = (c: CustomerData) => {
     setCustomer(c);
     setShowCustomerModal(false);
-    
-    // If customer has loyalty points, show loyalty modal
+
     if (c.loyaltyPoints > 0) {
       setShowLoyaltyModal(true);
     }
   };
 
-  // Loyalty apply discount
   const handleApplyDiscount = (amount: number, pointsUsed: number) => {
     setLoyaltyDiscount(amount);
     setLoyaltyPointsUsed(pointsUsed);
     setShowLoyaltyModal(false);
   };
 
-  // Loyalty skip
   const handleSkipLoyalty = () => {
     setLoyaltyDiscount(0);
     setLoyaltyPointsUsed(0);
     setShowLoyaltyModal(false);
   };
 
-  // Send to kitchen
+  const handleItemClick = async (item: any) => {
+    if (!item.isActive || item.isOutOfStock) {
+      return;
+    }
+
+    const added = await addItemToBill(item);
+    if (!added) {
+      showToast('Create a bill before adding items');
+      return;
+    }
+
+    showToast(`${item.name} added`);
+  };
+
   const handleSendToKitchen = async () => {
-    if (billItems.length === 0 || isSendingToKitchen) return;
-    
+    if (billItems.length === 0 || isSendingToKitchen) {
+      return;
+    }
+
     try {
       setIsSendingToKitchen(true);
-      const result = await sendToKitchen(billItems);
+      const result = await sendToKitchen();
       if (result.success) {
-        setKotSent(true);
-        showToast('Order #042 saved and sent to kitchen');
+        showToast('Order saved and sent to kitchen');
+        navigate(`/checkout?billId=${result.billId || activeBill?.id || ''}`);
       } else {
         showToast(result.error || 'Failed to send to kitchen');
       }
-    } catch (err) {
-      showToast('Error sending to kitchen. Please try again.');
     } finally {
       setIsSendingToKitchen(false);
     }
   };
 
-  // Pay / Checkout navigation
   const handlePay = () => {
-    navigate('/checkout', { 
-      state: { 
-        billItems, 
-        billTotal: subtotal, 
+    navigate('/checkout', {
+      state: {
+        billId: activeBill?.id,
+        billItems,
+        billTotal: subtotal,
         loyaltyDiscount,
         loyaltyPointsUsed,
         customer,
         taxAmount,
         totalDue,
-        orderType: type,
-        tableDetail: detail
-      } 
+        orderType: 'dining',
+        tableDetail: tableNumber,
+      },
     });
   };
 
   return (
-    <div className="h-[100dvh] w-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans overflow-hidden">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 h-20 bg-white border-b border-slate-100 flex items-center justify-between px-8 shrink-0 z-30">
+    <div className="h-[100dvh] w-screen overflow-hidden bg-[#f8fafc] font-sans text-slate-900 flex flex-col">
+      <header className="fixed left-0 right-0 top-0 z-30 flex h-20 items-center justify-between border-b border-slate-100 bg-white px-8">
         <div className="flex items-center gap-4">
           <div className="text-xl font-black tracking-tighter text-[#0b1b3d]">TILLCLOUD</div>
           <div className="h-6 w-px bg-slate-100" />
           <div className="text-sm font-bold text-slate-400">Order Entry</div>
           <div className="h-6 w-px bg-slate-100" />
-          <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-full text-xs font-bold text-slate-500">
+          <div className="rounded-full border border-slate-100 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-500">
             Station 01 — Main Terminal
           </div>
         </div>
 
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-             <div className="h-10 w-10 rounded-full bg-[#0c1424] text-white flex items-center justify-center">
-                <Users size={18} />
-             </div>
-             <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase text-slate-400 leading-none">Cashier</span>
-                <span className="text-sm font-black text-[#0c1424]">Cashier #42</span>
-             </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0c1424] text-white">
+              <LayoutGrid size={18} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase leading-none text-slate-400">Cashier</span>
+              <span className="text-sm font-black text-[#0c1424]">{user?.fullName || 'Cashier'}</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="h-10 w-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+            <button className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-50">
               <Bell size={20} />
             </button>
-            <button className="h-10 w-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+            <button className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-50">
               <HelpCircle size={20} />
             </button>
-            <button 
-              onClick={() => navigate('/pos-login')}
-              className="h-10 w-10 rounded-xl hover:bg-rose-50 flex items-center justify-center text-rose-500 transition-colors"
-            >
+            <button onClick={() => navigate('/pos/login')} className="flex h-10 w-10 items-center justify-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50">
               <LogOut size={20} />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content (3 Columns) */}
-      <main className="flex-1 flex overflow-hidden p-6 gap-6 min-h-0 pt-24 pb-24">
-        
-        {/* Column 1: Menu Grid (Left) */}
-        <section className="flex-1 flex flex-col gap-6 overflow-hidden min-h-0">
-          <div className="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pr-1 pb-4 custom-scrollbar">
-            {menuItems.filter(i => i.category === selectedCategory || selectedCategory === 'Mains').map((item) => {
-              const outOfStock = item.stock === 0;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleItemClick(item)}
-                  disabled={outOfStock}
-                  className={`group bg-white rounded-[32px] overflow-hidden border border-slate-100 shadow-sm text-left transition-all hover:shadow-xl hover:-translate-y-1 ${outOfStock ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-                >
-                  <div className="h-44 relative">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                    {outOfStock && (
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#0c1424] text-[#5dc7ec] px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ring-8 ring-white/10">
-                        Out of Stock
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-2">
-                       <h4 className="text-xl font-black text-[#0c1424] leading-tight flex-1">{item.name}</h4>
-                       <button className="text-slate-300 hover:text-[#0c1424] transition-colors"><Info size={20} /></button>
-                    </div>
-                    <p className="text-xs font-bold text-slate-400 mb-4">{item.description || '4 pcs'}</p>
-                    <div className="text-2xl font-black text-[#0c1424]">{formatCurrency(item.price)}</div>
-                  </div>
-                </button>
-              );
-            })}
+      <main className="flex min-h-0 flex-1 gap-6 overflow-hidden px-6 pb-24 pt-24">
+        <section className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-2xl font-black tracking-tight text-[#0c1424]">{selectedCategory?.name || 'Menu'}</h3>
+              <p className="text-sm font-medium text-slate-400">{visibleItems.length} items available</p>
+            </div>
+            {error ? (
+              <button
+                type="button"
+                onClick={() => void handleRetryLoad()}
+                className="rounded-full border border-rose-100 bg-rose-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-600"
+              >
+                Retry load
+              </button>
+            ) : null}
           </div>
+
+          {isLoading ? (
+            <div className="flex flex-1 items-center justify-center rounded-[32px] border border-slate-100 bg-white">
+              <div className="text-center">
+                <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-100 border-t-[#0c1424]" />
+                <p className="mt-4 text-sm font-bold text-slate-500">Loading live menu data...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex-1 rounded-[32px] border border-rose-100 bg-rose-50 p-8">
+              <div className="max-w-md">
+                <div className="text-sm font-black uppercase tracking-widest text-rose-600">Menu unavailable</div>
+                <p className="mt-3 text-sm text-rose-700">{error}</p>
+                <button
+                  type="button"
+                  onClick={() => void handleRetryLoad()}
+                  className="mt-6 rounded-2xl bg-[#0c1424] px-5 py-3 text-xs font-black uppercase tracking-widest text-white"
+                >
+                  Reload menu
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="custom-scrollbar grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto pr-1 pb-4 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleItems.length === 0 ? (
+                <div className="col-span-full rounded-[32px] border border-dashed border-slate-200 bg-white p-10 text-center">
+                  <ShoppingBag size={48} className="mx-auto text-slate-300" />
+                  <p className="mt-4 text-lg font-black text-[#0c1424]">No items in this category</p>
+                  <p className="mt-2 text-sm text-slate-500">Add items in the Admin Dashboard and refresh to see them here.</p>
+                </div>
+              ) : (
+                visibleItems.map((item) => {
+                  const unavailable = !item.isActive || item.isOutOfStock;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => void handleItemClick(item)}
+                      disabled={unavailable}
+                      className={`group relative overflow-hidden rounded-[32px] border p-6 text-left transition-all ${unavailable ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-60 grayscale' : 'border-slate-100 bg-white hover:-translate-y-1 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/5'}`}
+                    >
+                      <div className="z-10 flex h-48 flex-col justify-between">
+                        <div className="flex items-start justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.categoryName}</span>
+                          {!unavailable ? (
+                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 opacity-0 transition-all group-hover:opacity-100">
+                              <Plus size={16} />
+                            </div>
+                          ) : null}
+                        </div>
+                        <div>
+                          <h4 className="mb-1 text-lg font-black text-[#0c1424] leading-tight">{item.name}</h4>
+                          <p className="line-clamp-2 text-xs font-bold text-slate-400">{item.description}</p>
+                        </div>
+                        <div className="mt-4 flex items-end justify-between">
+                          <div className="text-xl font-black text-sky-600">{formatCurrency(item.price)}</div>
+                          <div className="text-[10px] font-black uppercase text-slate-400">Live menu</div>
+                        </div>
+                      </div>
+                      <div className="absolute inset-x-0 top-0 h-24">
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} className="h-full w-full object-cover opacity-90" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 via-white to-slate-50 text-3xl font-black text-slate-200">
+                            {item.name.slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
         </section>
 
-        {/* Column 2: Categories (Narrow Middle) */}
-        <aside className="w-48 bg-white rounded-[32px] border border-slate-100 shadow-sm p-6 overflow-y-auto shrink-0 custom-scrollbar min-h-0">
-          <h3 className="text-lg font-black text-[#0c1424] mb-6 px-1 tracking-tight">Categories</h3>
-          <div className="flex flex-col gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`w-full p-4 rounded-2xl flex flex-col items-center gap-1 transition-all ${selectedCategory === cat ? 'bg-[#f0f9ff] text-[#0c1424] border border-sky-100' : 'text-slate-400 hover:bg-slate-50'}`}
-              >
-                <div className="text-xs font-black uppercase tracking-widest leading-none">{cat}</div>
-                <div className="text-[10px] font-bold text-[#5dc7ec]">22 ITEMS</div>
-              </button>
-            ))}
-          </div>
+        <aside className="custom-scrollbar min-h-0 w-48 shrink-0 overflow-y-auto rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
+          <h3 className="mb-6 px-1 text-lg font-black tracking-tight text-[#0c1424]">Categories</h3>
+          {categories.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs font-medium text-slate-500">
+              No active categories found.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategoryId(category.id)}
+                  className={`flex w-full flex-col items-center gap-1 rounded-2xl p-4 transition-all ${selectedCategoryId === category.id ? 'border border-sky-100 bg-[#f0f9ff] text-[#0c1424]' : 'text-slate-400 hover:bg-slate-50'}`}
+                >
+                  <div className="text-center text-xs font-black uppercase tracking-widest leading-none">{category.name}</div>
+                  <div className="text-[10px] font-bold text-[#5dc7ec]">{category.items.length} ITEMS</div>
+                </button>
+              ))}
+            </div>
+          )}
         </aside>
 
-        {/* Column 3: Bill Panel (Right) */}
-        <aside className="w-[450px] bg-white rounded-[32px] border border-slate-100 shadow-sm flex flex-col overflow-hidden shrink-0 min-h-0">
-          <div className="p-8 border-b border-slate-50">
-            <div className="flex justify-between items-start mb-6">
+        <aside className="custom-scrollbar min-h-0 flex w-[450px] shrink-0 flex-col overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm">
+          <div className="border-b border-slate-50 p-8">
+            <div className="mb-6 flex items-start justify-between">
               <div>
-                <h2 className="text-2xl font-black text-[#0c1424] flex items-center gap-3 capitalize">
-                  {type.replace('-', ' ')} • {type === 'dining' ? `Table ${detail || '5'}` : detail || 'Walk-in'}
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></span>
+                <h2 className="flex items-center gap-3 text-2xl font-black capitalize text-[#0c1424]">
+                  Dine In • Table {tableNumber || activeBill?.tableNumber || '5'}
                 </h2>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-xs font-bold text-slate-400">Order #042</span>
-                  <div className="h-1 w-1 bg-slate-200 rounded-full" />
-                  <span className="text-xs font-bold text-slate-400">{customer?.name || 'Alex M.'}</span>
+                <div className="mt-1 flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-400">Order #{activeBill?.orderNumber?.toString().padStart(3, '0') || '---'}</span>
+                  <div className="h-1 w-1 rounded-full bg-slate-200" />
+                  <span className="text-xs font-bold text-slate-400">{customer?.name || user?.fullName || 'Cashier'}</span>
                 </div>
               </div>
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                kotSent 
-                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                  : 'bg-rose-50 text-rose-500 border-rose-100'
-              }`}>
+              <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${activeBill?.status === 'KOT_SENT' ? 'border-emerald-100 bg-emerald-50 text-emerald-600' : 'border-rose-100 bg-rose-50 text-rose-500'}`}>
                 <CheckCircle2 size={12} strokeWidth={3} />
-                {kotSent ? 'KOT Sent' : 'Not Sent'}
+                {activeBill?.status === 'KOT_SENT' ? 'KOT Sent' : 'Draft'}
               </div>
             </div>
 
-            {/* Customer Info - shown after customer selection */}
             {customer ? (
-              <div className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-50">
-                <div className="h-12 w-12 rounded-full bg-[#0c1424] text-white flex items-center justify-center font-black text-sm">
-                  {customer.name.split(' ').map(n => n[0]).join('')}
+              <div className="flex items-center gap-4 rounded-2xl border border-slate-50 bg-slate-50/50 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0c1424] font-black text-white text-sm">
+                  {customer.name.split(' ').map((value) => value[0]).join('')}
                 </div>
                 <div className="flex-1">
                   <div className="text-sm font-black text-[#0c1424]">{customer.name}</div>
                   <div className="text-xs font-bold text-slate-400">{customer.phone}</div>
                 </div>
-                {loyaltyPointsUsed > 0 && (
-                  <div className="text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest">
-                    •{customer.loyaltyPoints - loyaltyPointsUsed} pts
-                  </div>
-                )}
               </div>
             ) : (
-              <button 
-                onClick={() => setShowCustomerModal(true)}
-                className="w-full h-14 bg-[#0c1424] text-white rounded-2xl flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest shadow-xl shadow-black/15 hover:bg-black transition-all active:scale-95"
-              >
+              <button onClick={() => setShowCustomerModal(true)} className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#0c1424] font-black text-white text-xs uppercase tracking-widest shadow-xl shadow-black/15 transition-all active:scale-95 hover:bg-black">
                 <Plus size={18} />
                 Add Customer
               </button>
             )}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto p-8 space-y-6 custom-scrollbar">
+          <div className="custom-scrollbar flex-1 min-h-0 space-y-6 overflow-y-auto p-8">
             {billItems.length === 0 ? (
-               <div className="h-full flex flex-col items-center justify-center text-center opacity-20">
-                  <ShoppingBag size={48} className="mb-4" />
-                  <p className="font-black text-sm uppercase tracking-widest">Bag is Empty</p>
-               </div>
+              <div className="flex h-full flex-col items-center justify-center text-center opacity-20">
+                <ShoppingBag size={48} className="mb-4" />
+                <p className="text-sm font-black uppercase tracking-widest">Bag is Empty</p>
+              </div>
             ) : (
               <>
                 {billItems.map((item) => (
-                  <div key={item.id} className="flex justify-between gap-4 group">
+                  <div key={item.id} className="flex items-center justify-between gap-4 rounded-2xl border border-transparent px-2 py-2 transition-colors hover:border-slate-100 hover:bg-slate-50/60">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                         <span className="text-lg font-black text-[#0c1424]">{item.quantity} × {item.name}</span>
+                        <span className="text-lg font-black text-[#0c1424]">{item.quantity} × {item.name}</span>
                       </div>
-                      <div className="text-xs font-bold text-slate-400 mt-1">
-                         {item.name.includes('Salmon') ? 'No lemon, extra butter' : 'Medium Rare, peppercorn sauce'}
-                      </div>
+                      <div className="mt-1 text-xs font-bold text-slate-400">{item.categoryName}</div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-lg font-black text-[#0c1424]">{formatCurrency(item.price * item.quantity)}</div>
-                      <button onClick={() => removeItem(item.id)} className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="text-lg font-black text-[#0c1424] transition-colors duration-200">{formatCurrency(item.lineTotal)}</div>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => void updateQuantity(item.id, 'decrease')}
+                          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-base font-black text-slate-600 shadow-sm transition-all duration-150 active:scale-95 hover:bg-slate-50"
+                          aria-label={`Decrease ${item.name}`}
+                        >
+                          –
+                        </button>
+                        <button
+                          onClick={() => void updateQuantity(item.id, 'increase')}
+                          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-[#0c1424] text-base font-black text-white shadow-sm transition-all duration-150 active:scale-95 hover:bg-black"
+                          aria-label={`Increase ${item.name}`}
+                        >
+                          +
+                        </button>
+                        <button
+                          onClick={() => void removeItem(item.id)}
+                          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-rose-500 shadow-sm transition-all duration-150 active:scale-95 hover:bg-rose-50"
+                          aria-label={`Remove ${item.name}`}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
 
-                {/* Loyalty Reward Line */}
-                {loyaltyDiscount > 0 && (
-                  <div className="flex items-center justify-between bg-[#f0fdf4] rounded-2xl px-5 py-3 border border-emerald-50">
+                {loyaltyDiscount > 0 ? (
+                  <div className="flex items-center justify-between rounded-2xl border border-emerald-50 bg-[#f0fdf4] px-5 py-3">
                     <div className="flex items-center gap-2 text-emerald-600">
-                      <Diamond size={16} strokeWidth={2.5} />
                       <span className="text-sm font-black uppercase tracking-wider">Loyalty Reward (10%)</span>
                     </div>
                     <span className="text-sm font-black text-emerald-600">-{formatCurrency(loyaltyDiscount)}</span>
                   </div>
-                )}
+                ) : null}
               </>
             )}
           </div>
 
-          <div className="p-8 bg-slate-50/50 border-t border-slate-100">
-            <div className="space-y-4 mb-10">
-              <div className="flex justify-between items-center text-sm font-bold text-slate-500 px-1">
+          <div className="border-t border-slate-100 bg-slate-50/50 p-8">
+            <div className="mb-10 space-y-4">
+              <div className="flex items-center justify-between px-1 text-sm font-bold text-slate-500">
                 <span>Subtotal</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
-              {loyaltyDiscount > 0 && (
-                <div className="flex justify-between items-center text-sm font-bold text-emerald-500 px-1">
+              {loyaltyDiscount > 0 ? (
+                <div className="flex items-center justify-between px-1 text-sm font-bold text-emerald-500">
                   <span>Loyalty Discount</span>
                   <span>-{formatCurrency(loyaltyDiscount)}</span>
                 </div>
-              )}
-              <div className="flex justify-between items-center text-sm font-bold text-slate-500 px-1">
+              ) : null}
+              <div className="flex items-center justify-between px-1 text-sm font-bold text-slate-500">
                 <span>Tax (8%)</span>
                 <span>{formatCurrency(taxAmount)}</span>
               </div>
-              <div className="flex justify-between items-end mt-4 px-1">
+              <div className="mt-4 flex items-end justify-between px-1">
                 <div>
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">Total Due</span>
-                  <span className="text-4xl font-[950] text-[#0c1424] tracking-tight">{formatCurrency(totalDue)}</span>
+                  <span className="mb-1 block text-[11px] font-black uppercase tracking-widest text-slate-400">Total Due</span>
+                  <span className="text-4xl font-[950] tracking-tight text-[#0c1424]">{formatCurrency(totalDue)}</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <button className="h-16 rounded-[24px] bg-[#dcf0ff] text-blue-700 flex items-center justify-center gap-2 font-black text-[13px] uppercase tracking-widest hover:bg-blue-200 transition-all">
-                <Split size={18} />
+            <div className="grid grid-cols-2 gap-3">
+              <button className="flex h-12 items-center justify-center gap-2 rounded-[22px] bg-[#dcf0ff] px-3 font-black text-[11px] uppercase tracking-widest text-blue-700 transition-all active:scale-95 hover:bg-blue-200">
+                <Send size={18} />
                 Split Bill
               </button>
-              <button 
-                className="h-16 rounded-[24px] bg-[#0c1424] text-white flex items-center justify-center gap-2 font-black text-[13px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10 disabled:opacity-40"
-                onClick={handlePay}
-              >
+              <button onClick={handlePay} className="flex h-12 items-center justify-center gap-2 rounded-[22px] bg-[#0c1424] px-3 font-black text-[11px] uppercase tracking-widest text-white shadow-xl shadow-black/10 transition-all active:scale-95 hover:bg-black disabled:opacity-40" disabled={billItems.length === 0}>
                 <CreditCard size={18} />
                 Pay
               </button>
             </div>
-            
-            <button 
-              onClick={handleSendToKitchen}
-              disabled={billItems.length === 0 || isSendingToKitchen}
-              className="w-full h-16 mt-4 rounded-[24px] bg-[#4adeff] text-[#0c1424] flex items-center justify-center gap-3 font-black text-[13px] uppercase tracking-widest shadow-xl shadow-sky-400/20 hover:brightness-95 transition-all disabled:opacity-40"
+
+            <button
+              onClick={() => void handleSendToKitchen()}
+              disabled={billItems.length === 0 || isSendingToKitchen || !canSendToKitchen}
+              className="mt-3 flex h-12 w-full items-center justify-center gap-3 rounded-[22px] bg-[#4adeff] px-3 font-black text-[11px] uppercase tracking-widest text-[#0c1424] shadow-xl shadow-sky-400/20 transition-all active:scale-95 hover:brightness-95 disabled:opacity-40"
             >
-              <Send size={18} strokeWidth={3} />
-              {isSendingToKitchen ? 'Sending...' : 'Save & Send to Kitchen'}
+              {isSendingToKitchen ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} strokeWidth={3} />}
+              Save & Send to Kitchen
             </button>
           </div>
         </aside>
       </main>
 
-      {/* Footer Nav */}
-      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-[#0c1424] flex items-center justify-between px-8 text-white z-30 shrink-0">
-        <nav className="flex items-center gap-8 h-full">
-           <button onClick={() => navigate('/pos')} className="flex flex-col items-center gap-1 group">
-              <ShoppingBag size={20} className="text-[#5dc7ec]" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#5dc7ec]">Orders</span>
-              <div className="w-6 h-0.5 bg-[#5dc7ec] absolute bottom-0" />
-           </button>
-           <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-              <LayoutGrid size={20} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Tables</span>
-           </button>
-           <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-              <UtensilsCrossed size={20} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
-           </button>
+      <footer className="fixed bottom-0 left-0 right-0 z-30 flex h-20 items-center justify-between bg-[#0c1424] px-8 text-white">
+        <nav className="flex h-full items-center gap-8">
+          <button onClick={() => navigate('/pos')} className="group relative flex flex-col items-center gap-1">
+            <ShoppingBag size={20} className="text-[#5dc7ec]" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#5dc7ec]">Orders</span>
+            <div className="absolute bottom-0 h-0.5 w-6 bg-[#5dc7ec]" />
+          </button>
+          <button className="flex flex-col items-center gap-1 opacity-40 transition-opacity hover:opacity-100">
+            <LayoutGrid size={20} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Tables</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 opacity-40 transition-opacity hover:opacity-100">
+            <UtensilsCrossed size={20} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
+          </button>
         </nav>
 
-        <div className="flex items-center gap-6 h-full">
-           {loyaltyDiscount > 0 && (
-             <div className="text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest opacity-60">
-               Loyalty Points Deducted
-             </div>
-           )}
-           <button className="h-12 px-8 rounded-full bg-white/5 border border-white/10 text-xs font-black uppercase tracking-widest hover:bg-white/10">
-              Switch User
-           </button>
-           <HelpCircle size={20} className="text-white/40" />
+        <div className="flex h-full items-center gap-6">
+          {loyaltyDiscount > 0 ? (
+            <div className="text-[10px] font-black uppercase tracking-widest text-[#5dc7ec] opacity-60">Loyalty Points Deducted</div>
+          ) : null}
+          <button className="h-12 rounded-full border border-white/10 bg-white/5 px-8 text-xs font-black uppercase tracking-widest hover:bg-white/10">
+            Switch User
+          </button>
+          <HelpCircle size={20} className="text-white/40" />
         </div>
       </footer>
 
-      {/* Customer Modal */}
-      {showCustomerModal && (
-        <CustomerModal 
-          onClose={() => setShowCustomerModal(false)} 
-          onSelect={handleCustomerSelect}
-        />
-      )}
+      {showCustomerModal ? (
+        <CustomerModal onClose={() => setShowCustomerModal(false)} onSelect={handleCustomerSelect} />
+      ) : null}
 
-      {/* Loyalty Modal */}
-      {showLoyaltyModal && customer && (
+      {showLoyaltyModal && customer ? (
         <LoyaltyModal
           customer={customer}
           onApplyDiscount={handleApplyDiscount}
           onSkip={handleSkipLoyalty}
           onClose={handleSkipLoyalty}
         />
-      )}
+      ) : null}
 
-      {/* Kitchen Toast Notification */}
-      {toastMessage && (
-        <div 
-          className="fixed top-28 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#0c1424] text-white px-6 py-4 rounded-2xl shadow-2xl shadow-black/20 border border-white/5"
-          style={{ animation: 'toastSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
-        >
-          <div className="h-7 w-7 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+      {toastMessage ? (
+        <div className="fixed left-1/2 top-28 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/5 bg-[#0c1424] px-6 py-4 text-white shadow-2xl shadow-black/20">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500">
             <CheckCircle2 size={16} className="text-white" strokeWidth={3} />
           </div>
-          <span className="text-sm font-bold whitespace-nowrap">{toastMessage}</span>
-          <button 
-            onClick={() => setToastMessage('')}
-            className="ml-2 text-white/40 hover:text-white transition-colors"
-          >
+          <span className="whitespace-nowrap text-sm font-bold">{toastMessage}</span>
+          <button onClick={() => setToastMessage('')} className="ml-2 text-white/40 transition-colors hover:text-white">
             <X size={16} />
           </button>
         </div>
-      )}
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-        @keyframes toastSlideIn {
-          from { opacity: 0; transform: translate(-50%, -20px); }
-          to { opacity: 1; transform: translate(-50%, 0); }
-        }
-      `}</style>
+      ) : null}
     </div>
   );
 }

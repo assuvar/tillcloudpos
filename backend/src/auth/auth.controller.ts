@@ -30,14 +30,6 @@ type RefreshBody = {
   posSessionToken?: string;
 };
 
-type KitchenPairingBody = {
-  terminalId?: string;
-};
-
-type KitchenAuthorizeBody = {
-  pairingToken?: string;
-};
-
 type AssignPinBody = {
   userId?: string;
   pin?: string;
@@ -175,6 +167,51 @@ export class AuthController {
 
   @Public()
   @HttpCode(HttpStatus.OK)
+  @Post('pin-login')
+  async pinLogin(
+    @Body()
+    pinLoginDto: {
+      role?: 'MANAGER' | 'CASHIER' | 'KITCHEN';
+      identifier?: string;
+      pin?: string;
+    },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!pinLoginDto?.role || !pinLoginDto?.identifier || !pinLoginDto?.pin) {
+      throw new UnauthorizedException('Invalid PIN credentials');
+    }
+
+    const user = await this.authService.validatePosUser(
+      pinLoginDto.identifier,
+      pinLoginDto.pin,
+      pinLoginDto.role,
+    );
+
+    if (pinLoginDto.role === 'KITCHEN') {
+      const session = this.authService.login(user);
+      this.setRefreshCookie(res, session.refreshToken);
+
+      return {
+        access_token: session.accessToken,
+        accessTokenExpiresIn: session.accessTokenExpiresIn,
+        user: session.user,
+      };
+    }
+
+    const session = this.authService.loginPos(user);
+    this.setRefreshCookie(res, session.refreshToken);
+
+    return {
+      access_token: session.accessToken,
+      accessTokenExpiresIn: session.accessTokenExpiresIn,
+      pos_session_token: session.posSessionToken,
+      posSessionTokenExpiresIn: session.posSessionTokenExpiresIn,
+      user: session.user,
+    };
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
   @Post('refresh')
   async refresh(
     @Req() req: Request,
@@ -287,32 +324,6 @@ export class AuthController {
   async logout(@Res({ passthrough: true }) res: Response) {
     this.clearRefreshCookie(res);
     return { success: true };
-  }
-
-  @Roles('ADMIN', 'MANAGER')
-  @RequirePermissions(PERMISSIONS.SETTINGS_MANAGE_TERMINALS)
-  @Post('kitchen/pairing-token')
-  async createKitchenPairingToken(
-    @Req() req: AuthenticatedRequest,
-    @Body() body: KitchenPairingBody,
-  ) {
-    if (!req.user?.restaurantId || !body?.terminalId) {
-      throw new UnauthorizedException(
-        'restaurant and terminal details are required',
-      );
-    }
-
-    return this.authService.generateKitchenPairingToken(
-      req.user.restaurantId,
-      body.terminalId,
-    );
-  }
-
-  @Public()
-  @HttpCode(HttpStatus.OK)
-  @Post('kitchen/authorize')
-  async authorizeKitchen(@Body() body: KitchenAuthorizeBody) {
-    return this.authService.authorizeKitchen(body?.pairingToken || '');
   }
 
   @Roles('ADMIN', 'MANAGER')

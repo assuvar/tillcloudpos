@@ -19,36 +19,39 @@ export default function PosTerminal() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { menuItems, billItems, totalItems, billTotal, addItemToBill, removeItem, updateQuantity, sendToKitchen, isLoading, error } = usePosCart();
+  const { categories, menuItems, billItems, totalItems, billTotal, addItemToBill, removeItem, updateQuantity, sendToKitchen, isLoading, error } = usePosCart();
   const [toastMessage, setToastMessage] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const categories = useMemo(() => ['All', ...Array.from(new Set(menuItems.map((item) => item.category)))], [menuItems]);
+  const categoryTabs = useMemo(
+    () => [{ id: 'all', name: 'All' }, ...categories.map((category) => ({ id: category.id, name: category.name }))],
+    [categories],
+  );
 
   const visibleItems = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
     return menuItems.filter((item) => {
-      const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
-      const matchesSearch = !normalizedSearch || [item.name, item.description, item.category].some((field) => field.toLowerCase().includes(normalizedSearch));
+      const matchesCategory = selectedCategoryId === 'all' || item.categoryId === selectedCategoryId;
+      const matchesSearch = !normalizedSearch || [item.name, item.description, item.categoryName].some((field) => field.toLowerCase().includes(normalizedSearch));
 
       return matchesCategory && matchesSearch;
     });
-  }, [menuItems, searchTerm, selectedCategory]);
+  }, [menuItems, searchTerm, selectedCategoryId]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
     window.setTimeout(() => setToastMessage(''), 2200);
   };
 
-  const handleItemClick = (itemId: string) => {
+  const handleItemClick = async (itemId: string) => {
     const item = menuItems.find((entry) => entry.id === itemId);
     if (!item) {
       return;
     }
 
-    const added = addItemToBill(item);
+    const added = await addItemToBill(item);
     if (!added) {
       showToast(item.isActive ? 'Item is unavailable' : 'Item is inactive');
       return;
@@ -58,7 +61,7 @@ export default function PosTerminal() {
   };
 
   const handleSaveAndSend = async () => {
-    const result = await sendToKitchen(billItems);
+    const result = await sendToKitchen();
     if (!result.success) {
       showToast('Add items before sending to kitchen');
       return;
@@ -134,14 +137,14 @@ export default function PosTerminal() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {categories.map((category) => (
+              {categoryTabs.map((category) => (
                 <button
-                  key={category}
+                  key={category.id}
                   type="button"
-                  onClick={() => setSelectedCategory(category)}
-                  className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all ${selectedCategory === category ? 'bg-[#0c1424] text-white shadow-lg shadow-black/10' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                  onClick={() => setSelectedCategoryId(category.id)}
+                  className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all ${selectedCategoryId === category.id ? 'bg-[#0c1424] text-white shadow-lg shadow-black/10' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                 >
-                  {category}
+                  {category.name}
                 </button>
               ))}
             </div>
@@ -166,26 +169,32 @@ export default function PosTerminal() {
             ) : (
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {visibleItems.map((item) => {
-                const unavailable = !item.isActive || item.stock === 0 || item.isOutOfStock;
+                const unavailable = !item.isActive || item.isOutOfStock;
 
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => handleItemClick(item.id)}
+                    onClick={() => void handleItemClick(item.id)}
                     disabled={unavailable}
                     className={`group overflow-hidden rounded-[26px] border bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${unavailable ? 'cursor-not-allowed border-slate-100 opacity-55' : 'border-slate-100 hover:border-sky-200'}`}
                   >
                     <div className="relative h-36 overflow-hidden">
-                      <img src={item.image} alt={item.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 via-white to-slate-50 text-3xl font-black text-slate-200">
+                          {item.name.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
                       <div className="absolute left-4 top-4 flex gap-2">
                         {!item.isActive && <span className="rounded-full bg-slate-900/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-white">Inactive</span>}
-                        {item.stock === 0 || item.isOutOfStock ? <span className="rounded-full bg-amber-500/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-white">Out of stock</span> : null}
+                        {item.isOutOfStock ? <span className="rounded-full bg-amber-500/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-white">Unavailable</span> : null}
                       </div>
                       <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3 text-white">
                         <div>
-                          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/80">{item.category}</div>
+                          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/80">{item.categoryName}</div>
                           <div className="mt-1 text-lg font-black leading-tight">{item.name}</div>
                         </div>
                         <div className="rounded-2xl bg-white/15 px-3 py-2 text-sm font-black backdrop-blur-sm">{formatCurrency(item.price)}</div>
@@ -195,7 +204,7 @@ export default function PosTerminal() {
                     <div className="space-y-3 p-5">
                       <p className="text-sm leading-relaxed text-slate-500">{item.description}</p>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Stock {item.stock}</span>
+                        <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Live menu</span>
                         <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${unavailable ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600'}`}>
                           {unavailable ? 'Blocked' : 'Add to bill'}
                           {!unavailable && <Plus size={12} />}
@@ -236,7 +245,7 @@ export default function PosTerminal() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => void removeItem(item.id)}
                         className="rounded-xl p-2 text-slate-400 hover:bg-white hover:text-rose-500"
                         aria-label={`Remove ${item.name}`}
                       >
@@ -248,7 +257,7 @@ export default function PosTerminal() {
                       <div className="flex items-center rounded-2xl border border-slate-200 bg-white">
                         <button
                           type="button"
-                          onClick={() => updateQuantity(item.id, 'decrease')}
+                          onClick={() => void updateQuantity(item.id, 'decrease')}
                           className="flex h-10 w-10 items-center justify-center text-slate-600 hover:bg-slate-50"
                           aria-label={`Decrease ${item.name}`}
                         >
@@ -257,7 +266,7 @@ export default function PosTerminal() {
                         <div className="min-w-12 px-3 text-center text-sm font-black text-[#0c1424]">{item.quantity}</div>
                         <button
                           type="button"
-                          onClick={() => updateQuantity(item.id, 'increase')}
+                          onClick={() => void updateQuantity(item.id, 'increase')}
                           className="flex h-10 w-10 items-center justify-center text-slate-600 hover:bg-slate-50"
                           aria-label={`Increase ${item.name}`}
                         >

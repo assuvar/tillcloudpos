@@ -9,7 +9,6 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
 import * as sgMail from '@sendgrid/mail';
 import { Twilio } from 'twilio';
 
@@ -396,7 +395,7 @@ export class AuthService {
   async validatePosUser(
     identifier: string,
     pin: string,
-    selectedRole: 'MANAGER' | 'CASHIER',
+    selectedRole: 'MANAGER' | 'CASHIER' | 'KITCHEN',
   ): Promise<AuthenticatedUser> {
     if (!/^\d{4,6}$/.test(pin)) {
       throw new UnauthorizedException('Invalid PIN');
@@ -419,7 +418,9 @@ export class AuthService {
     const validForSelectedRole =
       selectedRole === 'CASHIER'
         ? user.role === 'CASHIER'
-        : user.role === 'MANAGER' || user.role === 'ADMIN';
+        : selectedRole === 'MANAGER'
+          ? user.role === 'MANAGER' || user.role === 'ADMIN'
+          : user.role === 'KITCHEN';
 
     if (!validForSelectedRole) {
       throw new UnauthorizedException(
@@ -564,79 +565,6 @@ export class AuthService {
       refreshToken: shouldRotateRefresh
         ? this.refreshToken(nextPayload)
         : undefined,
-    };
-  }
-
-  async generateKitchenPairingToken(restaurantId: string, terminalId: string) {
-    const pairingToken = randomBytes(24).toString('hex');
-    const terminal = await this.prisma.terminal.findFirst({
-      where: {
-        id: terminalId,
-        restaurantId,
-      },
-    });
-
-    if (!terminal) {
-      throw new BadRequestException('Terminal not found for this restaurant');
-    }
-
-    await this.prisma.terminal.update({
-      where: { id: terminalId },
-      data: {
-        pairingCode: pairingToken,
-        pairedAt: null,
-      },
-    });
-
-    return {
-      pairingToken,
-      terminalId,
-    };
-  }
-
-  async authorizeKitchen(pairingToken: string) {
-    if (!pairingToken) {
-      throw new UnauthorizedException('Pairing token is required');
-    }
-
-    const terminal = await this.prisma.terminal.findFirst({
-      where: {
-        pairingCode: pairingToken,
-        isActive: true,
-      },
-    });
-
-    if (!terminal) {
-      throw new UnauthorizedException('Invalid kitchen pairing token');
-    }
-
-    await this.prisma.terminal.update({
-      where: { id: terminal.id },
-      data: {
-        pairedAt: new Date(),
-      },
-    });
-
-    const kitchenUser: AuthenticatedUser = {
-      id: `kitchen-${terminal.id}`,
-      email: `${terminal.id}@kitchen.local`,
-      fullName: terminal.name,
-      role: 'KITCHEN',
-      restaurantId: terminal.restaurantId,
-      onboardingCompleted: true,
-    };
-
-    const payload = this.buildSessionPayload(kitchenUser);
-
-    return {
-      accessToken: this.accessToken(payload),
-      accessTokenExpiresIn: 3600,
-      user: kitchenUser,
-      terminal: {
-        id: terminal.id,
-        name: terminal.name,
-        type: terminal.type,
-      },
     };
   }
 

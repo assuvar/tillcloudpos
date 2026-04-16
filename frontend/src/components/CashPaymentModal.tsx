@@ -3,7 +3,7 @@ import { Delete } from 'lucide-react';
 
 interface CashPaymentModalProps {
   amountDue: number;
-  onComplete: () => void;
+  onComplete: (cashTendered: number) => void;
   onCancel: () => void;
 }
 
@@ -99,7 +99,7 @@ export default function CashPaymentModal({ amountDue, onComplete, onCancel }: Ca
 
           {/* Action Buttons */}
           <button
-            onClick={onComplete}
+            onClick={() => onComplete(cashTendered)}
             disabled={cashTendered < amountDue}
             className="w-full h-16 rounded-2xl bg-[#0c1424] text-white font-black text-[15px] shadow-xl shadow-black/15 hover:bg-black transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed mb-3"
           >

@@ -1,169 +1,212 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Bell, 
-  HelpCircle, 
-  LogOut, 
-  Plus, 
-  ShoppingBag, 
-  LayoutGrid, 
-  UtensilsCrossed,
+import {
+  AlertCircle,
+  ArrowRight,
+  Bell,
   CheckCircle2,
-  AlertCircle
+  Clock3,
+  HelpCircle,
+  LayoutGrid,
+  LogOut,
+  Plus,
+  RefreshCw,
+  ShoppingBag,
+  UtensilsCrossed,
 } from 'lucide-react';
 import NewBillModal from './components/NewBillModal';
 import { useAuth } from './context/AuthContext';
+import { usePosCart } from './context/PosCartContext';
 import { FRONTEND_PERMISSIONS } from './permissions';
-
-interface BillCardProps {
-  id: string;
-  type: 'DINE IN' | 'DELIVERY' | 'PICKUP';
-  title: string;
-  items: number;
-  amount: string;
-  time: string;
-  kotSent: boolean;
-  onClick: () => void;
-}
-
-const BillCard = ({ id, type, title, items, amount, time, kotSent, onClick }: BillCardProps) => (
-  <button 
-    onClick={onClick}
-    className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 text-left hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
-  >
-    <div className="flex justify-between items-start mb-6">
-      <span className="text-2xl font-black text-[#0c1424]">#{id}</span>
-      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-        type === 'DINE IN' ? 'bg-[#0c1424] text-[#5dc7ec]' : 
-        type === 'DELIVERY' ? 'bg-blue-50 text-blue-600' : 'bg-slate-50 text-slate-500'
-      }`}>
-        {type}
-      </span>
-    </div>
-
-    <div className="mb-8">
-      <h4 className="text-xl font-black text-[#0c1424] leading-tight">{title}</h4>
-      <p className="text-slate-400 font-medium text-sm mt-1">{items} items</p>
-    </div>
-
-    <div className="flex justify-between items-end mb-4">
-      <div className="text-3xl font-black text-[#0c1424]">{amount}</div>
-      <div className="text-xs font-bold text-slate-400 mb-1">{time} ago</div>
-    </div>
-
-    <div className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider ${
-      kotSent ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-    }`}>
-      {kotSent ? <CheckCircle2 size={14} strokeWidth={3} /> : <AlertCircle size={14} strokeWidth={3} />}
-      KOT {kotSent ? 'Sent' : 'Not Sent'}
-    </div>
-  </button>
-);
 
 export default function POSEntryScreen() {
   const navigate = useNavigate();
   const { user, logout, hasModuleAccess, hasPermission } = useAuth();
+  const { openBills, loadOpenBills, isLoading, error } = usePosCart();
   const [showNewBillModal, setShowNewBillModal] = useState(false);
 
   const canAccessBilling = hasModuleAccess('BILLING');
   const canCreateBill = hasPermission(FRONTEND_PERMISSIONS.BILLING_CREATE);
   const canAccessMenu = hasModuleAccess('MENU');
 
-  const mockBills: BillCardProps[] = [
-    { id: '042', type: 'DINE IN', title: 'Table 5', items: 4, amount: '$64.50', time: '14 mins', kotSent: true, onClick: () => navigate('/pos/order-entry?type=dining') },
-    { id: '045', type: 'DELIVERY', title: '12 Main St', items: 2, amount: '$32.00', time: '24 mins', kotSent: false, onClick: () => navigate('/pos/order-entry?type=delivery') },
-    { id: '039', type: 'PICKUP', title: 'Sarah', items: 7, amount: '$112.10', time: '38 mins', kotSent: true, onClick: () => {} },
-    { id: '048', type: 'DINE IN', title: 'Table 12', items: 3, amount: '$45.00', time: '2 mins', kotSent: false, onClick: () => {} },
-    { id: '049', type: 'DINE IN', title: 'Table 2', items: 1, amount: '$14.50', time: 'Just now', kotSent: true, onClick: () => {} },
-  ];
+  useEffect(() => {
+    void loadOpenBills();
+  }, []);
 
   return (
-    <div className="h-screen bg-[#f8fafc] text-slate-900 font-sans flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-8 shrink-0 relative z-30">
+    <div className="flex h-screen flex-col overflow-hidden bg-[#f8fafc] font-sans text-slate-900">
+      <header className="fixed left-0 right-0 top-0 z-30 flex h-20 items-center justify-between border-b border-slate-100 bg-white px-8">
         <div className="flex items-center gap-4">
           <div className="text-xl font-black tracking-tighter text-[#0b1b3d]">TILLCLOUD</div>
           <div className="h-6 w-px bg-slate-100" />
-          <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-full text-xs font-bold text-slate-500">
+          <div className="text-sm font-bold text-slate-400">POS Home</div>
+          <div className="h-6 w-px bg-slate-100" />
+          <div className="rounded-full border border-slate-100 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-500">
             Station 01 — Main Terminal
           </div>
         </div>
 
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-             <div className="h-10 w-10 rounded-full bg-[#0c1424] text-white flex items-center justify-center">
-                <LayoutGrid size={18} />
-             </div>
-             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase text-slate-400 leading-none">{user?.role || 'Staff'}</span>
-              <span className="text-sm font-black text-[#0c1424]">{user?.fullName || 'POS User'}</span>
-             </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0c1424] text-white">
+              <LayoutGrid size={18} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase leading-none text-slate-400">Cashier</span>
+              <span className="text-sm font-black text-[#0c1424]">{user?.fullName || 'Cashier'}</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="h-10 w-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+            <button className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-50">
               <Bell size={20} />
             </button>
-            <button className="h-10 w-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+            <button className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-50">
               <HelpCircle size={20} />
             </button>
-            <button 
-              onClick={() => {
-                void logout();
-                navigate('/pos-login');
-              }}
-              className="h-10 w-10 rounded-xl hover:bg-rose-50 flex items-center justify-center text-rose-500 transition-colors"
-            >
+            <button onClick={() => void logout()} className="flex h-10 w-10 items-center justify-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50">
               <LogOut size={20} />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-12 relative min-h-0">
-        <div className="max-w-[1400px] mx-auto">
+      <main className="flex-1 overflow-y-auto p-12 pt-24">
+        <div className="mx-auto max-w-[1400px]">
           {canAccessBilling ? (
             <>
-              <div className="flex items-center justify-between mb-12">
-                <h1 className="text-5xl font-black text-[#0c1424] tracking-tight">Open Bills</h1>
-                <button 
-                  onClick={() => setShowNewBillModal(true)}
-                  disabled={!canCreateBill}
-                  className="bg-[#0c1424] text-white h-16 px-10 rounded-2xl flex items-center gap-4 shadow-2xl shadow-black/20 hover:bg-black transition-all active:scale-95 group disabled:opacity-50"
-                >
-                  <div className="bg-[#5dc7ec] text-[#0c1424] h-7 w-7 rounded-lg flex items-center justify-center group-hover:rotate-90 transition-transform">
-                    <Plus size={18} strokeWidth={3} />
-                  </div>
-                  <span className="text-lg font-black uppercase tracking-wider">New Bill</span>
-                </button>
+              <div className="mb-12 flex items-center justify-between">
+                <h1 className="text-5xl font-black tracking-tight text-[#0c1424]">Open Bills</h1>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => void loadOpenBills()}
+                    className="flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50"
+                  >
+                    <RefreshCw size={18} />
+                  </button>
+                  <button
+                    onClick={() => setShowNewBillModal(true)}
+                    disabled={!canCreateBill}
+                    className="group flex h-16 items-center gap-4 rounded-2xl bg-[#0c1424] px-10 text-white shadow-2xl shadow-black/20 transition-all hover:bg-black active:scale-95 disabled:opacity-50"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#5dc7ec] text-[#0c1424] transition-transform group-hover:rotate-90">
+                      <Plus size={18} strokeWidth={3} />
+                    </div>
+                    <span className="text-lg font-black uppercase tracking-wider">New Bill</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-20">
-                <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex items-center gap-6">
-                  <div className="h-14 w-14 rounded-2xl bg-[#0c1424] flex items-center justify-center text-[#5dc7ec]">
+              <div className="mb-20 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="flex items-center gap-6 rounded-[32px] border border-slate-100 bg-white p-8 shadow-sm">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0c1424] text-[#5dc7ec]">
                     <ShoppingBag size={24} />
                   </div>
                   <div>
-                    <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Bills Today</div>
-                    <div className="text-3xl font-black text-[#0c1424]">12</div>
+                    <div className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Bills Today</div>
+                    <div className="text-3xl font-black text-[#0c1424]">{openBills.length}</div>
                   </div>
                 </div>
-                <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex items-center gap-6">
-                  <div className="h-14 w-14 rounded-2xl bg-[#0c1424] flex items-center justify-center text-[#5dc7ec]">
+                <div className="flex items-center gap-6 rounded-[32px] border border-slate-100 bg-white p-8 shadow-sm">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0c1424] text-[#5dc7ec]">
                     <LayoutGrid size={24} />
                   </div>
                   <div>
-                    <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Revenue Today</div>
-                    <div className="text-3xl font-black text-[#0c1424]">$480.00</div>
+                    <div className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Live Open Bills</div>
+                    <div className="text-3xl font-black text-[#0c1424]">{openBills.filter((bill) => bill.status !== 'PAID').length}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 rounded-[32px] border border-slate-100 bg-white p-8 shadow-sm">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0c1424] text-[#5dc7ec]">
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">KOT Sent</div>
+                    <div className="text-3xl font-black text-[#0c1424]">{openBills.filter((bill) => bill.status === 'KOT_SENT').length}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 rounded-[32px] border border-slate-100 bg-white p-8 shadow-sm">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0c1424] text-[#5dc7ec]">
+                    <Clock3 size={24} />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Revenue Today</div>
+                    <div className="text-3xl font-black text-[#0c1424]">
+                      {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
+                        openBills.reduce((sum, bill) => sum + bill.totalAmount, 0),
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {mockBills.map((bill) => (
-                  <BillCard key={bill.id} {...bill} />
-                ))}
-              </div>
+              {isLoading ? (
+                <div className="rounded-[32px] border border-slate-100 bg-white p-10 text-center shadow-sm">
+                  <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-100 border-t-[#0c1424]" />
+                  <p className="mt-4 text-sm font-bold text-slate-500">Loading live bills...</p>
+                </div>
+              ) : error ? (
+                <div className="rounded-[32px] border border-rose-100 bg-rose-50 px-6 py-5 text-sm font-medium text-rose-700">
+                  {error}
+                </div>
+              ) : openBills.length === 0 ? (
+                <div className="rounded-[32px] border border-dashed border-slate-200 bg-white p-10 text-center shadow-sm">
+                  <ShoppingBag size={52} className="mx-auto text-slate-300" />
+                  <h3 className="mt-4 text-2xl font-black text-[#0c1424]">No open bills yet</h3>
+                  <p className="mt-2 text-sm text-slate-500">Create a dine-in bill to start the POS flow.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+                  {openBills.map((bill) => {
+                    const isKotSent = bill.status === 'KOT_SENT';
+                    const timeLabel = bill.kotSentAt
+                      ? `${Math.max(1, Math.round((Date.now() - new Date(bill.kotSentAt).getTime()) / 60000))} mins`
+                      : 'Open';
+
+                    return (
+                      <button
+                        key={bill.id}
+                        onClick={() => {
+                          if (isKotSent) {
+                            navigate(`/checkout?billId=${bill.id}`);
+                            return;
+                          }
+
+                          navigate(`/pos/order-entry?billId=${bill.id}`);
+                        }}
+                        className="rounded-[32px] border border-slate-100 bg-white p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                      >
+                        <div className="mb-6 flex items-start justify-between">
+                          <span className="text-2xl font-black text-[#0c1424]">#{bill.orderNumber.toString().padStart(3, '0')}</span>
+                          <span className={`rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest ${isKotSent ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-500'}`}>
+                            {isKotSent ? 'KOT SENT' : 'OPEN'}
+                          </span>
+                        </div>
+
+                        <div className="mb-8">
+                          <h4 className="text-xl font-black leading-tight text-[#0c1424]">{bill.tableNumber ? `Table ${bill.tableNumber}` : `Bill ${bill.orderNumber}`}</h4>
+                          <p className="mt-1 text-sm font-medium text-slate-400">{bill.itemCount} items</p>
+                        </div>
+
+                        <div className="mb-4 flex items-end justify-between">
+                          <div className="text-3xl font-black text-[#0c1424]">
+                            {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(bill.totalAmount)}
+                          </div>
+                          <div className="mb-1 inline-flex items-center gap-1 text-xs font-bold text-slate-400">
+                            <Clock3 size={12} />
+                            {timeLabel}
+                          </div>
+                        </div>
+
+                        <div className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-[11px] font-black uppercase tracking-wider ${isKotSent ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                          {isKotSent ? <CheckCircle2 size={14} strokeWidth={3} /> : <AlertCircle size={14} strokeWidth={3} />}
+                          {isKotSent ? 'Ready for payment' : 'Open order'}
+                          <ArrowRight size={14} className="ml-auto" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </>
           ) : (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-[13px] font-semibold text-amber-800">
@@ -173,37 +216,34 @@ export default function POSEntryScreen() {
         </div>
       </main>
 
-      {/* Footer Nav */}
-      <footer className="h-20 bg-[#0c1424] flex items-center justify-between px-8 text-white relative z-30 shrink-0">
-        <nav className="flex items-center gap-8 h-full">
-           <button className="flex flex-col items-center gap-1 group">
-              <ShoppingBag size={20} className="text-[#5dc7ec]" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#5dc7ec]">Orders</span>
-              <div className="w-6 h-0.5 bg-[#5dc7ec] absolute bottom-0" />
-           </button>
-           <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-              <LayoutGrid size={20} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Tables</span>
-           </button>
-            {canAccessMenu && (
-             <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-               <UtensilsCrossed size={20} />
-               <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
-             </button>
-            )}
+      <footer className="relative z-30 flex h-20 items-center justify-between bg-[#0c1424] px-8 text-white">
+        <nav className="flex h-full items-center gap-8">
+          <button className="group relative flex flex-col items-center gap-1">
+            <ShoppingBag size={20} className="text-[#5dc7ec]" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#5dc7ec]">Orders</span>
+            <div className="absolute bottom-0 h-0.5 w-6 bg-[#5dc7ec]" />
+          </button>
+          <button className="flex flex-col items-center gap-1 opacity-40 transition-opacity hover:opacity-100">
+            <LayoutGrid size={20} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Tables</span>
+          </button>
+          {canAccessMenu ? (
+            <button className="flex flex-col items-center gap-1 opacity-40 transition-opacity hover:opacity-100">
+              <UtensilsCrossed size={20} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
+            </button>
+          ) : null}
         </nav>
 
-        <div className="flex items-center gap-6 h-full">
-           <button className="h-12 px-8 rounded-full bg-white/5 border border-white/10 text-xs font-black uppercase tracking-widest hover:bg-white/10">
-              Switch User
-           </button>
-           <HelpCircle size={20} className="text-white/40" />
+        <div className="flex h-full items-center gap-6">
+          <button className="h-12 rounded-full border border-white/10 bg-white/5 px-8 text-xs font-black uppercase tracking-widest hover:bg-white/10">
+            Switch User
+          </button>
+          <HelpCircle size={20} className="text-white/40" />
         </div>
       </footer>
 
-      {showNewBillModal && (
-        <NewBillModal onClose={() => setShowNewBillModal(false)} />
-      )}
+      {showNewBillModal ? <NewBillModal onClose={() => setShowNewBillModal(false)} /> : null}
     </div>
   );
 }

@@ -6,6 +6,10 @@ import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { CategoriesModule } from './categories/categories.module';
+import { MenuModule } from './menu/menu.module';
+import { BillsModule } from './bills/bills.module';
+import { KitchenModule } from './kitchen/kitchen.module';
+import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
@@ -27,6 +31,10 @@ import { InventoryModule } from './inventory/inventory.module';
     InventoryModule,
     ProductsModule,
     CategoriesModule,
+    MenuModule,
+    BillsModule,
+    KitchenModule,
+    PaymentsModule,
     OrdersModule,
   ],
   controllers: [AppController],

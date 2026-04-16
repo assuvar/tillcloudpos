@@ -4,28 +4,31 @@ import Register from "./Register";
 import OnboardingFlow from "./onboarding/OnboardingFlow";
 import Dashboard from "./Dashboard";
 import PosLogin from "./PosLogin";
-import POSEntryScreen from "./POSEntryScreen";
+import POSEntryScreen from "./POSEntryScreen.tsx";
 import OrderEntryScreen from "./OrderEntryScreen";
-import Checkout from "./Checkout";
-import KitchenPair from "./KitchenPair";
-import KitchenDisplay from "./KitchenDisplay";
+import Checkout from "./Checkout.tsx";
+import PaymentSuccessScreen from "./PaymentSuccessScreen.tsx";
+import KitchenDisplay from "./KitchenDisplay.tsx";
+import { FRONTEND_PERMISSIONS } from "./permissions";
 import { useAuth } from "./context/AuthContext";
 
 function ProtectedRoute({
   children,
   allowedRoles,
   allowedModes,
+  allowedPermissions,
   redirectTo = "/login",
 }: {
   children: React.ReactNode;
   allowedRoles?: Array<"ADMIN" | "MANAGER" | "CASHIER" | "KITCHEN">;
   allowedModes?: Array<"dashboard" | "pos" | "kitchen">;
+  allowedPermissions?: string[];
   redirectTo?: string;
 }) {
-  const { isAuthenticated, user, isLoading, mode } = useAuth();
+  const { isAuthenticated, user, isLoading, mode, hasPermission, permissionsLoading } = useAuth();
   const location = useLocation();
 
-  if (isLoading) return <div className="flex h-screen items-center justify-center font-bold text-[#0b1b3d]">LOADING...</div>;
+  if (isLoading || permissionsLoading) return <div className="flex h-screen items-center justify-center font-bold text-[#0b1b3d]">LOADING...</div>;
 
   if (!isAuthenticated) {
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
@@ -37,6 +40,13 @@ function ProtectedRoute({
 
   if (allowedModes && mode && !allowedModes.includes(mode)) {
     return <Navigate to={redirectTo} replace />;
+  }
+
+  if (allowedPermissions && allowedPermissions.length > 0) {
+    const granted = allowedPermissions.some((permission) => hasPermission(permission));
+    if (!granted) {
+      return <Navigate to={redirectTo} replace />;
+    }
   }
 
   if (user && mode === "dashboard" && !user.onboardingCompleted) {
@@ -667,21 +677,14 @@ export default function App() {
         } 
       />
       <Route
-        path="/pos-login"
+        path="/pos/login"
         element={
           <PublicRoute>
             <PosLogin />
           </PublicRoute>
         }
       />
-      <Route
-        path="/kitchen/pair"
-        element={
-          <PublicRoute>
-            <KitchenPair />
-          </PublicRoute>
-        }
-      />
+      <Route path="/pos-login" element={<Navigate to="/pos/login" replace />} />
       <Route 
         path="/register" 
         element={
@@ -717,7 +720,7 @@ export default function App() {
       <Route
         path="/pos"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedRoles={["ADMIN", "MANAGER", "CASHIER"]} redirectTo="/pos-login">
+          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN]} redirectTo="/pos/login">
             <POSEntryScreen />
           </ProtectedRoute>
         }
@@ -725,7 +728,7 @@ export default function App() {
       <Route
         path="/pos/order-entry"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedRoles={["ADMIN", "MANAGER", "CASHIER"]} redirectTo="/pos-login">
+          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_CREATE]} redirectTo="/pos/login">
             <OrderEntryScreen />
           </ProtectedRoute>
         }
@@ -733,15 +736,23 @@ export default function App() {
       <Route
         path="/checkout"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedRoles={["ADMIN", "MANAGER", "CASHIER"]} redirectTo="/pos-login">
+          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
             <Checkout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/payment-success"
+        element={
+          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
+            <PaymentSuccessScreen />
           </ProtectedRoute>
         }
       />
       <Route
         path="/kitchen"
         element={
-          <ProtectedRoute allowedModes={["kitchen"]} allowedRoles={["KITCHEN"]} redirectTo="/kitchen/pair">
+          <ProtectedRoute allowedModes={["kitchen"]} allowedPermissions={[FRONTEND_PERMISSIONS.KITCHEN_VIEW]} redirectTo="/pos/login">
             <KitchenDisplay />
           </ProtectedRoute>
         }

@@ -20,6 +20,7 @@ export default function POSPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { 
+    categories,
     menuItems, 
     billItems, 
     totalItems, 
@@ -32,34 +33,39 @@ export default function POSPage() {
   } = usePosCart();
   
   const [toastMessage, setToastMessage] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const categories = useMemo(() => ['All', ...Array.from(new Set(menuItems.map((item) => item.category)))], [menuItems]);
+  const categoryTabs = useMemo(
+    () => [{ id: 'all', name: 'All' }, ...categories.map((category) => ({ id: category.id, name: category.name }))],
+    [categories],
+  );
 
   const visibleItems = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return menuItems.filter((item) => {
-      const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+      const matchesCategory = selectedCategoryId === 'all' || item.categoryId === selectedCategoryId;
       const matchesSearch = !normalizedSearch || 
-        [item.name, item.description, item.category].some((field) => field.toLowerCase().includes(normalizedSearch));
+        [item.name, item.description, item.categoryName].some((field) => field.toLowerCase().includes(normalizedSearch));
       return matchesCategory && matchesSearch;
     });
-  }, [menuItems, searchTerm, selectedCategory]);
+  }, [menuItems, searchTerm, selectedCategoryId]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
     window.setTimeout(() => setToastMessage(''), 2200);
   };
 
-  const handleItemClick = (itemId: string) => {
+  const handleItemClick = async (itemId: string) => {
     const item = menuItems.find((entry) => entry.id === itemId);
-    if (!item || !item.isActive || item.stock === 0 || item.isOutOfStock) {
+    if (!item || !item.isActive || item.isOutOfStock) {
       showToast(item?.isActive ? 'Item out of stock' : 'Item is inactive');
       return;
     }
-    addItemToBill(item);
-    showToast(`${item.name} added`);
+    const added = await addItemToBill(item);
+    if (added) {
+      showToast(`${item.name} added`);
+    }
   };
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('en-AU', {
@@ -69,7 +75,7 @@ export default function POSPage() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/pos-login');
+    navigate('/pos/login');
   };
 
   return (
@@ -125,12 +131,12 @@ export default function POSPage() {
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {categories.map((cat) => (
                 <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`w-full h-14 px-5 rounded-2xl flex items-center justify-between text-sm font-bold transition-all ${selectedCategory === cat ? 'bg-[#0c1424] text-white shadow-lg' : 'bg-transparent text-slate-500 hover:bg-slate-50'}`}
+                  key={cat.id}
+                  onClick={() => setSelectedCategoryId(cat.id)}
+                  className={`w-full h-14 px-5 rounded-2xl flex items-center justify-between text-sm font-bold transition-all ${selectedCategoryId === cat.id ? 'bg-[#0c1424] text-white shadow-lg' : 'bg-transparent text-slate-500 hover:bg-slate-50'}`}
                 >
-                  {cat}
-                  {selectedCategory === cat && <ChevronRight size={16} />}
+                  {cat.name}
+                  {selectedCategoryId === cat.id && <ChevronRight size={16} />}
                 </button>
               ))}
             </div>
@@ -142,7 +148,7 @@ export default function POSPage() {
           <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-6 min-h-full">
             <div className="flex items-center justify-between mb-8">
                <div>
-                 <h2 className="text-2xl font-black text-[#0c1424]">{selectedCategory}</h2>
+                 <h2 className="text-2xl font-black text-[#0c1424]">{categoryTabs.find((category) => category.id === selectedCategoryId)?.name || 'All'}</h2>
                  <p className="text-sm font-medium text-slate-400">Total {visibleItems.length} items available</p>
                </div>
             </div>
@@ -155,17 +161,17 @@ export default function POSPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {visibleItems.map((item) => {
-                  const unavailable = !item.isActive || item.stock === 0 || item.isOutOfStock;
+                  const unavailable = !item.isActive || item.isOutOfStock;
                   return (
                     <button
                       key={item.id}
-                      onClick={() => handleItemClick(item.id)}
+                      onClick={() => void handleItemClick(item.id)}
                       disabled={unavailable}
                       className={`group relative h-48 rounded-[32px] overflow-hidden border transition-all text-left flex flex-col p-6 ${unavailable ? 'bg-slate-50 border-slate-100 opacity-60 grayscale cursor-not-allowed' : 'bg-white border-slate-100 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/5 hover:-translate-y-1'}`}
                     >
                       <div className="z-10 flex-1 flex flex-col justify-between">
                         <div className="flex justify-between items-start">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.category}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.categoryName}</span>
                           {!unavailable && <div className="h-8 w-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"><Plus size={16} /></div>}
                         </div>
                         <div>
@@ -174,13 +180,19 @@ export default function POSPage() {
                         </div>
                         <div className="mt-4 flex items-end justify-between">
                            <div className="text-xl font-black text-sky-600">{formatCurrency(item.price)}</div>
-                           <div className="text-[10px] font-black text-slate-400 uppercase">Stock: {item.stock}</div>
+                           <div className="text-[10px] font-black text-slate-400 uppercase">Live menu</div>
                         </div>
                       </div>
                       
                       {/* Decorative background image mask */}
-                      <div className="absolute right-0 bottom-0 w-24 h-24 opacity-[0.03] group-hover:opacity-[0.08] transition-all">
-                        <ShoppingBag size={96} />
+                      <div className="absolute inset-x-0 top-0 h-24">
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} className="h-full w-full object-cover opacity-90" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 via-white to-slate-50 text-3xl font-black text-slate-200">
+                            {item.name.slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
                       </div>
                     </button>
                   );
@@ -209,15 +221,15 @@ export default function POSPage() {
                   <div key={item.id} className="bg-[#f8fafc]/50 border border-slate-50 p-4 rounded-[24px] flex flex-col gap-4">
                     <div className="flex justify-between">
                        <span className="font-black text-sm text-[#0c1424]">{item.name}</span>
-                       <button onClick={() => removeItem(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors">
+                       <button onClick={() => void removeItem(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors">
                           <Trash2 size={16} />
                        </button>
                     </div>
                     <div className="flex items-center justify-between">
                        <div className="flex items-center gap-1 bg-white border border-slate-100 rounded-full p-1 shadow-sm">
-                          <button onClick={() => updateQuantity(item.id, 'decrease')} className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-slate-50"><Minus size={14}/></button>
+                          <button onClick={() => void updateQuantity(item.id, 'decrease')} className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-slate-50"><Minus size={14}/></button>
                           <span className="w-8 text-center text-xs font-black">{item.quantity}</span>
-                          <button onClick={() => updateQuantity(item.id, 'increase')} className="h-8 w-8 rounded-full flex items-center justify-center bg-[#0c1424] text-white"><Plus size={14}/></button>
+                          <button onClick={() => void updateQuantity(item.id, 'increase')} className="h-8 w-8 rounded-full flex items-center justify-center bg-[#0c1424] text-white"><Plus size={14}/></button>
                        </div>
                        <div className="text-right">
                           <span className="text-xs font-bold text-slate-400 block tracking-tighter">Total</span>
@@ -250,7 +262,7 @@ export default function POSPage() {
 
                <div className="grid grid-cols-2 gap-3">
                   <button 
-                    onClick={() => sendToKitchen(billItems)}
+                    onClick={() => void sendToKitchen()}
                     disabled={billItems.length === 0}
                     className="h-16 rounded-2xl border-2 border-slate-100 bg-white flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
                   >

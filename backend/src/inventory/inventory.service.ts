@@ -200,7 +200,7 @@ export class InventoryService {
       where: {
         restaurantId,
         ingredientId: query.ingredientId || undefined,
-        type: query.type as IngredientMovementType | undefined,
+        ...(query.type ? { type: query.type as IngredientMovementType } : {}),
       },
       include: {
         ingredient: {
