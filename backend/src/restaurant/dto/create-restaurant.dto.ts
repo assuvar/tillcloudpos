@@ -17,7 +17,9 @@ export function validateServiceModelsOrThrow(values: string[] | undefined) {
     return;
   }
 
-  const invalid = values.filter((value) => !ALLOWED_SERVICE_MODELS.includes(value as any));
+  const invalid = values.filter(
+    (value) => !ALLOWED_SERVICE_MODELS.includes(value as any),
+  );
   if (invalid.length > 0) {
     throw new Error(
       `Invalid serviceModels: ${invalid.join(', ')}. Allowed values: ${ALLOWED_SERVICE_MODELS.join(', ')}`,

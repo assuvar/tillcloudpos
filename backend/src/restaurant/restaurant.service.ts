@@ -1,6 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateRestaurantDto, validateServiceModelsOrThrow } from './dto/create-restaurant.dto';
+import {
+  CreateRestaurantDto,
+  validateServiceModelsOrThrow,
+} from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 
 @Injectable()
@@ -12,7 +19,9 @@ export class RestaurantService {
       return undefined;
     }
 
-    const unique = Array.from(new Set(serviceModels.map((value) => value.trim().toUpperCase())));
+    const unique = Array.from(
+      new Set(serviceModels.map((value) => value.trim().toUpperCase())),
+    );
 
     try {
       validateServiceModelsOrThrow(unique);
@@ -64,14 +73,19 @@ export class RestaurantService {
     });
   }
 
-  async updateCurrentRestaurant(restaurantId: string, dto: UpdateRestaurantDto) {
+  async updateCurrentRestaurant(
+    restaurantId: string,
+    dto: UpdateRestaurantDto,
+  ) {
     const nextServiceModels = this.normalizeServiceModels(dto.serviceModels);
 
     return (this.prisma as any).restaurant.update({
       where: { id: restaurantId },
       data: {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-        ...(nextServiceModels !== undefined ? { serviceModels: nextServiceModels } : {}),
+        ...(nextServiceModels !== undefined
+          ? { serviceModels: nextServiceModels }
+          : {}),
       },
     });
   }

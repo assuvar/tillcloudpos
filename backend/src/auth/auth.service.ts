@@ -599,10 +599,10 @@ export class AuthService {
       (value) => !ALLOWED_SERVICE_MODELS.includes(value as ServiceModel),
     );
 
-    const normalizedServiceModels: ServiceModel[] = requestedServiceModels.filter(
-      (value): value is ServiceModel =>
+    const normalizedServiceModels: ServiceModel[] =
+      requestedServiceModels.filter((value): value is ServiceModel =>
         ALLOWED_SERVICE_MODELS.includes(value as ServiceModel),
-    );
+      );
 
     if (invalidServiceModels.length > 0) {
       throw new BadRequestException(

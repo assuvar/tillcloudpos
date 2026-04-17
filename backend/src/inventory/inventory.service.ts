@@ -12,10 +12,7 @@ import {
   InventoryMovementQueryDto,
 } from './dto/inventory-query.dto';
 import { IngredientMovementType } from '../../generated/prisma';
-import {
-  normalizeIngredientUnit,
-  toBaseQuantity,
-} from './inventory-units';
+import { normalizeIngredientUnit, toBaseQuantity } from './inventory-units';
 
 @Injectable()
 export class InventoryService {
@@ -27,7 +24,10 @@ export class InventoryService {
 
   private mapIngredient(ingredient: any) {
     const unit = normalizeIngredientUnit(ingredient.unit);
-    const quantity = toBaseQuantity(this.toNumber(ingredient.quantity), ingredient.unit);
+    const quantity = toBaseQuantity(
+      this.toNumber(ingredient.quantity),
+      ingredient.unit,
+    );
     const lowStockThreshold = toBaseQuantity(
       this.toNumber(ingredient.lowStockThreshold),
       ingredient.unit,
@@ -134,11 +134,7 @@ export class InventoryService {
         : toBaseQuantity(this.toNumber(ingredient.quantity), ingredient.unit);
     const lowStockThreshold =
       dto.lowStockThreshold !== undefined
-        ? toBaseQuantity(
-            dto.lowStockThreshold,
-            sourceUnit,
-            dto.conversionRatio,
-          )
+        ? toBaseQuantity(dto.lowStockThreshold, sourceUnit, dto.conversionRatio)
         : toBaseQuantity(
             this.toNumber(ingredient.lowStockThreshold),
             ingredient.unit,
@@ -187,7 +183,10 @@ export class InventoryService {
     const adjustmentQuantity = toBaseQuantity(quantity, baseUnit);
 
     let type: IngredientMovementType;
-    let nextQuantity = toBaseQuantity(this.toNumber(ingredient.quantity), ingredient.unit);
+    let nextQuantity = toBaseQuantity(
+      this.toNumber(ingredient.quantity),
+      ingredient.unit,
+    );
 
     if (dto.mode === 'ADD') {
       type = IngredientMovementType.MANUAL_ADD;
@@ -330,7 +329,10 @@ export class InventoryService {
       .map((ingredient) => ({
         ...ingredient,
         unit: normalizeIngredientUnit(ingredient.unit),
-        quantity: toBaseQuantity(this.toNumber(ingredient.quantity), ingredient.unit),
+        quantity: toBaseQuantity(
+          this.toNumber(ingredient.quantity),
+          ingredient.unit,
+        ),
         lowStockThreshold: toBaseQuantity(
           this.toNumber(ingredient.lowStockThreshold),
           ingredient.unit,
@@ -381,7 +383,10 @@ export class InventoryService {
         consumed: 0,
       };
       existing.consumed += Math.abs(
-        toBaseQuantity(this.toNumber(movement.quantityChange), movement.ingredient.unit),
+        toBaseQuantity(
+          this.toNumber(movement.quantityChange),
+          movement.ingredient.unit,
+        ),
       );
       summaryMap.set(movement.ingredientId, existing);
     }

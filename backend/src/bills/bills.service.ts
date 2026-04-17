@@ -432,7 +432,11 @@ export class BillsService {
         });
       }
 
-      await this.assertSufficientIngredientStockForBill(tx, restaurantId, billId);
+      await this.assertSufficientIngredientStockForBill(
+        tx,
+        restaurantId,
+        billId,
+      );
 
       const updatedBill = await this.recalculateBillTotals(tx, billId);
       return this.normalizeBill(updatedBill);
@@ -487,7 +491,11 @@ export class BillsService {
         },
       });
 
-      await this.assertSufficientIngredientStockForBill(tx, restaurantId, billId);
+      await this.assertSufficientIngredientStockForBill(
+        tx,
+        restaurantId,
+        billId,
+      );
 
       const updatedBill = await this.recalculateBillTotals(tx, billId);
       return this.normalizeBill(updatedBill);
@@ -543,7 +551,11 @@ export class BillsService {
         throw new NotFoundException('Bill not found');
       }
 
-      await this.assertSufficientIngredientStockForBill(tx, restaurantId, billId);
+      await this.assertSufficientIngredientStockForBill(
+        tx,
+        restaurantId,
+        billId,
+      );
 
       const { bill: updatedBill, kitchenOrder } = await this.createKotForBill(
         tx,

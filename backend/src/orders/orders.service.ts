@@ -12,7 +12,10 @@ import {
   OrderType,
   TaxMode,
 } from '../../generated/prisma';
-import { normalizeIngredientUnit, toBaseQuantity } from '../inventory/inventory-units';
+import {
+  normalizeIngredientUnit,
+  toBaseQuantity,
+} from '../inventory/inventory-units';
 
 @Injectable()
 export class OrdersService {

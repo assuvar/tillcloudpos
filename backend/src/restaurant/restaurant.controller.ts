@@ -15,11 +15,16 @@ export class RestaurantController {
 
   @Get()
   getCurrent(@Req() req: AuthenticatedRequest) {
-    return this.restaurantService.getCurrentRestaurant(req.user?.restaurantId || '');
+    return this.restaurantService.getCurrentRestaurant(
+      req.user?.restaurantId || '',
+    );
   }
 
   @Post()
-  createOrUpdate(@Req() req: AuthenticatedRequest, @Body() dto: CreateRestaurantDto) {
+  createOrUpdate(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateRestaurantDto,
+  ) {
     return this.restaurantService.createOrUpdateCurrentRestaurant(
       req.user?.restaurantId || '',
       dto,
@@ -28,6 +33,9 @@ export class RestaurantController {
 
   @Patch()
   update(@Req() req: AuthenticatedRequest, @Body() dto: UpdateRestaurantDto) {
-    return this.restaurantService.updateCurrentRestaurant(req.user?.restaurantId || '', dto);
+    return this.restaurantService.updateCurrentRestaurant(
+      req.user?.restaurantId || '',
+      dto,
+    );
   }
 }
