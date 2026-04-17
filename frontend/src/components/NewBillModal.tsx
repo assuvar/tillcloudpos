@@ -10,10 +10,43 @@ import {
   CheckCircle2,
   ListPlus
 } from 'lucide-react';
+import { useEffect } from 'react';
+import api from '../services/api';
+import { ALLOWED_SERVICE_MODELS, SERVICE_MODEL_LABELS, type ServiceModel } from '../serviceModels';
 
 interface NewBillModalProps {
   onClose: () => void;
 }
+
+type PosOrderType = ServiceModel;
+
+const SERVICE_MODEL_CONFIG: Record<
+  PosOrderType,
+  { icon: any; description: string; inputLabel?: string; inputPlaceholder?: string; inputRequired?: boolean }
+> = {
+  DINE_IN: {
+    icon: Utensils,
+    description: 'Customer orders at counter, pays, sits at table',
+    inputLabel: 'Table Number',
+    inputPlaceholder: 'e.g. 14',
+    inputRequired: true,
+  },
+  PICKUP: {
+    icon: ShoppingBag,
+    description: 'Order placed, kitchen starts, customer pays on collection',
+    inputLabel: 'Pickup Name or Number',
+    inputPlaceholder: 'Customer name or ID',
+    inputRequired: true,
+  },
+  IN_STORE: {
+    icon: Store,
+    description: 'Quick counter service - pays immediately, waits and collects',
+  },
+  DELIVERY: {
+    icon: Bike,
+    description: 'Driver delivers to address, payment on delivery',
+  },
+};
 
 const OrderTypeButton = ({ 
   active, 
@@ -53,13 +86,43 @@ const OrderTypeButton = ({
 
 export default function NewBillModal({ onClose }: NewBillModalProps) {
   const navigate = useNavigate();
-  const [selectedType, setSelectedType] = useState<'dining' | 'pickup' | 'in-store' | 'delivery'>('dining');
+  const [selectedType, setSelectedType] = useState<PosOrderType>('DINE_IN');
   const [inputValue, setInputValue] = useState('');
+  const [enabledServiceModels, setEnabledServiceModels] = useState<PosOrderType[]>(
+    ALLOWED_SERVICE_MODELS as PosOrderType[],
+  );
+
+  useEffect(() => {
+    const loadRestaurant = async () => {
+      try {
+        const response = await api.get('/restaurant');
+        const nextModels = Array.isArray(response.data?.serviceModels)
+          ? response.data.serviceModels.filter((value: string) =>
+              ALLOWED_SERVICE_MODELS.includes(value as PosOrderType),
+            )
+          : [];
+
+        const normalizedModels = (nextModels.length > 0 ? nextModels : ['DINE_IN']) as PosOrderType[];
+        setEnabledServiceModels(normalizedModels);
+        if (!normalizedModels.includes(selectedType)) {
+          setSelectedType(normalizedModels[0]);
+          setInputValue('');
+        }
+      } catch {
+        setEnabledServiceModels(ALLOWED_SERVICE_MODELS as PosOrderType[]);
+      }
+    };
+
+    void loadRestaurant();
+  }, []);
 
   const handleConfirm = () => {
-    // Navigate to order entry with the type and details
     navigate(`/pos/order-entry?type=${selectedType}&detail=${encodeURIComponent(inputValue)}`);
   };
+
+  const selectedConfig = SERVICE_MODEL_CONFIG[selectedType];
+  const hasInput = selectedConfig.inputRequired;
+  const canConfirm = hasInput ? inputValue.trim().length > 0 : true;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -80,88 +143,56 @@ export default function NewBillModal({ onClose }: NewBillModalProps) {
 
           {/* Grid Options */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            <div className="space-y-4">
-              <OrderTypeButton 
-                active={selectedType === 'dining'} 
-                title="Dine In"
-                description="Customer orders at counter, pays, sits at table"
-                icon={Utensils}
-                onClick={() => setSelectedType('dining')}
-              />
-              {selectedType === 'dining' && (
-                <div className="px-6 pb-2 animate-in slide-in-from-top-4 duration-300">
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
-                    Table Number <span className="text-rose-500">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    placeholder="e.g. 14"
-                    className="w-full h-14 px-6 rounded-2xl bg-[#f0f7ff] border-none focus:ring-2 focus:ring-[#5899ff]/30 text-[15px] font-bold"
-                    autoFocus
+            {enabledServiceModels.map((model) => {
+              const config = SERVICE_MODEL_CONFIG[model];
+              const isActive = selectedType === model;
+
+              return (
+                <div key={model} className="space-y-4">
+                  <OrderTypeButton
+                    active={isActive}
+                    title={SERVICE_MODEL_LABELS[model]}
+                    description={config.description}
+                    icon={config.icon}
+                    onClick={() => {
+                      setSelectedType(model);
+                      setInputValue('');
+                    }}
                   />
-                </div>
-              )}
-            </div>
 
-            <div className="space-y-4">
-              <OrderTypeButton 
-                active={selectedType === 'pickup'} 
-                title="Pickup"
-                description="Order placed, kitchen starts, customer pays on collection"
-                icon={ShoppingBag}
-                onClick={() => setSelectedType('pickup')}
-              />
-              {selectedType === 'pickup' && (
-                <div className="px-6 pb-2 animate-in slide-in-from-top-4 duration-300">
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
-                    Pickup Name or Number <span className="text-rose-500">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    placeholder="Customer name or ID"
-                    className="w-full h-14 px-6 rounded-2xl bg-[#f0f7ff] border-none focus:ring-2 focus:ring-[#5899ff]/30 text-[15px] font-bold"
-                    autoFocus
-                  />
-                </div>
-              )}
-            </div>
+                  {isActive && config.inputRequired && (
+                    <div className="px-6 pb-2 animate-in slide-in-from-top-4 duration-300">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+                        {config.inputLabel} <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        placeholder={config.inputPlaceholder}
+                        className="w-full h-14 px-6 rounded-2xl bg-[#f0f7ff] border-none focus:ring-2 focus:ring-[#5899ff]/30 text-[15px] font-bold"
+                        autoFocus
+                      />
+                    </div>
+                  )}
 
-            <div className="space-y-4">
-              <OrderTypeButton 
-                active={selectedType === 'in-store'} 
-                title="In Store"
-                description="Quick counter service — pays immediately, waits and collects"
-                icon={Store}
-                onClick={() => setSelectedType('in-store')}
-              />
-              {selectedType === 'in-store' && (
-                <div className="px-6 bg-slate-50/50 rounded-2xl h-14 flex items-center justify-center text-slate-300 text-xs font-bold uppercase tracking-widest animate-in fade-in duration-300">
-                  No additional info required
-                </div>
-              )}
-            </div>
+                  {isActive && model === 'IN_STORE' && (
+                    <div className="px-6 bg-slate-50/50 rounded-2xl h-14 flex items-center justify-center text-slate-300 text-xs font-bold uppercase tracking-widest animate-in fade-in duration-300">
+                      No additional info required
+                    </div>
+                  )}
 
-            <div className="space-y-4">
-              <OrderTypeButton 
-                active={selectedType === 'delivery'} 
-                title="Delivery"
-                description="Driver delivers to address, payment on delivery"
-                icon={Bike}
-                onClick={() => setSelectedType('delivery')}
-              />
-              {selectedType === 'delivery' && (
-                <div className="px-6 animate-in slide-in-from-top-4 duration-300">
-                  <button className="w-full h-14 rounded-2xl bg-[#f0f7ff] text-[#0c1424] flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest hover:bg-[#e2efff] transition-all">
-                    <ListPlus size={18} />
-                    Add Delivery Details
-                  </button>
+                  {isActive && model === 'DELIVERY' && (
+                    <div className="px-6 animate-in slide-in-from-top-4 duration-300">
+                      <button className="w-full h-14 rounded-2xl bg-[#f0f7ff] text-[#0c1424] flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest hover:bg-[#e2efff] transition-all">
+                        <ListPlus size={18} />
+                        Add Delivery Details
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })}
           </div>
 
           {/* Footer */}
@@ -177,11 +208,12 @@ export default function NewBillModal({ onClose }: NewBillModalProps) {
             <div className="flex items-center gap-12">
                <div className="flex flex-col text-right">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Mode</span>
-                  <span className="text-xl font-black text-[#0c1424]">{selectedType.toUpperCase().replace('-', ' ')}</span>
+                  <span className="text-xl font-black text-[#0c1424]">{selectedType.replaceAll('_', ' ')}</span>
                </div>
                
                 <button 
                   onClick={handleConfirm}
+                  disabled={!canConfirm || enabledServiceModels.length === 0}
                   className="bg-[#0c1424] text-white h-16 px-12 rounded-[24px] flex items-center gap-4 shadow-2xl shadow-black/20 hover:bg-black transition-all active:scale-95 group"
                 >
                   <span className="text-[13px] font-black uppercase tracking-widest">Confirm & Add Items</span>

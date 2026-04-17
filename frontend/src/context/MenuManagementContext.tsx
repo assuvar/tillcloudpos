@@ -36,6 +36,7 @@ export interface IngredientOption {
 export interface DrawerRecipeItem {
   ingredientId: string;
   quantity: string;
+  unit?: string;
 }
 
 export interface DrawerFormState {
@@ -130,7 +131,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
 
   const resolveImageUrl = (value?: string | null) => {
     if (!value) {
-      return 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop';
+      return '';
     }
 
     if (value.startsWith('/uploads/')) {
@@ -303,6 +304,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
           ? item.recipeItems.map((recipeItem) => ({
               ingredientId: recipeItem.ingredientId,
               quantity: recipeItem.quantity.toString(),
+              unit: recipeItem.unit,
             }))
           : [{ ingredientId: '', quantity: '1' }],
       isActive: item.isActive,
@@ -348,6 +350,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       .map((recipeItem) => ({
         ingredientId: recipeItem.ingredientId,
         quantity: Number.parseFloat(recipeItem.quantity),
+        unit: recipeItem.unit,
       }));
 
     if (drawerForm.trackInventory && normalizedRecipeItems.length === 0) {
@@ -357,11 +360,6 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
 
     if (normalizedRecipeItems.some((recipeItem) => Number.isNaN(recipeItem.quantity) || recipeItem.quantity <= 0)) {
       setError('Recipe ingredient quantities must be greater than 0');
-      return false;
-    }
-
-    if (drawerMode === 'add' && !drawerForm.imageFile) {
-      setError('Please upload an image file for this menu item');
       return false;
     }
 
@@ -397,7 +395,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
                   description: drawerForm.description.trim(),
                   price,
                   categoryId,
-                  image: resolveImageUrl(response.data.imageUrl || item.image),
+                  image: resolveImageUrl(response.data.imageUrl),
                   trackInventory: drawerForm.trackInventory,
                   recipeItems: normalizedRecipeItems.map((recipeItem) => {
                     const ingredient = ingredientOptions.find((option) => option.id === recipeItem.ingredientId);
@@ -461,18 +459,28 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
    * Delete item
    */
   const deleteItem = async (itemId: string) => {
+    if (!itemId || itemId === ':id') {
+      setError('Cannot delete item: invalid item ID loaded from the server.');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
 
-      await api.delete(`/products/${itemId}`);
+      const response = await api.delete(`/products/${itemId}`);
+      const archivedItem = response?.data?.item;
 
-      // Remove from local state
+      // Remove from current list view to match delete intent in UI.
       setItems((currentItems) =>
         currentItems.filter((item) => item.id !== itemId)
       );
 
-      showToast('Item deleted successfully');
+      showToast(
+        archivedItem?.name
+          ? `${archivedItem.name} archived successfully`
+          : 'Item archived successfully',
+      );
     } catch (err: any) {
       const errorMsg =
         err?.response?.data?.message || 'Failed to delete item';

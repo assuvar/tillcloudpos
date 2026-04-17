@@ -1,4 +1,5 @@
 import { ChevronDown, Edit2, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import AddItemDrawer from './AddItemDrawer';
 import {
   getCategoryItemCount,
@@ -8,6 +9,7 @@ import {
 } from './context/MenuManagementContext';
 
 function MenuManagementContent() {
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const {
     categories,
     items,
@@ -178,9 +180,11 @@ function MenuManagementContent() {
                     <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
                       <td className="py-6 px-8">
                         <div className="flex items-center gap-5">
-                          <div className="h-16 w-16 rounded-[20px] overflow-hidden border border-slate-100 shadow-sm shrink-0 bg-slate-50">
-                            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                          </div>
+                          {item.image ? (
+                            <div className="h-16 w-16 rounded-[20px] overflow-hidden border border-slate-100 shadow-sm shrink-0 bg-slate-50">
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            </div>
+                          ) : null}
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[16px] font-black text-[#0c1424] tracking-tight">{item.name}</span>
@@ -234,11 +238,7 @@ function MenuManagementContent() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (window.confirm(`Delete ${item.name}?`)) {
-                                deleteItem(item.id);
-                              }
-                            }}
+                            onClick={() => setPendingDelete({ id: item.id, name: item.name })}
                             className="h-10 w-10 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center"
                             aria-label={`Delete ${item.name}`}
                           >
@@ -272,6 +272,43 @@ function MenuManagementContent() {
       </div>
 
       <AddItemDrawer />
+
+      {pendingDelete ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-[#0c1424]/50 backdrop-blur-sm"
+            onClick={() => setPendingDelete(null)}
+          />
+          <div className="relative w-full max-w-md rounded-[28px] border border-slate-100 bg-white p-6 shadow-2xl">
+            <h3 className="text-xl font-black text-[#0c1424]">Delete Menu Item?</h3>
+            <p className="mt-3 text-sm font-medium text-slate-500">
+              {pendingDelete.name} will be archived and hidden from active menu use.
+            </p>
+            <p className="mt-1 text-xs font-semibold text-slate-400">
+              This action is blocked automatically when the item is used in active bills.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="h-11 rounded-xl border border-slate-200 px-4 text-xs font-black uppercase tracking-widest text-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void deleteItem(pendingDelete.id);
+                  setPendingDelete(null);
+                }}
+                className="h-11 rounded-xl bg-rose-600 px-4 text-xs font-black uppercase tracking-widest text-white"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {toastMessage ? (
         <div className="fixed bottom-6 left-1/2 z-[120] -translate-x-1/2 rounded-full bg-[#0c1424] px-5 py-3 text-sm font-bold text-white shadow-2xl shadow-black/20">

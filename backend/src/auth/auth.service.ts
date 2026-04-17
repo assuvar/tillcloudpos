@@ -8,9 +8,11 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
+import type { ServiceModel } from '../../generated/prisma';
 import * as bcrypt from 'bcrypt';
 import * as sgMail from '@sendgrid/mail';
 import { Twilio } from 'twilio';
+import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
 
 type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
 
@@ -397,7 +399,7 @@ export class AuthService {
     pin: string,
     selectedRole: 'MANAGER' | 'CASHIER' | 'KITCHEN',
   ): Promise<AuthenticatedUser> {
-    if (!/^\d{4,6}$/.test(pin)) {
+    if (!/^\d{4}$/.test(pin)) {
       throw new UnauthorizedException('Invalid PIN');
     }
 
@@ -573,6 +575,7 @@ export class AuthService {
     password?: string;
     businessName?: string;
     fullName?: string;
+    serviceModels?: string[];
   }) {
     const normalizedEmail = registrationData?.email?.trim().toLowerCase();
     const password = registrationData?.password;
@@ -581,6 +584,29 @@ export class AuthService {
     if (!normalizedEmail || !password || !businessName) {
       throw new BadRequestException(
         'email, password and businessName are required',
+      );
+    }
+
+    const requestedServiceModels = Array.from(
+      new Set(
+        (registrationData.serviceModels || []).map((value) =>
+          value.trim().toUpperCase(),
+        ),
+      ),
+    );
+
+    const invalidServiceModels = requestedServiceModels.filter(
+      (value) => !ALLOWED_SERVICE_MODELS.includes(value as ServiceModel),
+    );
+
+    const normalizedServiceModels: ServiceModel[] = requestedServiceModels.filter(
+      (value): value is ServiceModel =>
+        ALLOWED_SERVICE_MODELS.includes(value as ServiceModel),
+    );
+
+    if (invalidServiceModels.length > 0) {
+      throw new BadRequestException(
+        `Invalid serviceModels: ${invalidServiceModels.join(', ')}. Allowed values: ${ALLOWED_SERVICE_MODELS.join(', ')}`,
       );
     }
 
@@ -593,6 +619,10 @@ export class AuthService {
       const restaurant = await tx.restaurant.create({
         data: {
           name: businessName,
+          serviceModels:
+            normalizedServiceModels.length > 0
+              ? normalizedServiceModels
+              : ['DINE_IN'],
           streetAddress: '',
           suburb: '',
           postcode: '',
@@ -628,8 +658,8 @@ export class AuthService {
   }
 
   async hashPin(pin: string): Promise<string> {
-    if (!/^\d{4,6}$/.test(pin)) {
-      throw new BadRequestException('PIN must be 4 to 6 digits');
+    if (!/^\d{4}$/.test(pin)) {
+      throw new BadRequestException('PIN must be exactly 4 digits');
     }
 
     return bcrypt.hash(pin, 10);

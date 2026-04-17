@@ -16,6 +16,7 @@ import { useAuth } from './context/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { calculatePasswordStrength, isValidEmail, isValidPhone } from './onboarding/validation';
 import { OTP_LENGTH, verifyStaticOtp } from './onboarding/otpMock';
+import { ALLOWED_SERVICE_MODELS, SERVICE_MODEL_LABELS, type ServiceModel } from './serviceModels';
 
 const registrationSteps = [
   { id: 1, label: 'Business Info', icon: Building2 },
@@ -58,7 +59,7 @@ export default function Register() {
     confirmPassword: '',
     businessType: '',
     outlets: '',
-    serviceModels: [] as string[],
+    serviceModels: [] as ServiceModel[],
   });
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
@@ -309,7 +310,7 @@ export default function Register() {
     setError('');
   }, [currentStep]);
 
-  const handleCheckboxChange = (model: string) => {
+  const handleCheckboxChange = (model: ServiceModel) => {
     setFormData(prev => ({
       ...prev,
       serviceModels: prev.serviceModels.includes(model)
@@ -678,10 +679,11 @@ export default function Register() {
                           e.preventDefault();
                           const isStep3Valid =
                             formData.businessType.trim() !== '' &&
-                            formData.outlets.trim() !== '';
+                            formData.outlets.trim() !== '' &&
+                            formData.serviceModels.length > 0;
 
                           if (!isStep3Valid) {
-                            setError('Please select business type and number of outlets.');
+                            setError('Please select business type, number of outlets, and at least one service model.');
                             return;
                           }
                           setError('');
@@ -729,7 +731,7 @@ export default function Register() {
                         <div className="space-y-4">
                           <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Service Model</label>
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            {['Dine-In', 'Takeaway', 'Delivery', 'Table Ordering'].map((model) => (
+                            {ALLOWED_SERVICE_MODELS.map((model) => (
                               <label key={model} className="flex items-center gap-3 p-4 rounded-xl border border-slate-50 bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors group">
                                 <div className="relative flex items-center">
                                   <input 
@@ -742,7 +744,7 @@ export default function Register() {
                                     <span className="text-white text-[10px]">✓</span>
                                   </div>
                                 </div>
-                                <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900 transition-colors">{model}</span>
+                                <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900 transition-colors">{SERVICE_MODEL_LABELS[model]}</span>
                               </label>
                             ))}
                           </div>
@@ -759,7 +761,7 @@ export default function Register() {
                           </button>
                           <button
                             type="submit"
-                            disabled={formData.businessType.trim() === '' || formData.outlets.trim() === ''}
+                            disabled={formData.businessType.trim() === '' || formData.outlets.trim() === '' || formData.serviceModels.length === 0}
                             className="h-14 px-12 rounded-full bg-[#0b1731] text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-xl shadow-blue-900/20 active:scale-[0.98] flex items-center justify-center gap-3"
                           >
                             <span>Next Step</span>

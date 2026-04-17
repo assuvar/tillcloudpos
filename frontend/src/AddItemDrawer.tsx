@@ -42,8 +42,7 @@ export default function AddItemDrawer() {
     drawerForm.name.trim() &&
     drawerForm.categoryId &&
     !Number.isNaN(parsedPrice) &&
-    parsedPrice >= 0 &&
-    (drawerMode === 'edit' || Boolean(drawerForm.imageFile))
+    parsedPrice >= 0
   );
 
   const handleClose = () => {
@@ -134,7 +133,7 @@ export default function AddItemDrawer() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Item Image</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Item Image (Optional)</label>
             <div className="rounded-xl bg-blue-50/50 px-4 py-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <input
@@ -153,22 +152,22 @@ export default function AddItemDrawer() {
                   Choose File
                 </button>
                 <div className="text-[12px] font-semibold text-slate-500">
-                  {drawerForm.imageFile ? drawerForm.imageFile.name : drawerMode === 'edit' && drawerForm.image ? 'Current image retained until replaced' : 'No file selected'}
+                  {drawerForm.imageFile
+                    ? drawerForm.imageFile.name
+                    : drawerMode === 'edit' && drawerForm.image
+                      ? 'Current image retained until replaced'
+                      : 'No image selected'}
                 </div>
               </div>
 
               <div className="mt-4 flex items-center gap-4">
-                <div className="h-20 w-20 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-                  {drawerForm.image ? (
+                {drawerForm.image ? (
+                  <div className="h-20 w-20 overflow-hidden rounded-2xl border border-slate-100 bg-white">
                     <img src={drawerForm.image} alt="Menu preview" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-slate-300">
-                      <ImagePlus size={22} />
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : null}
                 <div className="flex-1">
-                  <p className="text-[12px] font-semibold text-slate-500">Upload an image file. The backend stores it as a file and serves it from the uploads folder.</p>
+                  <p className="text-[12px] font-semibold text-slate-500">Upload an image file if needed. Items can be saved without images.</p>
                   <div className="mt-2 flex gap-2">
                     <button
                       type="button"
@@ -278,15 +277,28 @@ export default function AddItemDrawer() {
                 </div>
 
                 <div className="space-y-3">
-                  {drawerForm.recipeItems.map((recipeItem, index) => (
-                    <div key={`recipe-${index}`} className="grid grid-cols-[1fr_120px_auto] gap-2">
+                  {drawerForm.recipeItems.map((recipeItem, index) => {
+                    const selectedIngredient = ingredientOptions.find(
+                      (ingredient) => ingredient.id === recipeItem.ingredientId,
+                    );
+                    const defaultUnit = selectedIngredient?.unit || 'ea';
+
+                    return (
+                      <div key={`recipe-${index}`} className="grid grid-cols-[1fr_110px_90px_auto] gap-2">
                       <div className="relative">
                         <select
                           value={recipeItem.ingredientId}
                           onChange={(event) => {
                             const nextRecipe = drawerForm.recipeItems.map((item, itemIndex) =>
                               itemIndex === index
-                                ? { ...item, ingredientId: event.target.value }
+                                ? {
+                                    ...item,
+                                    ingredientId: event.target.value,
+                                    unit:
+                                      ingredientOptions.find(
+                                        (ingredient) => ingredient.id === event.target.value,
+                                      )?.unit || item.unit || 'ea',
+                                  }
                                 : item,
                             );
                             updateDrawerField('recipeItems', nextRecipe);
@@ -320,6 +332,38 @@ export default function AddItemDrawer() {
                         placeholder="Qty"
                       />
 
+                      <select
+                        value={recipeItem.unit || defaultUnit}
+                        onChange={(event) => {
+                          const nextRecipe = drawerForm.recipeItems.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, unit: event.target.value }
+                              : item,
+                          );
+                          updateDrawerField('recipeItems', nextRecipe);
+                        }}
+                        className="h-11 bg-white border border-slate-100 rounded-xl px-2 text-[12px] font-bold text-[#0c1424] focus:outline-none"
+                      >
+                        <option value={defaultUnit}>{defaultUnit}</option>
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                        <option value="mg">mg</option>
+                        <option value="ml">ml</option>
+                        <option value="l">l</option>
+                        <option value="ea">ea</option>
+                        <option value="pc">pc</option>
+                        <option value="doz">doz</option>
+                        <option value="pack">pack</option>
+                        <option value="box">box</option>
+                        <option value="tray">tray</option>
+                        <option value="carton">carton</option>
+                        <option value="bottle">bottle</option>
+                        <option value="can">can</option>
+                        <option value="m">m</option>
+                        <option value="cm">cm</option>
+                        <option value="mm">mm</option>
+                      </select>
+
                       <button
                         type="button"
                         onClick={() => {
@@ -337,8 +381,9 @@ export default function AddItemDrawer() {
                       >
                         <Trash2 size={14} />
                       </button>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}

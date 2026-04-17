@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -13,6 +14,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
+import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
 
 type AuthenticatedRequest = {
   user?: {
@@ -68,6 +70,28 @@ export class UsersController {
     // Update restaurant if details provided
     const user = await this.usersService.findOne(id);
     if (user && user.restaurantId && onboardingData.restaurantData) {
+      if (Array.isArray(onboardingData.restaurantData.serviceModels)) {
+        const normalizedServiceModels = Array.from(
+          new Set(
+            onboardingData.restaurantData.serviceModels
+              .map((value: unknown) => String(value).trim().toUpperCase())
+              .filter((value: string) => value.length > 0),
+          ),
+        );
+
+        const invalidServiceModels = normalizedServiceModels.filter(
+          (value) => !ALLOWED_SERVICE_MODELS.includes(value as any),
+        );
+
+        if (invalidServiceModels.length > 0) {
+          throw new BadRequestException(
+            `Invalid serviceModels: ${invalidServiceModels.join(', ')}. Allowed values: ${ALLOWED_SERVICE_MODELS.join(', ')}`,
+          );
+        }
+
+        onboardingData.restaurantData.serviceModels = normalizedServiceModels;
+      }
+
       await (this.usersService as any).prisma.restaurant.update({
         where: { id: user.restaurantId },
         data: onboardingData.restaurantData,

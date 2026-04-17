@@ -12,6 +12,7 @@ import {
   OrderType,
   TaxMode,
 } from '../../generated/prisma';
+import { normalizeIngredientUnit, toBaseQuantity } from '../inventory/inventory-units';
 
 @Injectable()
 export class OrdersService {
@@ -187,7 +188,10 @@ export class OrdersService {
       }[] = [];
       for (const ingredient of ingredients) {
         const required = deductionMap.get(ingredient.id) || 0;
-        const available = this.toNumber(ingredient.quantity);
+        const available = toBaseQuantity(
+          this.toNumber(ingredient.quantity),
+          ingredient.unit,
+        );
         if (required > available) {
           insufficient.push({
             ingredientId: ingredient.id,
@@ -211,10 +215,15 @@ export class OrdersService {
           continue;
         }
 
-        const quantityAfter = this.toNumber(ingredient.quantity) - required;
+        const available = toBaseQuantity(
+          this.toNumber(ingredient.quantity),
+          ingredient.unit,
+        );
+        const quantityAfter = available - required;
+        const baseUnit = normalizeIngredientUnit(ingredient.unit);
         await tx.ingredient.update({
           where: { id: ingredient.id },
-          data: { quantity: quantityAfter },
+          data: { quantity: quantityAfter, unit: baseUnit },
         });
 
         await tx.ingredientMovement.create({

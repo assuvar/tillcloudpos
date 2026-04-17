@@ -10,6 +10,7 @@ datasource db {
 model Restaurant {
   id               String          @id @default(cuid())
   name             String
+  serviceModels    ServiceModel[]  @default([DINE_IN])
   businessType     String          @default("Restaurant")
   abn              String?
   streetAddress    String
@@ -49,6 +50,13 @@ model Restaurant {
   rolePermissions  RolePermission[]
 
   @@map("restaurants")
+}
+
+enum ServiceModel {
+  DINE_IN
+  IN_STORE
+  DELIVERY
+  PICKUP
 }
 
 model User {

@@ -21,6 +21,41 @@ async function bootstrap() {
     credentials: true,
   });
 
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (req.method !== 'GET') {
+      return next();
+    }
+
+    const pathName = req.path || '';
+    const isApiRequest = [
+      '/auth',
+      '/categories',
+      '/products',
+      '/inventory',
+      '/menu',
+      '/bills',
+      '/kitchen',
+      '/payments',
+      '/orders',
+      '/permissions',
+      '/restaurant',
+      '/users',
+    ].some((prefix) => pathName === prefix || pathName.startsWith(`${prefix}/`));
+
+    if (isApiRequest || pathName.startsWith('/uploads')) {
+      return next();
+    }
+
+    if (req.accepts(['html']) && configuredOrigins) {
+      const frontendUrl = configuredOrigins.split(',')[0]?.trim();
+      if (frontendUrl) {
+        return res.redirect(302, `${frontendUrl}${req.originalUrl}`);
+      }
+    }
+
+    return next();
+  });
+
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   const port = configService.get<number>('PORT') || 3100;

@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Download,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import NewItemModal from './NewItemModal';
 import AdjustStockModal from './AdjustStockModal';
@@ -54,6 +55,7 @@ export default function StockListPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [isNewItemOpen, setIsNewItemOpen] = React.useState(false);
   const [adjustingItem, setAdjustingItem] = React.useState<IngredientRow | null>(null);
+  const [pendingDelete, setPendingDelete] = React.useState<IngredientRow | null>(null);
 
   const exportCsv = () => {
     const header = 'Ingredient,Quantity,Unit,LowStockThreshold,Status\n';
@@ -109,6 +111,7 @@ export default function StockListPage() {
     unit: string;
     quantity: number;
     lowStockThreshold: number;
+    conversionRatio: number;
   }) => {
     try {
       await api.post('/inventory/ingredients', item);
@@ -135,6 +138,27 @@ export default function StockListPage() {
       await loadIngredients();
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to adjust stock');
+    }
+  };
+
+  const handleDeleteIngredient = async (item: IngredientRow) => {
+    if (!item.id || item.id === ':id') {
+      setError('Cannot delete ingredient: invalid item ID loaded from the server.');
+      return;
+    }
+
+    try {
+      await api.delete(`/inventory/ingredients/${item.id}`);
+      setPendingDelete(null);
+      await loadIngredients();
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        setPendingDelete(null);
+        await loadIngredients();
+        return;
+      }
+
+      setError(err?.response?.data?.message || 'Failed to delete ingredient');
     }
   };
 
@@ -255,12 +279,21 @@ export default function StockListPage() {
                     {new Date(item.updatedAt).toLocaleString()}
                   </td>
                   <td className="py-8 px-10 text-right">
-                    <button 
-                      onClick={() => setAdjustingItem(item)}
-                      className="h-12 px-6 rounded-2xl bg-[#0c1424] text-white text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-black/10"
-                    >
-                      Adjust Stock
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setAdjustingItem(item)}
+                        className="h-12 px-6 rounded-2xl bg-[#0c1424] text-white text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-black/10"
+                      >
+                        Adjust Stock
+                      </button>
+                      <button
+                        onClick={() => setPendingDelete(item)}
+                        className="h-12 w-12 rounded-2xl border border-rose-100 bg-rose-50 text-rose-600 transition-all hover:bg-rose-100"
+                        aria-label={`Delete ${item.name}`}
+                      >
+                        <Trash2 size={16} className="mx-auto" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -296,6 +329,40 @@ export default function StockListPage() {
         item={adjustingItem} 
         onUpdate={handleAdjust} 
       />
+
+      {pendingDelete ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-[#0c1424]/55 backdrop-blur-sm"
+            onClick={() => setPendingDelete(null)}
+          />
+          <div className="relative w-full max-w-md rounded-[28px] border border-slate-100 bg-white p-6 shadow-2xl">
+            <h3 className="text-xl font-black text-[#0c1424]">Delete Ingredient?</h3>
+            <p className="mt-3 text-sm font-medium text-slate-500">
+              {pendingDelete.name} will be permanently removed from inventory.
+            </p>
+            <p className="mt-1 text-xs font-semibold text-slate-400">
+              Deletion is blocked automatically when linked to menu recipes.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="h-11 rounded-xl border border-slate-200 px-4 text-xs font-black uppercase tracking-widest text-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteIngredient(pendingDelete)}
+                className="h-11 rounded-xl bg-rose-600 px-4 text-xs font-black uppercase tracking-widest text-white"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

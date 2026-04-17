@@ -3,12 +3,14 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { BillStatus } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { toBaseQuantity } from '../inventory/inventory-units';
 
 @Injectable()
 export class ProductsService {
@@ -32,7 +34,14 @@ export class ProductsService {
 
   private async validateRecipeItems(
     restaurantId: string,
-    recipeItems: { ingredientId: string; quantity: number }[] | undefined,
+    recipeItems:
+      | {
+          ingredientId: string;
+          quantity: number;
+          unit?: string;
+          conversionRatio?: number;
+        }[]
+      | undefined,
     trackInventory: boolean,
   ) {
     if (!trackInventory) {
@@ -58,7 +67,7 @@ export class ProductsService {
         restaurantId,
         id: { in: ingredientIds },
       },
-      select: { id: true },
+      select: { id: true, unit: true },
     });
 
     if (existingIngredients.length !== ingredientIds.length) {
@@ -67,7 +76,27 @@ export class ProductsService {
       );
     }
 
-    return recipeItems;
+    const ingredientById = new Map(
+      existingIngredients.map((ingredient) => [ingredient.id, ingredient]),
+    );
+
+    return recipeItems.map((item) => {
+      const ingredient = ingredientById.get(item.ingredientId);
+      if (!ingredient) {
+        throw new BadRequestException(
+          'One or more selected ingredients are invalid for this restaurant',
+        );
+      }
+
+      return {
+        ingredientId: item.ingredientId,
+        quantity: toBaseQuantity(
+          item.quantity,
+          item.unit || ingredient.unit,
+          item.conversionRatio,
+        ),
+      };
+    });
   }
 
   /**
@@ -336,15 +365,42 @@ export class ProductsService {
       throw new NotFoundException('Access denied');
     }
 
-    // Delete associated inventory item if exists
-    await this.prisma.inventoryItem.deleteMany({
-      where: { menuItemId: id },
+    const activeBillItemCount = await this.prisma.billItem.count({
+      where: {
+        menuItemId: id,
+        bill: {
+          restaurantId,
+          status: {
+            in: [BillStatus.OPEN, BillStatus.KOT_SENT],
+          },
+        },
+      },
     });
 
-    // Delete the menu item
-    return await this.prisma.menuItem.delete({
+    if (activeBillItemCount > 0) {
+      throw new BadRequestException(
+        'Cannot delete item while it is used in active bills. Mark it inactive instead.',
+      );
+    }
+
+    const archived = await this.prisma.menuItem.update({
       where: { id },
+      data: { isActive: false },
+      include: {
+        category: true,
+        recipeItems: {
+          include: {
+            ingredient: true,
+          },
+        },
+      },
     });
+
+    return {
+      success: true,
+      archived: true,
+      item: archived,
+    };
   }
 
   /**

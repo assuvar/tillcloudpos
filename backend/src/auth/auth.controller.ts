@@ -306,6 +306,7 @@ export class AuthController {
       password?: string;
       businessName?: string;
       fullName?: string;
+      serviceModels?: string[];
     },
     @Res({ passthrough: true }) res: Response,
   ) {

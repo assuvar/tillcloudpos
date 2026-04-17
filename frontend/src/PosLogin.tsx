@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import api from './services/api';
@@ -23,6 +23,8 @@ export default function PosLogin() {
   const [rememberIdentifier, setRememberIdentifier] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isPinFocused, setIsPinFocused] = useState(false);
+  const pinInputRef = useRef<HTMLInputElement | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -35,7 +37,7 @@ export default function PosLogin() {
   }, []);
 
   const handlePinClick = (num: string) => {
-    if (pin.length < 6) {
+    if (pin.length < 4) {
       setPin(prev => prev + num);
     }
   };
@@ -44,11 +46,20 @@ export default function PosLogin() {
     setPin(prev => prev.slice(0, -1));
   };
 
+  const handlePinContainerClick = () => {
+    pinInputRef.current?.focus();
+  };
+
+  const handlePinInputChange = (value: string) => {
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
+    setPin(digitsOnly);
+  };
+
   const onSubmit = async (e?: FormEvent) => {
     if (e) e.preventDefault();
 
-    if (!identifier.trim() || pin.length < 4) {
-      setError('Enter staff ID or email and a valid 4-6 digit PIN.');
+    if (!identifier.trim() || pin.length !== 4) {
+      setError('Enter staff ID or email and a valid 4-digit PIN.');
       return;
     }
 
@@ -195,10 +206,25 @@ export default function PosLogin() {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               <div className="md:col-span-2 md:col-start-4">
                 <label className="block text-[13px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
-                  4-6 digit PIN
+                  4 digit PIN
                 </label>
-                <div className="h-14 flex items-center justify-center gap-2 bg-[#f0f7ff] rounded-2xl">
-                  {[...Array(6)].map((_, i) => (
+                <div
+                  onClick={handlePinContainerClick}
+                  className={`h-14 flex items-center justify-center gap-2 rounded-2xl border-2 transition-all ${isPinFocused ? 'border-[#5899ff]/60 bg-[#eaf3ff]' : 'border-transparent bg-[#f0f7ff]'}`}
+                >
+                  <input
+                    ref={pinInputRef}
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={pin}
+                    onFocus={() => setIsPinFocused(true)}
+                    onBlur={() => setIsPinFocused(false)}
+                    onChange={(e) => handlePinInputChange(e.target.value)}
+                    className="sr-only"
+                    aria-label="PIN"
+                  />
+                  {[...Array(4)].map((_, i) => (
                     <div 
                       key={i} 
                       className={`w-3 h-3 rounded-full transition-all duration-300 ${pin.length > i ? 'bg-[#0b1b3d] scale-110' : 'bg-slate-300'}`}
@@ -236,9 +262,9 @@ export default function PosLogin() {
               </button>
               <button
                 type="button"
-                onClick={() => pin.length >= 4 && onSubmit()}
-                disabled={pin.length < 4}
-                className={`h-16 rounded-2xl text-white flex items-center justify-center transition-all active:scale-95 ${pin.length >= 4 ? 'bg-[#10b981] shadow-lg shadow-emerald-200' : 'bg-slate-100 text-slate-300'}`}
+                onClick={() => pin.length === 4 && onSubmit()}
+                disabled={pin.length !== 4}
+                className={`h-16 rounded-2xl text-white flex items-center justify-center transition-all active:scale-95 ${pin.length === 4 ? 'bg-[#10b981] shadow-lg shadow-emerald-200' : 'bg-slate-100 text-slate-300'}`}
               >
                 <Check size={28} />
               </button>
@@ -266,7 +292,7 @@ export default function PosLogin() {
             {/* Login Button */}
             <button
               onClick={() => onSubmit()}
-              disabled={submitting || pin.length < 4}
+              disabled={submitting || pin.length !== 4}
               className="w-full h-16 mt-4 rounded-2xl bg-[#0b1b3d] text-white font-black text-lg flex items-center justify-center gap-3 hover:bg-[#152a53] transition-all shadow-2xl shadow-blue-900/20 disabled:opacity-50 disabled:shadow-none"
             >
               {submitting ? 'Authenticating...' : (

@@ -7,7 +7,7 @@ import PosLogin from "./PosLogin";
 import POSEntryScreen from "./POSEntryScreen.tsx";
 import OrderEntryScreen from "./OrderEntryScreen";
 import Checkout from "./Checkout.tsx";
-import PaymentSuccessScreen from "./PaymentSuccessScreen.tsx";
+import ThermalReceiptScreen from './ThermalReceiptScreen';
 import KitchenDisplay from "./KitchenDisplay.tsx";
 import { FRONTEND_PERMISSIONS } from "./permissions";
 import { useAuth } from "./context/AuthContext";
@@ -701,6 +701,7 @@ export default function App() {
           </PublicRoute>
         } 
       />
+      <Route path="/regis" element={<Navigate to="/register" replace />} />
       <Route 
         path="/onboarding" 
         element={
@@ -742,10 +743,10 @@ export default function App() {
         }
       />
       <Route
-        path="/payment-success"
+        path="/receipt"
         element={
           <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
-            <PaymentSuccessScreen />
+            <ThermalReceiptScreen />
           </ProtectedRoute>
         }
       />

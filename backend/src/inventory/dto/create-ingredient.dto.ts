@@ -3,4 +3,5 @@ export class CreateIngredientDto {
   unit?: string;
   quantity?: number;
   lowStockThreshold?: number;
+  conversionRatio?: number;
 }
