@@ -36,9 +36,12 @@ const ORDER_TYPES: PosOrderType[] = ['DINE_IN', 'PICKUP', 'DELIVERY', 'IN_STORE'
 
 const getOrderTypeLabel = (value: PosOrderType) =>
   value
-    .replaceAll('_', ' ')
+    .replace(/_/g, ' ')
     .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+    .replace(/\b\w/g, (char: string) => char.toUpperCase());
+
+const isPosOrderType = (value: string): value is PosOrderType =>
+  ALLOWED_SERVICE_MODELS.includes(value as PosOrderType);
 
 export default function OrderEntryScreen() {
   const navigate = useNavigate();
@@ -77,9 +80,9 @@ export default function OrderEntryScreen() {
   const [toastMessage, setToastMessage] = useState('');
   const [isSendingToKitchen, setIsSendingToKitchen] = useState(false);
   const [isCreatingBill, setIsCreatingBill] = useState(false);
-  const [enabledServiceModels, setEnabledServiceModels] = useState<PosOrderType[]>(
-    ALLOWED_SERVICE_MODELS as PosOrderType[],
-  );
+  const [enabledServiceModels, setEnabledServiceModels] = useState<PosOrderType[]>([
+    ...ALLOWED_SERVICE_MODELS,
+  ]);
 
   const canSendToKitchen = hasPermission(FRONTEND_PERMISSIONS.KITCHEN_SEND);
 
@@ -99,16 +102,14 @@ export default function OrderEntryScreen() {
       try {
         const response = await api.get('/restaurant');
         const models = Array.isArray(response.data?.serviceModels)
-          ? response.data.serviceModels.filter((value: string) =>
-              ALLOWED_SERVICE_MODELS.includes(value as PosOrderType),
+          ? response.data.serviceModels.filter(
+              (value: string): value is PosOrderType => isPosOrderType(value),
             )
           : [];
 
-        setEnabledServiceModels(
-          (models.length > 0 ? models : ['DINE_IN']) as PosOrderType[],
-        );
+        setEnabledServiceModels(models.length > 0 ? models : ['DINE_IN']);
       } catch {
-        setEnabledServiceModels(ALLOWED_SERVICE_MODELS as PosOrderType[]);
+        setEnabledServiceModels([...ALLOWED_SERVICE_MODELS]);
       }
     };
 

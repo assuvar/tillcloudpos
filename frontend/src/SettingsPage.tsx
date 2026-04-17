@@ -30,6 +30,9 @@ import { ALLOWED_SERVICE_MODELS, SERVICE_MODEL_LABELS, type ServiceModel } from 
 
 /* --- Sub-Components --- */
 
+const isServiceModel = (value: string): value is ServiceModel =>
+   ALLOWED_SERVICE_MODELS.includes(value as ServiceModel);
+
 const RestaurantProfile = () => {
    const [serviceModels, setServiceModels] = useState<ServiceModel[]>(['DINE_IN']);
    const [loadingModels, setLoadingModels] = useState(true);
@@ -41,11 +44,11 @@ const RestaurantProfile = () => {
          try {
             const response = await api.get('/restaurant');
             const models = Array.isArray(response.data?.serviceModels)
-               ? response.data.serviceModels.filter((value: string) =>
-                     ALLOWED_SERVICE_MODELS.includes(value as ServiceModel),
+               ? response.data.serviceModels.filter(
+                     (value: string): value is ServiceModel => isServiceModel(value),
                   )
                : [];
-            setServiceModels((models.length > 0 ? models : ['DINE_IN']) as ServiceModel[]);
+            setServiceModels(models.length > 0 ? models : ['DINE_IN']);
          } catch {
             setModelMessage('Unable to load service models');
          } finally {
@@ -105,7 +108,7 @@ const RestaurantProfile = () => {
          </div>
 
          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(ALLOWED_SERVICE_MODELS as ServiceModel[]).map((model) => (
+            {[...ALLOWED_SERVICE_MODELS].map((model) => (
                <label key={model} className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/40 cursor-pointer">
                   <input
                      type="checkbox"

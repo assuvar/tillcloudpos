@@ -20,6 +20,9 @@ interface NewBillModalProps {
 
 type PosOrderType = ServiceModel;
 
+const isPosOrderType = (value: string): value is PosOrderType =>
+  ALLOWED_SERVICE_MODELS.includes(value as PosOrderType);
+
 const SERVICE_MODEL_CONFIG: Record<
   PosOrderType,
   { icon: any; description: string; inputLabel?: string; inputPlaceholder?: string; inputRequired?: boolean }
@@ -88,28 +91,28 @@ export default function NewBillModal({ onClose }: NewBillModalProps) {
   const navigate = useNavigate();
   const [selectedType, setSelectedType] = useState<PosOrderType>('DINE_IN');
   const [inputValue, setInputValue] = useState('');
-  const [enabledServiceModels, setEnabledServiceModels] = useState<PosOrderType[]>(
-    ALLOWED_SERVICE_MODELS as PosOrderType[],
-  );
+  const [enabledServiceModels, setEnabledServiceModels] = useState<PosOrderType[]>([
+    ...ALLOWED_SERVICE_MODELS,
+  ]);
 
   useEffect(() => {
     const loadRestaurant = async () => {
       try {
         const response = await api.get('/restaurant');
         const nextModels = Array.isArray(response.data?.serviceModels)
-          ? response.data.serviceModels.filter((value: string) =>
-              ALLOWED_SERVICE_MODELS.includes(value as PosOrderType),
+          ? response.data.serviceModels.filter(
+              (value: string): value is PosOrderType => isPosOrderType(value),
             )
           : [];
 
-        const normalizedModels = (nextModels.length > 0 ? nextModels : ['DINE_IN']) as PosOrderType[];
+        const normalizedModels = nextModels.length > 0 ? nextModels : ['DINE_IN'];
         setEnabledServiceModels(normalizedModels);
         if (!normalizedModels.includes(selectedType)) {
           setSelectedType(normalizedModels[0]);
           setInputValue('');
         }
       } catch {
-        setEnabledServiceModels(ALLOWED_SERVICE_MODELS as PosOrderType[]);
+        setEnabledServiceModels([...ALLOWED_SERVICE_MODELS]);
       }
     };
 
@@ -208,7 +211,7 @@ export default function NewBillModal({ onClose }: NewBillModalProps) {
             <div className="flex items-center gap-12">
                <div className="flex flex-col text-right">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Mode</span>
-                  <span className="text-xl font-black text-[#0c1424]">{selectedType.replaceAll('_', ' ')}</span>
+                  <span className="text-xl font-black text-[#0c1424]">{selectedType.replace(/_/g, ' ')}</span>
                </div>
                
                 <button 

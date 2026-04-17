@@ -41,7 +41,7 @@ const formatCurrency = (value: number) =>
 const formatOrderType = (orderType?: string) => {
   if (!orderType) return 'Dine-in';
 
-  const normalized = orderType.replaceAll('_', ' ').toLowerCase();
+  const normalized = orderType.replace(/_/g, ' ').toLowerCase();
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
