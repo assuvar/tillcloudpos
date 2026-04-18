@@ -20,6 +20,8 @@ import LoyaltyModal from './components/LoyaltyModal';
 import { useAuth } from './context/AuthContext';
 import { usePosCart } from './context/PosCartContext';
 import { FRONTEND_PERMISSIONS } from './permissions';
+import api from './services/api';
+import { ALLOWED_SERVICE_MODELS, type ServiceModel } from './serviceModels';
 
 interface CustomerData {
   name: string;
@@ -28,12 +30,29 @@ interface CustomerData {
   loyaltyPoints: number;
 }
 
+type PosOrderType = ServiceModel;
+
+const ORDER_TYPES: PosOrderType[] = ['DINE_IN', 'PICKUP', 'DELIVERY', 'IN_STORE'];
+
+const getOrderTypeLabel = (value: PosOrderType) =>
+  value
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char: string) => char.toUpperCase());
+
+const isPosOrderType = (value: string): value is PosOrderType =>
+  ALLOWED_SERVICE_MODELS.includes(value as PosOrderType);
+
 export default function OrderEntryScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, hasPermission } = useAuth();
   const billId = searchParams.get('billId') || '';
-  const tableNumber = searchParams.get('detail') || '';
+  const orderTypeParam = searchParams.get('type') || '';
+  const orderType: PosOrderType = ORDER_TYPES.includes(orderTypeParam as PosOrderType)
+    ? (orderTypeParam as PosOrderType)
+    : 'DINE_IN';
+  const orderDetail = searchParams.get('detail') || '';
 
   const {
     categories,
@@ -61,6 +80,9 @@ export default function OrderEntryScreen() {
   const [toastMessage, setToastMessage] = useState('');
   const [isSendingToKitchen, setIsSendingToKitchen] = useState(false);
   const [isCreatingBill, setIsCreatingBill] = useState(false);
+  const [enabledServiceModels, setEnabledServiceModels] = useState<PosOrderType[]>([
+    ...ALLOWED_SERVICE_MODELS,
+  ]);
 
   const canSendToKitchen = hasPermission(FRONTEND_PERMISSIONS.KITCHEN_SEND);
 
@@ -76,6 +98,29 @@ export default function OrderEntryScreen() {
   }, [categories, selectedCategoryId]);
 
   useEffect(() => {
+    const loadRestaurantServiceModels = async () => {
+      try {
+        const response = await api.get('/restaurant');
+        const models = Array.isArray(response.data?.serviceModels)
+          ? response.data.serviceModels.filter(
+              (value: string): value is PosOrderType => isPosOrderType(value),
+            )
+          : [];
+
+        setEnabledServiceModels(models.length > 0 ? models : ['DINE_IN']);
+      } catch {
+        setEnabledServiceModels([...ALLOWED_SERVICE_MODELS]);
+      }
+    };
+
+    void loadRestaurantServiceModels();
+  }, []);
+
+  const effectiveOrderType = enabledServiceModels.includes(orderType)
+    ? orderType
+    : enabledServiceModels[0] || 'DINE_IN';
+
+  useEffect(() => {
     if (billId) {
       void loadBill(billId);
       return;
@@ -85,7 +130,7 @@ export default function OrderEntryScreen() {
       const createDraftBill = async () => {
         try {
           setIsCreatingBill(true);
-          await createBillSession('DINE_IN', tableNumber || null);
+          await createBillSession(effectiveOrderType, orderDetail || null);
         } finally {
           setIsCreatingBill(false);
         }
@@ -93,7 +138,7 @@ export default function OrderEntryScreen() {
 
       void createDraftBill();
     }
-  }, [billId, activeBill?.id, tableNumber]);
+  }, [billId, activeBill?.id, effectiveOrderType, orderDetail]);
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
   const visibleItems = useMemo(
@@ -148,7 +193,7 @@ export default function OrderEntryScreen() {
 
     const added = await addItemToBill(item);
     if (!added) {
-      showToast('Create a bill before adding items');
+      showToast(error || 'Unable to add item to this bill');
       return;
     }
 
@@ -185,11 +230,14 @@ export default function OrderEntryScreen() {
         customer,
         taxAmount,
         totalDue,
-        orderType: 'dining',
-        tableDetail: tableNumber,
+        orderType: effectiveOrderType,
+        tableDetail: orderDetail,
       },
     });
   };
+
+  const detailLabel = effectiveOrderType === 'DINE_IN' ? 'Table' : effectiveOrderType === 'PICKUP' ? 'Pickup' : 'Reference';
+  const detailValue = orderDetail || activeBill?.tableNumber || '';
 
   return (
     <div className="h-[100dvh] w-screen overflow-hidden bg-[#f8fafc] font-sans text-slate-900 flex flex-col">
@@ -286,7 +334,13 @@ export default function OrderEntryScreen() {
                       disabled={unavailable}
                       className={`group relative overflow-hidden rounded-[32px] border p-6 text-left transition-all ${unavailable ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-60 grayscale' : 'border-slate-100 bg-white hover:-translate-y-1 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/5'}`}
                     >
-                      <div className="z-10 flex h-48 flex-col justify-between">
+                      {item.image ? (
+                        <div className="absolute inset-x-0 top-0 h-24">
+                          <img src={item.image} alt={item.name} className="h-full w-full object-cover opacity-90" />
+                        </div>
+                      ) : null}
+
+                      <div className={`z-10 flex h-48 flex-col justify-between ${item.image ? 'pt-12' : ''}`}>
                         <div className="flex items-start justify-between">
                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.categoryName}</span>
                           {!unavailable ? (
@@ -303,15 +357,6 @@ export default function OrderEntryScreen() {
                           <div className="text-xl font-black text-sky-600">{formatCurrency(item.price)}</div>
                           <div className="text-[10px] font-black uppercase text-slate-400">Live menu</div>
                         </div>
-                      </div>
-                      <div className="absolute inset-x-0 top-0 h-24">
-                        {item.image ? (
-                          <img src={item.image} alt={item.name} className="h-full w-full object-cover opacity-90" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 via-white to-slate-50 text-3xl font-black text-slate-200">
-                            {item.name.slice(0, 1).toUpperCase()}
-                          </div>
-                        )}
                       </div>
                     </button>
                   );
@@ -348,7 +393,8 @@ export default function OrderEntryScreen() {
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <h2 className="flex items-center gap-3 text-2xl font-black capitalize text-[#0c1424]">
-                  Dine In • Table {tableNumber || activeBill?.tableNumber || '5'}
+                  {getOrderTypeLabel(effectiveOrderType)}
+                  {detailValue ? ` • ${detailLabel} ${detailValue}` : ''}
                 </h2>
                 <div className="mt-1 flex items-center gap-3">
                   <span className="text-xs font-bold text-slate-400">Order #{activeBill?.orderNumber?.toString().padStart(3, '0') || '---'}</span>

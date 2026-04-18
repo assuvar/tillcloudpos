@@ -12,6 +12,7 @@ import {
   InventoryMovementQueryDto,
 } from './dto/inventory-query.dto';
 import { IngredientMovementType } from '../../generated/prisma';
+import { normalizeIngredientUnit, toBaseQuantity } from './inventory-units';
 
 @Injectable()
 export class InventoryService {
@@ -22,10 +23,18 @@ export class InventoryService {
   }
 
   private mapIngredient(ingredient: any) {
-    const quantity = this.toNumber(ingredient.quantity);
-    const lowStockThreshold = this.toNumber(ingredient.lowStockThreshold);
+    const unit = normalizeIngredientUnit(ingredient.unit);
+    const quantity = toBaseQuantity(
+      this.toNumber(ingredient.quantity),
+      ingredient.unit,
+    );
+    const lowStockThreshold = toBaseQuantity(
+      this.toNumber(ingredient.lowStockThreshold),
+      ingredient.unit,
+    );
     return {
       ...ingredient,
+      unit,
       quantity,
       lowStockThreshold,
       isLowStock: quantity <= lowStockThreshold,
@@ -55,9 +64,18 @@ export class InventoryService {
       throw new BadRequestException('Ingredient name is required');
     }
 
-    const unit = dto.unit?.trim() || 'units';
-    const quantity = Number(dto.quantity ?? 0);
-    const lowStockThreshold = Number(dto.lowStockThreshold ?? 0);
+    const sourceUnit = dto.unit?.trim() || 'units';
+    const unit = normalizeIngredientUnit(sourceUnit);
+    const quantity = toBaseQuantity(
+      Number(dto.quantity ?? 0),
+      sourceUnit,
+      dto.conversionRatio,
+    );
+    const lowStockThreshold = toBaseQuantity(
+      Number(dto.lowStockThreshold ?? 0),
+      sourceUnit,
+      dto.conversionRatio,
+    );
 
     if (quantity < 0 || lowStockThreshold < 0) {
       throw new BadRequestException('Quantity values cannot be negative');
@@ -93,7 +111,11 @@ export class InventoryService {
     });
 
     if (!ingredient) {
-      throw new NotFoundException('Ingredient not found');
+      return {
+        success: true,
+        ingredientId,
+        deleted: false,
+      };
     }
 
     if (dto.quantity !== undefined && dto.quantity < 0) {
@@ -104,13 +126,27 @@ export class InventoryService {
       throw new BadRequestException('Low stock threshold cannot be negative');
     }
 
+    const sourceUnit = dto.unit?.trim() || ingredient.unit;
+    const unit = normalizeIngredientUnit(sourceUnit);
+    const quantity =
+      dto.quantity !== undefined
+        ? toBaseQuantity(dto.quantity, sourceUnit, dto.conversionRatio)
+        : toBaseQuantity(this.toNumber(ingredient.quantity), ingredient.unit);
+    const lowStockThreshold =
+      dto.lowStockThreshold !== undefined
+        ? toBaseQuantity(dto.lowStockThreshold, sourceUnit, dto.conversionRatio)
+        : toBaseQuantity(
+            this.toNumber(ingredient.lowStockThreshold),
+            ingredient.unit,
+          );
+
     const updated = await this.prisma.ingredient.update({
       where: { id: ingredientId },
       data: {
         name: dto.name?.trim(),
-        unit: dto.unit?.trim(),
-        quantity: dto.quantity,
-        lowStockThreshold: dto.lowStockThreshold,
+        unit,
+        quantity,
+        lowStockThreshold,
       },
       include: {
         _count: {
@@ -143,31 +179,41 @@ export class InventoryService {
       throw new BadRequestException('Adjustment quantity must be 0 or greater');
     }
 
+    const baseUnit = normalizeIngredientUnit(ingredient.unit);
+    const adjustmentQuantity = toBaseQuantity(quantity, baseUnit);
+
     let type: IngredientMovementType;
-    let nextQuantity = this.toNumber(ingredient.quantity);
+    let nextQuantity = toBaseQuantity(
+      this.toNumber(ingredient.quantity),
+      ingredient.unit,
+    );
 
     if (dto.mode === 'ADD') {
       type = IngredientMovementType.MANUAL_ADD;
-      nextQuantity = nextQuantity + quantity;
+      nextQuantity = nextQuantity + adjustmentQuantity;
     } else if (dto.mode === 'REMOVE') {
       type = IngredientMovementType.MANUAL_REMOVE;
-      if (quantity > nextQuantity) {
+      if (adjustmentQuantity > nextQuantity) {
         throw new BadRequestException(
           'Cannot remove more stock than available',
         );
       }
-      nextQuantity = nextQuantity - quantity;
+      nextQuantity = nextQuantity - adjustmentQuantity;
     } else {
       type = IngredientMovementType.SET_FIXED;
-      nextQuantity = quantity;
+      nextQuantity = adjustmentQuantity;
     }
 
-    const quantityChange = nextQuantity - this.toNumber(ingredient.quantity);
+    const previousQuantity = toBaseQuantity(
+      this.toNumber(ingredient.quantity),
+      ingredient.unit,
+    );
+    const quantityChange = nextQuantity - previousQuantity;
 
     const [updatedIngredient] = await this.prisma.$transaction([
       this.prisma.ingredient.update({
         where: { id: ingredientId },
-        data: { quantity: nextQuantity },
+        data: { quantity: nextQuantity, unit: baseUnit },
       }),
       this.prisma.ingredientMovement.create({
         data: {
@@ -190,6 +236,57 @@ export class InventoryService {
         quantityChange,
         quantityAfter: nextQuantity,
       },
+    };
+  }
+
+  async removeIngredient(restaurantId: string, ingredientId: string) {
+    const ingredient = await this.prisma.ingredient.findFirst({
+      where: { id: ingredientId, restaurantId },
+      include: {
+        recipeItems: {
+          include: {
+            menuItem: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          take: 5,
+        },
+        _count: {
+          select: {
+            recipeItems: true,
+          },
+        },
+      },
+    });
+
+    if (!ingredient) {
+      throw new NotFoundException('Ingredient not found');
+    }
+
+    if (ingredient._count.recipeItems > 0) {
+      const linkedItems = ingredient.recipeItems
+        .map((recipe) => recipe.menuItem?.name)
+        .filter(Boolean)
+        .join(', ');
+
+      throw new BadRequestException(
+        linkedItems
+          ? `Cannot delete ingredient. It is used by menu items: ${linkedItems}`
+          : 'Cannot delete ingredient while it is used in menu recipes',
+      );
+    }
+
+    await this.prisma.ingredient.deleteMany({
+      where: { id: ingredientId, restaurantId },
+    });
+
+    return {
+      success: true,
+      ingredientId,
+      deleted: true,
     };
   }
 
@@ -231,8 +328,15 @@ export class InventoryService {
     return ingredients
       .map((ingredient) => ({
         ...ingredient,
-        quantity: this.toNumber(ingredient.quantity),
-        lowStockThreshold: this.toNumber(ingredient.lowStockThreshold),
+        unit: normalizeIngredientUnit(ingredient.unit),
+        quantity: toBaseQuantity(
+          this.toNumber(ingredient.quantity),
+          ingredient.unit,
+        ),
+        lowStockThreshold: toBaseQuantity(
+          this.toNumber(ingredient.lowStockThreshold),
+          ingredient.unit,
+        ),
       }))
       .filter(
         (ingredient) => ingredient.quantity <= ingredient.lowStockThreshold,
@@ -275,10 +379,15 @@ export class InventoryService {
       const existing = summaryMap.get(movement.ingredientId) || {
         ingredientId: movement.ingredientId,
         name: movement.ingredient.name,
-        unit: movement.ingredient.unit,
+        unit: normalizeIngredientUnit(movement.ingredient.unit),
         consumed: 0,
       };
-      existing.consumed += Math.abs(this.toNumber(movement.quantityChange));
+      existing.consumed += Math.abs(
+        toBaseQuantity(
+          this.toNumber(movement.quantityChange),
+          movement.ingredient.unit,
+        ),
+      );
       summaryMap.set(movement.ingredientId, existing);
     }
 

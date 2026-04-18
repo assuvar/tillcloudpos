@@ -25,15 +25,107 @@ import {
 import PermissionsPage from './PermissionsPage';
 import { useAuth } from './context/AuthContext';
 import { FRONTEND_PERMISSIONS } from './permissions';
+import api from './services/api';
+import { ALLOWED_SERVICE_MODELS, SERVICE_MODEL_LABELS, type ServiceModel } from './serviceModels';
 
 /* --- Sub-Components --- */
 
-const RestaurantProfile = () => (
-  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+const isServiceModel = (value: string): value is ServiceModel =>
+   ALLOWED_SERVICE_MODELS.includes(value as ServiceModel);
+
+const RestaurantProfile = () => {
+   const [serviceModels, setServiceModels] = useState<ServiceModel[]>(['DINE_IN']);
+   const [loadingModels, setLoadingModels] = useState(true);
+   const [savingModels, setSavingModels] = useState(false);
+   const [modelMessage, setModelMessage] = useState('');
+
+   useEffect(() => {
+      const loadRestaurant = async () => {
+         try {
+            const response = await api.get('/restaurant');
+            const models = Array.isArray(response.data?.serviceModels)
+               ? response.data.serviceModels.filter(
+                     (value: string): value is ServiceModel => isServiceModel(value),
+                  )
+               : [];
+            setServiceModels(models.length > 0 ? models : ['DINE_IN']);
+         } catch {
+            setModelMessage('Unable to load service models');
+         } finally {
+            setLoadingModels(false);
+         }
+      };
+
+      void loadRestaurant();
+   }, []);
+
+   const toggleServiceModel = (model: ServiceModel) => {
+      setModelMessage('');
+      setServiceModels((prev) => {
+         if (prev.includes(model)) {
+            const next = prev.filter((value) => value !== model);
+            return next.length > 0 ? next : prev;
+         }
+
+         return [...prev, model];
+      });
+   };
+
+   const saveServiceModels = async () => {
+      setSavingModels(true);
+      setModelMessage('');
+      try {
+         await api.patch('/restaurant', { serviceModels });
+         setModelMessage('Service models updated');
+      } catch {
+         setModelMessage('Failed to update service models');
+      } finally {
+         setSavingModels(false);
+      }
+   };
+
+   return (
+   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
     <div className="flex flex-col">
       <h2 className="text-[32px] font-black text-[#0c1424] tracking-tight leading-none">Restaurant Profile</h2>
       <p className="text-[14px] text-slate-400 font-medium mt-2">Manage your business details and branding for receipts and customer interactions.</p>
     </div>
+
+      <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
+         <div className="flex items-center justify-between gap-4">
+            <div>
+               <h3 className="text-[16px] font-black text-[#0c1424]">Service Models</h3>
+               <p className="text-[12px] text-slate-400 font-medium mt-1">Select the order modes enabled for this venue.</p>
+            </div>
+            <button
+               type="button"
+               onClick={() => void saveServiceModels()}
+               disabled={loadingModels || savingModels}
+               className="h-11 px-6 rounded-full bg-[#0c1424] text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
+            >
+               {savingModels ? 'Saving...' : 'Save Models'}
+            </button>
+         </div>
+
+         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[...ALLOWED_SERVICE_MODELS].map((model) => (
+               <label key={model} className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/40 cursor-pointer">
+                  <input
+                     type="checkbox"
+                     checked={serviceModels.includes(model)}
+                     onChange={() => toggleServiceModel(model)}
+                     disabled={loadingModels}
+                     className="h-4 w-4"
+                  />
+                  <span className="text-[13px] font-bold text-[#0c1424]">{SERVICE_MODEL_LABELS[model]}</span>
+               </label>
+            ))}
+         </div>
+
+         {modelMessage ? (
+            <p className="text-[12px] font-semibold text-slate-500">{modelMessage}</p>
+         ) : null}
+      </div>
 
    <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
       {/* Branding */}
@@ -169,8 +261,9 @@ const RestaurantProfile = () => (
           <p className="text-[10px] italic text-slate-400 ml-1">Printed at the bottom of every receipt</p>
        </div>
     </div>
-  </div>
-);
+   </div>
+   );
+};
 
 const TerminalManagement = () => (
   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

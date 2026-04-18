@@ -71,11 +71,12 @@ export default function Checkout() {
       }
 
       clearBill();
-      navigate('/payment-success', {
+      navigate('/receipt', {
         state: {
           bill: result.bill,
           payment: result.payment,
           customer,
+          cashierName: user?.fullName || 'Cashier',
         },
         replace: true,
       });

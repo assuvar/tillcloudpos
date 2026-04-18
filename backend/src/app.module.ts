@@ -19,6 +19,7 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { StaffModule } from './staff/staff.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { RestaurantModule } from './restaurant/restaurant.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { InventoryModule } from './inventory/inventory.module';
     AuthModule,
     StaffModule,
     PermissionsModule,
+    RestaurantModule,
     InventoryModule,
     ProductsModule,
     CategoriesModule,

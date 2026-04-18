@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -73,6 +74,15 @@ export class InventoryController {
       ingredientId,
       req.user?.userId || null,
       dto,
+    );
+  }
+
+  @Delete('ingredients/:id')
+  @RequirePermissions(PERMISSIONS.INVENTORY_MANAGE)
+  removeIngredient(@Req() req: any, @Param('id') ingredientId: string) {
+    return this.inventoryService.removeIngredient(
+      getRestaurantId(req),
+      ingredientId,
     );
   }
 

@@ -1,6 +1,27 @@
 import { useState } from 'react';
 import { X, Plus, Minus, Info } from 'lucide-react';
 
+const UNIT_OPTIONS = [
+  { value: 'kg', label: 'Kilograms (kg)' },
+  { value: 'g', label: 'Grams (g)' },
+  { value: 'mg', label: 'Milligrams (mg)' },
+  { value: 'l', label: 'Liters (l)' },
+  { value: 'ml', label: 'Milliliters (ml)' },
+  { value: 'ea', label: 'Each (ea)' },
+  { value: 'pc', label: 'Pieces (pc)' },
+  { value: 'doz', label: 'Dozen (doz)' },
+  { value: 'pack', label: 'Pack (pack)' },
+  { value: 'box', label: 'Box (box)' },
+  { value: 'tray', label: 'Tray (tray)' },
+  { value: 'carton', label: 'Carton (carton)' },
+  { value: 'bottle', label: 'Bottle (bottle)' },
+  { value: 'can', label: 'Can (can)' },
+  { value: 'm', label: 'Meters (m)' },
+  { value: 'cm', label: 'Centimeters (cm)' },
+  { value: 'mm', label: 'Millimeters (mm)' },
+  { value: 'c', label: 'Celsius (C)' },
+] as const;
+
 interface NewItemModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -9,14 +30,16 @@ interface NewItemModalProps {
     unit: string;
     quantity: number;
     lowStockThreshold: number;
+    conversionRatio: number;
   }) => void;
 }
 
 export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalProps) {
   const [name, setName] = useState('');
-  const [unit, setUnit] = useState('units');
+  const [unit, setUnit] = useState('ea');
   const [quantity, setQuantity] = useState(0);
   const [lowStockThreshold, setLowStockThreshold] = useState(0);
+  const [conversionRatio, setConversionRatio] = useState(1);
 
   if (!isOpen) return null;
 
@@ -56,12 +79,17 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit</label>
             <div className="h-14 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center px-6">
-              <input 
-                type="text" 
+              <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
                 className="bg-transparent w-full text-[15px] font-bold text-[#0c1424] outline-none"
-              />
+              >
+                {UNIT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -76,7 +104,7 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
                   onChange={(e) => setQuantity(Number(e.target.value))}
                   className="bg-transparent w-full text-[15px] font-black text-[#0c1424] outline-none"
                 />
-                <span className="text-[13px] font-bold text-slate-400">Units</span>
+                <span className="text-[13px] font-bold text-slate-400">{unit}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <button 
@@ -107,6 +135,23 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
             </div>
           </div>
 
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Conversion Ratio</label>
+            <div className="h-14 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center gap-4 px-6">
+              <input
+                type="number"
+                min="0.0001"
+                step="0.001"
+                value={conversionRatio}
+                onChange={(e) => setConversionRatio(Math.max(0.0001, Number(e.target.value || 1)))}
+                className="bg-transparent w-full text-[15px] font-black text-[#0c1424] outline-none"
+              />
+            </div>
+            <p className="text-[11px] font-medium text-slate-400 leading-relaxed">
+              Use 1 for direct units. Example: if 1 pack contains 12 each, set ratio to 12.
+            </p>
+          </div>
+
           {/* Actions */}
           <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
             <button 
@@ -116,7 +161,15 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
               Cancel
             </button>
             <button 
-              onClick={() => onAdd({ name, unit, quantity, lowStockThreshold })}
+              onClick={() =>
+                onAdd({
+                  name,
+                  unit,
+                  quantity,
+                  lowStockThreshold,
+                  conversionRatio,
+                })
+              }
                className="h-14 flex-1 rounded-2xl bg-[#0c1424] text-[14px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black"
             >
               Add
@@ -130,7 +183,7 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
             <Info size={12} />
           </div>
           <p className="text-[11px] font-medium text-slate-400 leading-relaxed">
-            Updating inventory will reflect across all linked menu items and trigger auto-order alerts if below threshold.
+            Quantity values are automatically normalized to base units (g, ml, ea, mm, c) in backend calculations.
           </p>
         </div>
       </div>

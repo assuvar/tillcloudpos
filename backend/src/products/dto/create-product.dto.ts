@@ -1,6 +1,8 @@
 export class ProductRecipeItemDto {
   ingredientId: string;
   quantity: number;
+  unit?: string;
+  conversionRatio?: number;
 }
 
 export class CreateProductDto {

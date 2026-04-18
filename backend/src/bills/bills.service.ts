@@ -66,6 +66,85 @@ type KitchenOrderView = {
 export class BillsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async assertSufficientIngredientStockForBill(
+    tx: Prisma.TransactionClient,
+    restaurantId: string,
+    billId: string,
+  ) {
+    const billItems = await tx.billItem.findMany({
+      where: { billId },
+      include: {
+        menuItem: {
+          include: {
+            recipeItems: true,
+          },
+        },
+      },
+    });
+
+    const requiredByIngredient = new Map<string, number>();
+
+    for (const billItem of billItems) {
+      const menuItem = billItem.menuItem;
+      if (!menuItem?.trackInventory) {
+        continue;
+      }
+
+      if (!menuItem.recipeItems || menuItem.recipeItems.length === 0) {
+        throw new BadRequestException(
+          `Recipe is missing for tracked item: ${billItem.itemName}`,
+        );
+      }
+
+      for (const recipeItem of menuItem.recipeItems) {
+        const needed = Number(recipeItem.quantity) * billItem.quantity;
+        const current = requiredByIngredient.get(recipeItem.ingredientId) || 0;
+        requiredByIngredient.set(recipeItem.ingredientId, current + needed);
+      }
+    }
+
+    if (requiredByIngredient.size === 0) {
+      return;
+    }
+
+    const ingredientIds = Array.from(requiredByIngredient.keys());
+    const ingredients = await tx.ingredient.findMany({
+      where: {
+        restaurantId,
+        id: { in: ingredientIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        quantity: true,
+      },
+    });
+
+    if (ingredients.length !== ingredientIds.length) {
+      throw new BadRequestException('Ingredient configuration is incomplete');
+    }
+
+    const insufficient = ingredients
+      .map((ingredient) => {
+        const required = requiredByIngredient.get(ingredient.id) || 0;
+        const available = Number(ingredient.quantity || 0);
+        return {
+          ingredientId: ingredient.id,
+          name: ingredient.name,
+          required,
+          available,
+        };
+      })
+      .filter((entry) => entry.required > entry.available);
+
+    if (insufficient.length > 0) {
+      throw new BadRequestException({
+        message: 'Insufficient ingredient stock for this bill',
+        insufficient,
+      });
+    }
+  }
+
   private toCents(value: number): number {
     return Math.round(Number(value || 0) * 100);
   }
@@ -353,6 +432,12 @@ export class BillsService {
         });
       }
 
+      await this.assertSufficientIngredientStockForBill(
+        tx,
+        restaurantId,
+        billId,
+      );
+
       const updatedBill = await this.recalculateBillTotals(tx, billId);
       return this.normalizeBill(updatedBill);
     });
@@ -405,6 +490,12 @@ export class BillsService {
           lineTotalCents: nextQuantity * currentItem.unitPriceInCents,
         },
       });
+
+      await this.assertSufficientIngredientStockForBill(
+        tx,
+        restaurantId,
+        billId,
+      );
 
       const updatedBill = await this.recalculateBillTotals(tx, billId);
       return this.normalizeBill(updatedBill);
@@ -459,6 +550,12 @@ export class BillsService {
       if (!bill) {
         throw new NotFoundException('Bill not found');
       }
+
+      await this.assertSufficientIngredientStockForBill(
+        tx,
+        restaurantId,
+        billId,
+      );
 
       const { bill: updatedBill, kitchenOrder } = await this.createKotForBill(
         tx,

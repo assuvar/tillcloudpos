@@ -101,6 +101,19 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const parseApiError = (err: any, fallback: string) => {
+    const payload = err?.response?.data?.message;
+    if (typeof payload === 'string' && payload.trim()) {
+      return payload;
+    }
+
+    if (payload && typeof payload === 'object' && typeof payload.message === 'string') {
+      return payload.message;
+    }
+
+    return err?.message || fallback;
+  };
+
   const normalizeMenuCategories = (responseData: unknown): MenuCategory[] => {
     if (!Array.isArray(responseData)) {
       throw new Error('Invalid response from server');
@@ -254,8 +267,11 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
       syncBill(normalizeBill(response.data));
+      setError(null);
       return true;
-    } catch (err) {
+    } catch (err: any) {
+      const errorMsg = parseApiError(err, 'Failed to add item to bill');
+      setError(errorMsg);
       console.error('Error adding bill item:', err);
       return false;
     }
@@ -285,11 +301,17 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    const response = await api.patch(`/bills/${activeBill.id}/items/${itemId}`, {
-      quantity: action === 'increase' ? item.quantity + 1 : item.quantity - 1,
-    });
+    try {
+      const response = await api.patch(`/bills/${activeBill.id}/items/${itemId}`, {
+        quantity: action === 'increase' ? item.quantity + 1 : item.quantity - 1,
+      });
 
-    syncBill(normalizeBill(response.data));
+      syncBill(normalizeBill(response.data));
+      setError(null);
+    } catch (err: any) {
+      const errorMsg = parseApiError(err, 'Failed to update bill item quantity');
+      setError(errorMsg);
+    }
   };
 
   const clearBill = () => {
