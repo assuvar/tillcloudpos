@@ -267,7 +267,11 @@ export class AuthController {
       throw new UnauthorizedException('Invalid OTP');
     }
 
-    await this.authService.verifyOtp(body.channel, body.destination, TEMP_STATIC_OTP);
+    await this.authService.verifyOtp(
+      body.channel,
+      body.destination,
+      TEMP_STATIC_OTP,
+    );
 
     // After internal verification, find the user to log them in
     const user = await this.authService.usersService.findByEmail(

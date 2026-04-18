@@ -95,7 +95,9 @@ export class UsersController {
     const restaurantId = getRestaurantId(req);
     const authenticatedUserId = getUserId(req);
     if (authenticatedUserId !== id) {
-      throw new ForbiddenException('Cannot complete onboarding for another user');
+      throw new ForbiddenException(
+        'Cannot complete onboarding for another user',
+      );
     }
 
     // Update user onboarding flag

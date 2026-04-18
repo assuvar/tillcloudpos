@@ -136,9 +136,7 @@ export class ProductsService {
     }
 
     if (category.restaurantId !== restaurantId) {
-      throw new ForbiddenException(
-        'Cross-tenant category access is forbidden',
-      );
+      throw new ForbiddenException('Cross-tenant category access is forbidden');
     }
 
     const normalizedTrackInventory = trackInventory ?? false;
@@ -220,7 +218,9 @@ export class ProductsService {
     }
 
     if (product.restaurantId !== restaurantId) {
-      throw new ForbiddenException('Cross-tenant menu item access is forbidden');
+      throw new ForbiddenException(
+        'Cross-tenant menu item access is forbidden',
+      );
     }
 
     return product;
@@ -245,7 +245,9 @@ export class ProductsService {
     }
 
     if (existingProduct.restaurantId !== restaurantId) {
-      throw new ForbiddenException('Cross-tenant menu item access is forbidden');
+      throw new ForbiddenException(
+        'Cross-tenant menu item access is forbidden',
+      );
     }
 
     // If categoryId is being updated, verify new category exists
@@ -371,7 +373,9 @@ export class ProductsService {
     }
 
     if (product.restaurantId !== restaurantId) {
-      throw new ForbiddenException('Cross-tenant menu item access is forbidden');
+      throw new ForbiddenException(
+        'Cross-tenant menu item access is forbidden',
+      );
     }
 
     const activeBillItemCount = await this.prisma.billItem.count({

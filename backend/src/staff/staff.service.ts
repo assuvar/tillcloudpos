@@ -383,7 +383,9 @@ export class StaffService {
     }
 
     const shouldGeneratePin = this.roleRequiresPosPin(dto.role);
-    const pin = shouldGeneratePin ? await this.generateUniquePin(restaurantId) : null;
+    const pin = shouldGeneratePin
+      ? await this.generateUniquePin(restaurantId)
+      : null;
     const pinHash = pin ? await bcrypt.hash(pin, 10) : null;
     const pinEncrypted = pin ? this.encryptPin(pin) : null;
 

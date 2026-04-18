@@ -1,4 +1,10 @@
-import { Body, Controller, ForbiddenException, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
 import { CashPaymentDto } from '../bills/dto/cash-payment.dto';

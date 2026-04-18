@@ -115,7 +115,10 @@ export class OnboardingService {
       `Onboarding status requested for user=${userId} restaurant=${restaurantId}`,
     );
 
-    const { user, restaurant } = await this.getTenantContext(userId, restaurantId);
+    const { user, restaurant } = await this.getTenantContext(
+      userId,
+      restaurantId,
+    );
     const missingSteps = this.getMissingSteps(restaurant);
     const onboardingCompleted =
       restaurant.onboardingCompleted && missingSteps.length === 0;
@@ -145,7 +148,10 @@ export class OnboardingService {
       `Onboarding completion triggered for user=${userId} restaurant=${restaurantId}`,
     );
 
-    const { user, restaurant } = await this.getTenantContext(userId, restaurantId);
+    const { user, restaurant } = await this.getTenantContext(
+      userId,
+      restaurantId,
+    );
     this.normalizeAndValidateServiceModels(restaurant.serviceModels || [], {
       throwOnInvalid: true,
     });

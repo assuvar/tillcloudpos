@@ -135,10 +135,14 @@ export class AuthService {
     onboardingCompleted: boolean;
     restaurant?: RestaurantOnboardingSnapshot | null;
   }): AuthenticatedUser {
-    const normalizedServiceModels = Array.isArray(user.restaurant?.serviceModels)
-      ? user.restaurant!.serviceModels
+    const normalizedServiceModels = Array.isArray(
+      user.restaurant?.serviceModels,
+    )
+      ? user.restaurant.serviceModels
           .map((value) => String(value).trim().toUpperCase())
-          .filter((value) => ALLOWED_SERVICE_MODELS.includes(value as ServiceModel))
+          .filter((value) =>
+            ALLOWED_SERVICE_MODELS.includes(value as ServiceModel),
+          )
       : [];
 
     const restaurantSetupComplete =

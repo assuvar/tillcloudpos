@@ -47,7 +47,10 @@ export class RestaurantController {
 
   @Patch()
   update(@Req() req: AuthenticatedRequest, @Body() dto: UpdateRestaurantDto) {
-    return this.restaurantService.updateCurrentRestaurant(getRestaurantId(req), dto);
+    return this.restaurantService.updateCurrentRestaurant(
+      getRestaurantId(req),
+      dto,
+    );
   }
 
   @Patch('service-models')
@@ -64,7 +67,8 @@ export class RestaurantController {
   @Patch('tax')
   updateTax(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { taxMode?: 'INCLUSIVE' | 'EXCLUSIVE' | 'NONE'; taxRate?: number },
+    @Body()
+    body: { taxMode?: 'INCLUSIVE' | 'EXCLUSIVE' | 'NONE'; taxRate?: number },
   ) {
     return this.restaurantService.updateTaxSettings(getRestaurantId(req), {
       taxMode: body?.taxMode,

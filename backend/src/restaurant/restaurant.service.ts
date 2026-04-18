@@ -113,7 +113,9 @@ export class RestaurantService {
     }
 
     if (dto.taxRate !== undefined && Number(dto.taxRate) < 0) {
-      throw new BadRequestException('taxRate must be greater than or equal to 0');
+      throw new BadRequestException(
+        'taxRate must be greater than or equal to 0',
+      );
     }
 
     return (this.prisma as any).restaurant.update({
@@ -127,7 +129,9 @@ export class RestaurantService {
         ...(nextState !== undefined ? { state: nextState } : {}),
         ...(nextPostcode !== undefined ? { postcode: nextPostcode } : {}),
         ...(nextPhone !== undefined ? { phone: nextPhone } : {}),
-        ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl?.trim() || null } : {}),
+        ...(dto.logoUrl !== undefined
+          ? { logoUrl: dto.logoUrl?.trim() || null }
+          : {}),
         ...(dto.taxMode !== undefined ? { taxMode: dto.taxMode } : {}),
         ...(dto.taxRate !== undefined ? { taxRate: dto.taxRate } : {}),
         ...(nextServiceModels !== undefined
@@ -140,7 +144,9 @@ export class RestaurantService {
   async updateServiceModels(restaurantId: string, serviceModels?: string[]) {
     const nextServiceModels = this.normalizeServiceModels(serviceModels);
     if (!nextServiceModels || nextServiceModels.length === 0) {
-      throw new BadRequestException('serviceModels must include at least one value');
+      throw new BadRequestException(
+        'serviceModels must include at least one value',
+      );
     }
 
     return (this.prisma as any).restaurant.update({
@@ -160,7 +166,9 @@ export class RestaurantService {
     }
 
     if (dto.taxRate !== undefined && Number(dto.taxRate) < 0) {
-      throw new BadRequestException('taxRate must be greater than or equal to 0');
+      throw new BadRequestException(
+        'taxRate must be greater than or equal to 0',
+      );
     }
 
     return (this.prisma as any).restaurant.update({
