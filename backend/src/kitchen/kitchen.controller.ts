@@ -1,4 +1,4 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import { Controller, ForbiddenException, Get, Req } from '@nestjs/common';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
 import { KitchenService } from './kitchen.service';
@@ -8,11 +8,7 @@ const getRestaurantId = (req: any): string => {
     return req.user.restaurantId;
   }
 
-  if (req.headers['x-restaurant-id']) {
-    return req.headers['x-restaurant-id'];
-  }
-
-  return 'default-restaurant';
+  throw new ForbiddenException('Restaurant context is required');
 };
 
 @Controller('kitchen')

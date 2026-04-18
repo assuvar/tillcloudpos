@@ -10,6 +10,8 @@ import {
 } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 
+const ALLOWED_TAX_MODES = ['INCLUSIVE', 'EXCLUSIVE', 'NONE'] as const;
+
 @Injectable()
 export class RestaurantService {
   constructor(private readonly prisma: PrismaService) {}
@@ -79,13 +81,93 @@ export class RestaurantService {
   ) {
     const nextServiceModels = this.normalizeServiceModels(dto.serviceModels);
 
+    const nextName = dto.name?.trim();
+    const nextStreetAddress = dto.streetAddress?.trim();
+    const nextSuburb = dto.suburb?.trim();
+    const nextState = dto.state?.trim();
+    const nextPostcode = dto.postcode?.trim();
+    const nextPhone = dto.phone?.trim();
+
+    if (
+      (nextStreetAddress !== undefined ||
+        nextSuburb !== undefined ||
+        nextState !== undefined ||
+        nextPostcode !== undefined ||
+        nextPhone !== undefined) &&
+      (!nextName ||
+        !nextStreetAddress ||
+        !nextSuburb ||
+        !nextState ||
+        !nextPostcode ||
+        !nextPhone)
+    ) {
+      throw new BadRequestException(
+        'name, streetAddress, suburb, state, postcode and phone are required for business setup',
+      );
+    }
+
+    if (dto.taxMode && !ALLOWED_TAX_MODES.includes(dto.taxMode as any)) {
+      throw new BadRequestException(
+        `Invalid taxMode. Allowed values: ${ALLOWED_TAX_MODES.join(', ')}`,
+      );
+    }
+
+    if (dto.taxRate !== undefined && Number(dto.taxRate) < 0) {
+      throw new BadRequestException('taxRate must be greater than or equal to 0');
+    }
+
     return (this.prisma as any).restaurant.update({
       where: { id: restaurantId },
       data: {
-        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(nextName !== undefined ? { name: nextName } : {}),
+        ...(nextStreetAddress !== undefined
+          ? { streetAddress: nextStreetAddress }
+          : {}),
+        ...(nextSuburb !== undefined ? { suburb: nextSuburb } : {}),
+        ...(nextState !== undefined ? { state: nextState } : {}),
+        ...(nextPostcode !== undefined ? { postcode: nextPostcode } : {}),
+        ...(nextPhone !== undefined ? { phone: nextPhone } : {}),
+        ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl?.trim() || null } : {}),
+        ...(dto.taxMode !== undefined ? { taxMode: dto.taxMode } : {}),
+        ...(dto.taxRate !== undefined ? { taxRate: dto.taxRate } : {}),
         ...(nextServiceModels !== undefined
           ? { serviceModels: nextServiceModels }
           : {}),
+      },
+    });
+  }
+
+  async updateServiceModels(restaurantId: string, serviceModels?: string[]) {
+    const nextServiceModels = this.normalizeServiceModels(serviceModels);
+    if (!nextServiceModels || nextServiceModels.length === 0) {
+      throw new BadRequestException('serviceModels must include at least one value');
+    }
+
+    return (this.prisma as any).restaurant.update({
+      where: { id: restaurantId },
+      data: { serviceModels: nextServiceModels },
+    });
+  }
+
+  async updateTaxSettings(
+    restaurantId: string,
+    dto: { taxMode?: 'INCLUSIVE' | 'EXCLUSIVE' | 'NONE'; taxRate?: number },
+  ) {
+    if (!dto?.taxMode || !ALLOWED_TAX_MODES.includes(dto.taxMode)) {
+      throw new BadRequestException(
+        `taxMode is required. Allowed values: ${ALLOWED_TAX_MODES.join(', ')}`,
+      );
+    }
+
+    if (dto.taxRate !== undefined && Number(dto.taxRate) < 0) {
+      throw new BadRequestException('taxRate must be greater than or equal to 0');
+    }
+
+    return (this.prisma as any).restaurant.update({
+      where: { id: restaurantId },
+      data: {
+        taxMode: dto.taxMode,
+        ...(dto.taxRate !== undefined ? { taxRate: dto.taxRate } : {}),
       },
     });
   }

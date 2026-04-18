@@ -136,6 +136,19 @@ export default function Dashboard() {
   const [isLaunching, setIsLaunching] = useState(false);
   const [currentView, setCurrentView] = useState<'home' | 'menu' | 'staff' | 'orders' | 'inventory' | 'customers' | 'analytics' | 'settings' | 'reports'>('home');
   const [realStaff, setRealStaff] = useState<any[]>([]);
+  const [salesData, setSalesData] = useState<
+    Array<{ day: string; value: number; active?: boolean }>
+  >([
+    { day: 'MON', value: 0 },
+    { day: 'TUE', value: 0 },
+    { day: 'WED', value: 0 },
+    { day: 'THU', value: 0 },
+    { day: 'FRI', value: 0 },
+    { day: 'SAT', value: 0 },
+    { day: 'SUN', value: 0 },
+  ]);
+  const [peakHourLabel, setPeakHourLabel] = useState('N/A');
+  const [peakHourBills, setPeakHourBills] = useState(0);
 
   const isAdmin = user?.role === 'ADMIN';
   const accessibleViews = getAccessibleDashboardViews(
@@ -175,16 +188,91 @@ export default function Dashboard() {
       return;
     }
     try {
-      const response = await api.get(`/users/${user.restaurantId}`);
-      setRealStaff(response.data);
+      const response = await api.get('/staff');
+      setRealStaff(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error("Failed to fetch staff:", err);
+      setRealStaff([]);
+    }
+  };
+
+  const fetchBillingAnalytics = async () => {
+    const now = new Date();
+    const dayBuckets = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(now);
+      date.setDate(now.getDate() - (6 - index));
+      const key = date.toISOString().slice(0, 10);
+      const day = date
+        .toLocaleDateString('en-US', { weekday: 'short' })
+        .toUpperCase();
+      return { key, day, total: 0 };
+    });
+
+    const dayLookup = new Map(dayBuckets.map((bucket) => [bucket.key, bucket]));
+    const hourCounts = Array.from({ length: 24 }, () => 0);
+
+    try {
+      const response = await api.get('/bills');
+      const bills = Array.isArray(response.data) ? response.data : [];
+
+      bills.forEach((bill: any) => {
+        const sourceDate = bill?.createdAt || bill?.updatedAt;
+        if (!sourceDate) {
+          return;
+        }
+
+        const createdAt = new Date(sourceDate);
+        if (Number.isNaN(createdAt.getTime())) {
+          return;
+        }
+
+        const dayKey = createdAt.toISOString().slice(0, 10);
+        const bucket = dayLookup.get(dayKey);
+        if (bucket) {
+          bucket.total += Number(bill?.totalAmount ?? 0);
+        }
+
+        hourCounts[createdAt.getHours()] += 1;
+      });
+
+      const maxTotal = Math.max(...dayBuckets.map((bucket) => bucket.total), 0);
+      const activeDay = dayBuckets.reduce(
+        (best, candidate) => (candidate.total > best.total ? candidate : best),
+        dayBuckets[0],
+      );
+
+      setSalesData(
+        dayBuckets.map((bucket) => ({
+          day: bucket.day,
+          value: maxTotal > 0 ? Math.max(8, Math.round((bucket.total / maxTotal) * 100)) : 8,
+          active: bucket.key === activeDay.key && maxTotal > 0,
+        })),
+      );
+
+      const peakHourIndex = hourCounts.reduce(
+        (bestIndex, count, idx, arr) => (count > arr[bestIndex] ? idx : bestIndex),
+        0,
+      );
+      const nextHour = (peakHourIndex + 1) % 24;
+      const formatHour = (hour: number) => {
+        const suffix = hour >= 12 ? 'PM' : 'AM';
+        const normalized = hour % 12 || 12;
+        return `${normalized} ${suffix}`;
+      };
+
+      setPeakHourLabel(`${formatHour(peakHourIndex)} - ${formatHour(nextHour)}`);
+      setPeakHourBills(hourCounts[peakHourIndex]);
+    } catch (err) {
+      console.error('Failed to fetch billing analytics:', err);
+      setPeakHourLabel('N/A');
+      setPeakHourBills(0);
     }
   };
 
   useEffect(() => {
     if (terminalLaunched) {
       void fetchStaff();
+      void fetchBillingAnalytics();
     }
   }, [terminalLaunched, user?.restaurantId]);
 
@@ -199,7 +287,7 @@ export default function Dashboard() {
     }
 
     try {
-      await api.delete(`/users/user/${userId}`);
+      await api.delete(`/staff/${userId}`);
       setRealStaff(prev => prev.filter(u => u.id !== userId));
     } catch (err) {
       alert("Failed to remove user. Please try again.");
@@ -220,34 +308,14 @@ export default function Dashboard() {
     navigate("/login");
   };
 
-  const salesData = [
-    { day: "MON", value: 40 },
-    { day: "TUE", value: 65 },
-    { day: "WED", value: 90, active: true },
-    { day: "THU", value: 60 },
-    { day: "FRI", value: 75 },
-    { day: "SAT", value: 55 },
-    { day: "SUN", value: 80 },
-  ];
-
-  const staff = realStaff.length > 0 ? realStaff.map(u => ({
+  const staff = realStaff.map(u => ({
     id: u.id,
-    name: u.fullName,
+    name: u.fullName || u.name || u.email || 'Unknown',
     role: u.role,
     station: u.role === 'KITCHEN' ? 'Kitchen' : u.role === 'CASHIER' ? 'Terminal 01' : 'Admin Portal',
     checkIn: new Date(u.createdAt).toLocaleDateString(),
     status: u.isActive ? "Active" : "Inactive",
-  })) : [
-    {
-      id: "demo-1",
-      name: "Courtney Henry",
-      role: "Manager",
-      station: "Front Desk",
-      checkIn: "08:00 AM",
-      status: "Active",
-    },
-    // ... more demo users if needed
-  ];
+  }));
 
   if (!terminalLaunched && isAdmin) {
     return (
@@ -679,11 +747,11 @@ export default function Dashboard() {
 
                 <div className="mt-8">
                   <div className="text-[44px] font-black leading-none tracking-tight mb-2">
-                    1 PM – 2 PM
+                    {peakHourLabel}
                   </div>
                   <div className="flex items-center gap-2 text-[#5dc7ec] text-[13px] font-bold">
                     <BarChart3 size={14} className="rotate-90" />
-                    23 bills generated
+                    {peakHourBills} bills generated
                   </div>
                 </div>
               </div>
@@ -733,6 +801,13 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
+                    {staff.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-[13px] font-medium text-slate-500">
+                          No staff available.
+                        </td>
+                      </tr>
+                    ) : null}
                     {staff.map((person, idx) => (
                       <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
                         <td className="py-5 pl-2">

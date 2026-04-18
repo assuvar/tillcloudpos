@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -65,6 +66,21 @@ type KitchenOrderView = {
 @Injectable()
 export class BillsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async assertBillOwnership(billId: string, restaurantId: string) {
+    const bill = await this.prisma.bill.findUnique({
+      where: { id: billId },
+      select: { id: true, restaurantId: true },
+    });
+
+    if (!bill) {
+      throw new NotFoundException('Bill not found');
+    }
+
+    if (bill.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Cross-tenant bill access is forbidden');
+    }
+  }
 
   private async assertSufficientIngredientStockForBill(
     tx: Prisma.TransactionClient,
@@ -351,6 +367,8 @@ export class BillsService {
   }
 
   async findOne(id: string, restaurantId: string) {
+    await this.assertBillOwnership(id, restaurantId);
+
     const bill = await this.prisma.bill.findFirst({
       where: { id, restaurantId },
       include: {
@@ -367,6 +385,8 @@ export class BillsService {
   }
 
   async addBillItem(billId: string, restaurantId: string, dto: AddBillItemDto) {
+    await this.assertBillOwnership(billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, restaurantId },
@@ -449,6 +469,8 @@ export class BillsService {
     restaurantId: string,
     dto: UpdateBillItemDto,
   ) {
+    await this.assertBillOwnership(billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, restaurantId },
@@ -503,6 +525,8 @@ export class BillsService {
   }
 
   async deleteBillItem(billId: string, itemId: string, restaurantId: string) {
+    await this.assertBillOwnership(billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, restaurantId },
@@ -538,6 +562,8 @@ export class BillsService {
   }
 
   async sendToKitchen(billId: string, restaurantId: string) {
+    await this.assertBillOwnership(billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, restaurantId },
@@ -599,6 +625,8 @@ export class BillsService {
   }
 
   async processCashPayment(restaurantId: string, dto: CashPaymentDto) {
+    await this.assertBillOwnership(dto.billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const initialBill = await tx.bill.findFirst({
         where: {

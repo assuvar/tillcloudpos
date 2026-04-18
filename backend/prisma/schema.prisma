@@ -32,6 +32,7 @@ model Restaurant {
   tyroTerminalId   String?
   tyroConnected    Boolean         @default(false)
   tyroConnectedAt  DateTime?
+  onboardingCompleted Boolean       @default(false)
   smsCredits       Int             @default(0)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt

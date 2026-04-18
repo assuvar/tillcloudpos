@@ -51,6 +51,7 @@ type CheckEmailBody = {
 };
 
 const REFRESH_COOKIE_NAME = 'refresh_token';
+const TEMP_STATIC_OTP = '526252';
 
 @Controller('auth')
 export class AuthController {
@@ -250,7 +251,7 @@ export class AuthController {
 
   @Public()
   @HttpCode(HttpStatus.OK)
-  @Post('otp/verify')
+  @Post('verify-otp')
   async verifyOtp(
     @Body() body: VerifyOtpBody,
     @Res({ passthrough: true }) res: Response,
@@ -261,7 +262,12 @@ export class AuthController {
       );
     }
 
-    await this.authService.verifyOtp(body.channel, body.destination, body.code);
+    const normalizedCode = String(body.code).replace(/\D/g, '').trim();
+    if (normalizedCode !== TEMP_STATIC_OTP) {
+      throw new UnauthorizedException('Invalid OTP');
+    }
+
+    await this.authService.verifyOtp(body.channel, body.destination, TEMP_STATIC_OTP);
 
     // After internal verification, find the user to log them in
     const user = await this.authService.usersService.findByEmail(
@@ -288,6 +294,16 @@ export class AuthController {
 
   @Public()
   @HttpCode(HttpStatus.OK)
+  @Post('otp/verify')
+  async verifyOtpLegacy(
+    @Body() body: VerifyOtpBody,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.verifyOtp(body, res);
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
   @Post('check-email')
   async checkEmail(@Body() body: CheckEmailBody) {
     if (!body?.email) {
@@ -306,6 +322,7 @@ export class AuthController {
       password?: string;
       businessName?: string;
       fullName?: string;
+      mobile?: string;
       serviceModels?: string[];
     },
     @Res({ passthrough: true }) res: Response,

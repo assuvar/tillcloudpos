@@ -71,6 +71,16 @@ export class UsersService {
     });
   }
 
+  findOneInRestaurant(id: string, restaurantId: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        id,
+        restaurantId,
+      },
+      include: { restaurant: true },
+    });
+  }
+
   async update(id: string, updateUserDto: UpdateUserDto) {
     const { password, pin, email, ...updateData } =
       updateUserDto as UpdateUserDto & { password?: string; pin?: string };
@@ -108,9 +118,31 @@ export class UsersService {
     });
   }
 
+  async updateInRestaurant(
+    id: string,
+    restaurantId: string,
+    updateUserDto: UpdateUserDto,
+  ) {
+    const targetUser = await this.findOneInRestaurant(id, restaurantId);
+    if (!targetUser) {
+      throw new BadRequestException('User not found in restaurant context');
+    }
+
+    return this.update(id, updateUserDto);
+  }
+
   remove(id: string) {
     return this.prisma.user.delete({
       where: { id },
     });
+  }
+
+  async removeInRestaurant(id: string, restaurantId: string) {
+    const targetUser = await this.findOneInRestaurant(id, restaurantId);
+    if (!targetUser) {
+      throw new BadRequestException('User not found in restaurant context');
+    }
+
+    return this.remove(id);
   }
 }

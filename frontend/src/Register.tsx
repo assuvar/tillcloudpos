@@ -15,8 +15,10 @@ import api from './services/api';
 import { useAuth } from './context/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { calculatePasswordStrength, isValidEmail, isValidPhone } from './onboarding/validation';
-import { OTP_LENGTH, verifyStaticOtp } from './onboarding/otpMock';
 import { ALLOWED_SERVICE_MODELS, SERVICE_MODEL_LABELS, type ServiceModel } from './serviceModels';
+
+const OTP_LENGTH = 6;
+const TEMP_STATIC_OTP = '526252';
 
 const registrationSteps = [
   { id: 1, label: 'Business Info', icon: Building2 },
@@ -110,12 +112,6 @@ export default function Register() {
     }
   };
 
-  const simulateEmailExists = async (email: string) => {
-    const blockedEmails = ['admin@tillcloud.com', 'owner@restaurant.com'];
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return blockedEmails.includes(email.trim().toLowerCase());
-  };
-
   const handleEmailBlur = async () => {
     const normalizedEmail = formData.email.trim().toLowerCase();
     if (!normalizedEmail) {
@@ -130,12 +126,6 @@ export default function Register() {
 
     setEmailChecking(true);
     try {
-      const simulatedExists = await simulateEmailExists(normalizedEmail);
-      if (simulatedExists) {
-        setEmailError('Email already exists. Please use another email.');
-        return;
-      }
-
       const availability = await api.post('/auth/check-email', {
         email: normalizedEmail,
       });
@@ -179,10 +169,23 @@ export default function Register() {
 
   const safeEmailDestination = formData.email.trim().toLowerCase();
 
-  function sendOtp() {
-    setEmailOtpVerified(false);
-    setEmailOtpMessage('OTP resent successfully');
-    setEmailOtpError('');
+  async function sendOtp() {
+    if (!safeEmailDestination || !isValidEmail(safeEmailDestination)) {
+      setEmailOtpError('Enter a valid email before requesting OTP.');
+      return;
+    }
+
+    try {
+      await api.post('/auth/otp/send', {
+        channel: 'email',
+        destination: safeEmailDestination,
+      });
+      setEmailOtpVerified(false);
+      setEmailOtpMessage('OTP sent successfully');
+      setEmailOtpError('');
+    } catch {
+      setEmailOtpError('Failed to send OTP. Please try again.');
+    }
   }
 
   async function verifyOtp() {
@@ -195,12 +198,11 @@ export default function Register() {
     setIsVerifyingEmailOtp(true);
 
     try {
-      const isValid = verifyStaticOtp(code);
-
-      if (!isValid) {
-        setEmailOtpError('Invalid OTP');
-        return;
-      }
+      await api.post('/auth/verify-otp', {
+        channel: 'email',
+        destination: safeEmailDestination,
+        code,
+      });
 
       setEmailOtpVerified(true);
       setEmailOtpError('');
@@ -286,7 +288,7 @@ export default function Register() {
     setEmailResendCountdown(60);
     setEmailOtp(Array(OTP_LENGTH).fill(''));
     setEmailOtpError('');
-    setEmailOtpMessage(`Use ${OTP_LENGTH}-digit dev OTP`);
+    setEmailOtpMessage('');
     setEmailOtpVerified(false);
     setAcceptedTerms(false);
     setAcceptedComms(false);
@@ -295,7 +297,7 @@ export default function Register() {
       emailOtpRefs.current[0]?.focus();
     }, 0);
 
-    sendOtp();
+    void sendOtp();
 
     const interval = window.setInterval(() => {
       setEmailResendCountdown((prev) => (prev > 0 ? prev - 1 : 0));
@@ -799,6 +801,9 @@ export default function Register() {
                             <p className="text-[10px] text-slate-400 font-medium">Enter the {OTP_LENGTH}-digit code sent to {safeEmailDestination || 'your email'}</p>
                           </div>
                         </div>
+                        <p className="w-full text-[11px] font-semibold text-slate-500 -mt-2 mb-4">
+                          Use OTP: {TEMP_STATIC_OTP} (for testing)
+                        </p>
                         <div className="flex gap-2 mb-6">
                           {emailOtp.map((digit, index) => (
                             <input
@@ -817,10 +822,21 @@ export default function Register() {
                                 event.preventDefault();
                                 handleOtpPaste(index, event.clipboardData.getData('text'));
                               }}
+                              onFocus={() => setEmailOtpError('')}
                               className="w-10 h-12 rounded-xl bg-[#f0f7ff] border-none text-center font-bold text-[#0b1731] focus:ring-2 focus:ring-cyan-300 focus:bg-white transition-all shadow-inner"
                             />
                           ))}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEmailOtp(TEMP_STATIC_OTP.split(''));
+                            setEmailOtpError('');
+                          }}
+                          className="mb-4 self-start text-[11px] font-bold uppercase tracking-wider text-cyan-600 hover:text-cyan-700"
+                        >
+                          Autofill test OTP
+                        </button>
                         <div className="w-full flex items-center justify-between mb-3">
                           <button
                             type="button"

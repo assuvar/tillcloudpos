@@ -38,6 +38,7 @@ export function MenuSetupStep({
 }: MenuSetupStepProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categories[0]?.id || '');
   const [disabledTooltip, setDisabledTooltip] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
 
@@ -46,14 +47,22 @@ export function MenuSetupStep({
     : [];
 
   const addCategory = () => {
+    const trimmedName = newCategoryName.trim();
+    if (!trimmedName) {
+      setDisabledTooltip('Enter a category name first');
+      window.setTimeout(() => setDisabledTooltip(''), 1800);
+      return;
+    }
+
     const nextCategory: MenuCategoryData = {
       id: crypto.randomUUID(),
-      name: `Category ${categories.length + 1}`,
+      name: trimmedName,
       isActive: true,
     };
     const nextCategories = [...categories, nextCategory];
     onCategoriesChange(nextCategories);
     setSelectedCategoryId(nextCategory.id);
+    setNewCategoryName('');
   };
 
   const addItem = () => {
@@ -86,6 +95,19 @@ export function MenuSetupStep({
     );
   };
 
+  const updateCategory = (categoryId: string, value: string) => {
+    onCategoriesChange(
+      categories.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              name: value,
+            }
+          : category,
+      ),
+    );
+  };
+
   return (
     <section>
       <h1 className="text-[34px] sm:text-[52px] font-extrabold text-[#0b1324] leading-[1.05] tracking-[-0.02em]">
@@ -103,6 +125,36 @@ export function MenuSetupStep({
               <span className="text-[11px] text-slate-400">{categories.length} Total</span>
             </div>
 
+            <div className="mb-3 rounded-md border border-slate-200 bg-white p-2">
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                Category name
+              </label>
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(event) => {
+                  setNewCategoryName(event.target.value);
+                  setDisabledTooltip('');
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addCategory();
+                  }
+                }}
+                placeholder="e.g. Burgers"
+                className="h-10 w-full rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px] outline-none"
+              />
+              <button
+                type="button"
+                onClick={addCategory}
+                disabled={newCategoryName.trim() === ''}
+                className="mt-2 h-9 w-full rounded-md bg-[#07142a] text-[12px] font-semibold text-white"
+              >
+                Add Category
+              </button>
+            </div>
+
             <div className="space-y-1">
               {categories.length === 0 && (
                 <div className="rounded-md px-3 py-2 text-[13px] text-slate-400">No categories yet</div>
@@ -110,17 +162,33 @@ export function MenuSetupStep({
               {categories.map(({ id, name, isActive }) => {
                 const isSelected = selectedCategoryId === id;
                 return (
-                  <button
+                  <div
                     key={id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedCategoryId(id)}
-                    className={`w-full rounded-md px-3 py-2 flex items-center justify-between text-[13px] ${
-                      isSelected ? "bg-white border border-[#5cc7eb]" : ""
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedCategoryId(id);
+                      }
+                    }}
+                    className={`w-full rounded-md px-3 py-2 flex items-center gap-3 text-[13px] border ${
+                      isSelected ? 'bg-white border-[#5cc7eb]' : 'border-transparent'
                     }`}
                   >
-                    <span className={`font-medium ${isSelected ? "text-[#111827]" : "text-slate-600"}`}>{name}</span>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(event) => updateCategory(id, event.target.value)}
+                      onFocus={() => setSelectedCategoryId(id)}
+                      className={`w-full bg-transparent font-medium outline-none ${
+                        isSelected ? 'text-[#111827]' : 'text-slate-600'
+                      }`}
+                      aria-label={`Category name for ${name || 'untitled category'}`}
+                    />
                     <Toggle on={isActive} />
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -128,6 +196,7 @@ export function MenuSetupStep({
             <button
               type="button"
               onClick={addCategory}
+              disabled={newCategoryName.trim() === ''}
               className="mt-20 h-10 w-full rounded-md border border-dashed border-slate-300 text-[13px] text-slate-600 inline-flex items-center justify-center gap-2"
             >
               <CirclePlus size={14} />

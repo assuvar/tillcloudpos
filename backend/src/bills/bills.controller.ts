@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Body,
   Controller,
   Delete,
@@ -23,11 +24,7 @@ const getRestaurantId = (req: any): string => {
     return req.user.restaurantId;
   }
 
-  if (req.headers['x-restaurant-id']) {
-    return req.headers['x-restaurant-id'];
-  }
-
-  return 'default-restaurant';
+  throw new ForbiddenException('Restaurant context is required');
 };
 
 @Controller('bills')

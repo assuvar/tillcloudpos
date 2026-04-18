@@ -13,6 +13,7 @@ import {
   createDecipheriv,
   createHash,
   randomBytes,
+  randomUUID,
 } from 'crypto';
 import type { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,6 +30,12 @@ type StaffActor = {
   restaurantId: string;
 };
 
+const POS_PIN_ROLES = new Set<string>([
+  StaffRole.MANAGER,
+  StaffRole.CASHIER,
+  StaffRole.KITCHEN,
+]);
+
 @Injectable()
 export class StaffService {
   constructor(
@@ -40,8 +47,12 @@ export class StaffService {
     return email.trim().toLowerCase();
   }
 
+  private roleRequiresPosPin(role: string) {
+    return POS_PIN_ROLES.has(role);
+  }
+
   private generatePin() {
-    const pinLength = Math.floor(Math.random() * 3) + 4;
+    const pinLength = 4;
     const maxValue = 10 ** pinLength;
     return Math.floor(Math.random() * maxValue)
       .toString()
@@ -252,8 +263,12 @@ export class StaffService {
       },
     });
 
-    if (!user || user.restaurantId !== restaurantId) {
+    if (!user) {
       throw new NotFoundException('Staff member not found');
+    }
+
+    if (user.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Cross-tenant staff access is forbidden');
     }
 
     return user;
@@ -358,13 +373,19 @@ export class StaffService {
   }
 
   async create(restaurantId: string, dto: CreateStaffDto) {
-    const email = this.normalizeEmail(dto.email);
     const name = dto.name.trim();
-    await this.assertEmailNotTaken(restaurantId, email);
+    const email = dto.email?.trim()
+      ? this.normalizeEmail(dto.email)
+      : `staff-${randomUUID()}@internal.tillcloudpos.local`;
 
-    const pin = await this.generateUniquePin(restaurantId);
-    const pinHash = await bcrypt.hash(pin, 10);
-    const pinEncrypted = this.encryptPin(pin);
+    if (dto.email?.trim()) {
+      await this.assertEmailNotTaken(restaurantId, email);
+    }
+
+    const shouldGeneratePin = this.roleRequiresPosPin(dto.role);
+    const pin = shouldGeneratePin ? await this.generateUniquePin(restaurantId) : null;
+    const pinHash = pin ? await bcrypt.hash(pin, 10) : null;
+    const pinEncrypted = pin ? this.encryptPin(pin) : null;
 
     try {
       const user = await this.prisma.user.create({
@@ -395,6 +416,10 @@ export class StaffService {
       });
 
       return {
+        id: user.id,
+        name: user.name || user.fullName,
+        role: user.role,
+        pin,
         staff: this.sanitizeStaff(user),
         generatedPin: pin,
       };
@@ -532,6 +557,12 @@ export class StaffService {
       const target = await this.findTenantUserOrThrow(id, restaurantId);
       this.ensureAdminImmutable(target.role);
 
+      if (!this.roleRequiresPosPin(target.role)) {
+        throw new BadRequestException(
+          'PIN can only be reset for CASHIER, MANAGER, or KITCHEN roles',
+        );
+      }
+
       const existingUser = await this.prisma.user.findUnique({
         where: { id },
         select: { pinEncrypted: true },
@@ -602,6 +633,12 @@ export class StaffService {
 
       const target = await this.findTenantUserOrThrow(id, restaurantId);
       this.ensureAdminImmutable(target.role);
+
+      if (!this.roleRequiresPosPin(target.role)) {
+        throw new BadRequestException(
+          'PIN is only available for CASHIER, MANAGER, or KITCHEN roles',
+        );
+      }
 
       const targetUser = await this.prisma.user.findUnique({
         where: { id },

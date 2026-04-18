@@ -67,6 +67,12 @@ export class StaffController {
     return this.staffService.create(req.user.restaurantId, body);
   }
 
+  @Post('invite')
+  @RequirePermissions(PERMISSIONS.STAFF_INVITE)
+  invite(@Req() req: AuthenticatedRequest, @Body() body: CreateStaffDto) {
+    return this.staffService.create(req.user.restaurantId, body);
+  }
+
   @Patch(':id')
   @RequirePermissions(PERMISSIONS.STAFF_EDIT)
   update(

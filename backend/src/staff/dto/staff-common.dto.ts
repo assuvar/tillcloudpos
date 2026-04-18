@@ -26,8 +26,9 @@ export class CreateStaffDto {
   @MaxLength(80)
   name!: string;
 
+  @IsOptional()
   @IsEmail()
-  email!: string;
+  email?: string;
 
   @IsOptional()
   @Matches(/^[0-9+()\-\s]{8,20}$/)
