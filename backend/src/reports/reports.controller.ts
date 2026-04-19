@@ -40,10 +40,7 @@ export class ReportsController {
 
   @Post('close-day')
   @RequirePermissions(PERMISSIONS.REPORTS_MANAGE)
-  closeDay(
-    @Req() req: any,
-    @Body() body?: { businessDate?: string },
-  ) {
+  closeDay(@Req() req: any, @Body() body?: { businessDate?: string }) {
     return this.reportsService.closeDay(
       getRestaurantId(req),
       req.user?.userId || null,

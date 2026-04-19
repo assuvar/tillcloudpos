@@ -98,7 +98,8 @@ export class ReportsService {
     return {
       revenue,
       orders: ordersCount,
-      avgOrderValue: paidOrders > 0 ? Number((revenue / paidOrders).toFixed(2)) : 0,
+      avgOrderValue:
+        paidOrders > 0 ? Number((revenue / paidOrders).toFixed(2)) : 0,
       paidOrders,
       openOrders: openOrdersCount,
       lowStockItems: lowStockCount,
@@ -144,7 +145,10 @@ export class ReportsService {
       }),
     ]);
 
-    const dayMap = new Map<string, { date: string; revenue: number; orders: number }>();
+    const dayMap = new Map<
+      string,
+      { date: string; revenue: number; orders: number }
+    >();
     for (let i = 0; i < 7; i += 1) {
       const day = new Date(periodStart);
       day.setUTCDate(periodStart.getUTCDate() + i);
@@ -165,7 +169,10 @@ export class ReportsService {
       }
     });
 
-    const itemMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+    const itemMap = new Map<
+      string,
+      { name: string; quantity: number; revenue: number }
+    >();
     const categoryMap = new Map<
       string,
       { category: string; quantity: number; revenue: number }
