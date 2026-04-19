@@ -52,8 +52,10 @@ export default function POSEntryScreen() {
               <LayoutGrid size={18} />
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase leading-none text-slate-400">Cashier</span>
-              <span className="text-sm font-black text-[#0c1424]">{user?.fullName || 'Cashier'}</span>
+              <span className="text-[10px] font-black uppercase leading-none text-slate-400">
+                {user?.role || 'STAFF'}
+              </span>
+              <span className="text-sm font-black text-[#0c1424]">{user?.fullName || 'Staff Member'}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">

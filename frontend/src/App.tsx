@@ -652,7 +652,11 @@ export default function App() {
       <Route 
         path="/dashboard" 
         element={
-          <ProtectedRoute allowedModes={["dashboard"]} allowedRoles={["ADMIN", "MANAGER"]}>
+          <ProtectedRoute
+            allowedModes={["dashboard"]}
+            allowedRoles={["ADMIN", "MANAGER"]}
+            allowedPermissions={[FRONTEND_PERMISSIONS.REPORTS_VIEW]}
+          >
             <Dashboard />
           </ProtectedRoute>
         } 
@@ -660,7 +664,7 @@ export default function App() {
       <Route
         path="/pos"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN]} redirectTo="/pos/login">
+          <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN]} redirectTo="/pos/login">
             <POSEntryScreen />
           </ProtectedRoute>
         }
@@ -668,7 +672,7 @@ export default function App() {
       <Route
         path="/pos/order-entry"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_CREATE]} redirectTo="/pos/login">
+          <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_CREATE]} redirectTo="/pos/login">
             <OrderEntryScreen />
           </ProtectedRoute>
         }
@@ -676,7 +680,7 @@ export default function App() {
       <Route
         path="/checkout"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
+          <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
             <Checkout />
           </ProtectedRoute>
         }
@@ -684,7 +688,7 @@ export default function App() {
       <Route
         path="/receipt"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
+          <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
             <ThermalReceiptScreen />
           </ProtectedRoute>
         }

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -25,11 +26,7 @@ const getRestaurantId = (req: any): string => {
     return req.user.restaurantId;
   }
 
-  if (req.headers['x-restaurant-id']) {
-    return req.headers['x-restaurant-id'];
-  }
-
-  return 'default-restaurant';
+  throw new ForbiddenException('Restaurant context is required');
 };
 
 @Controller('inventory')
@@ -95,6 +92,12 @@ export class InventoryController {
   @Get('reports/low-stock')
   @RequirePermissions(PERMISSIONS.INVENTORY_VIEW_LOW_STOCK)
   lowStock(@Req() req: any) {
+    return this.inventoryService.lowStockReport(getRestaurantId(req));
+  }
+
+  @Get('low-stock')
+  @RequirePermissions(PERMISSIONS.INVENTORY_VIEW_LOW_STOCK)
+  lowStockAlias(@Req() req: any) {
     return this.inventoryService.lowStockReport(getRestaurantId(req));
   }
 

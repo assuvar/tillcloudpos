@@ -21,6 +21,7 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     PermissionsModule,
     RestaurantModule,
     OnboardingModule,
+    ReportsModule,
     InventoryModule,
     ProductsModule,
     CategoriesModule,

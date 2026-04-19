@@ -32,6 +32,7 @@ export const getAccessibleDashboardViews = (
   hasModuleAccess: (group: PermissionGroup) => boolean,
 ): DashboardView[] => {
   const isAdmin = role === 'ADMIN';
+  const isManager = role === 'MANAGER';
 
   return DASHBOARD_VIEWS.filter((item) => {
     if (isAdmin) {
@@ -39,7 +40,7 @@ export const getAccessibleDashboardViews = (
     }
 
     if (item.id === 'home') {
-      return false;
+      return isManager && hasModuleAccess('REPORTS');
     }
 
     return item.permissionGroup ? hasModuleAccess(item.permissionGroup) : false;

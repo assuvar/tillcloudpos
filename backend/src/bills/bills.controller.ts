@@ -43,8 +43,17 @@ export class BillsController {
 
   @Get()
   @RequirePermissions(PERMISSIONS.BILLING_VIEW_OPEN)
-  findAll(@Req() req: any, @Query('status') status?: string) {
-    return this.billsService.findAll(getRestaurantId(req), status);
+  findAll(
+    @Req() req: any,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = Number(limit);
+    return this.billsService.findAll(
+      getRestaurantId(req),
+      status,
+      Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+    );
   }
 
   @Get(':id')
