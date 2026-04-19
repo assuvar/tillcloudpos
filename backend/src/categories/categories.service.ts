@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   BadRequestException,
   NotFoundException,
@@ -72,7 +73,7 @@ export class CategoriesService {
     }
 
     if (category.restaurantId !== restaurantId) {
-      throw new NotFoundException('Access denied');
+      throw new ForbiddenException('Cross-tenant category access is forbidden');
     }
 
     return category;
@@ -96,7 +97,7 @@ export class CategoriesService {
     }
 
     if (existingCategory.restaurantId !== restaurantId) {
-      throw new NotFoundException('Access denied');
+      throw new ForbiddenException('Cross-tenant category access is forbidden');
     }
 
     // If updating name, check for duplicates
@@ -145,7 +146,7 @@ export class CategoriesService {
     }
 
     if (category.restaurantId !== restaurantId) {
-      throw new NotFoundException('Access denied');
+      throw new ForbiddenException('Cross-tenant category access is forbidden');
     }
 
     // Check if category has items

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  ForbiddenException,
   Get,
   Post,
   Body,
@@ -18,8 +19,25 @@ import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
 
 type AuthenticatedRequest = {
   user?: {
+    userId: string;
     restaurantId: string;
   };
+};
+
+const getRestaurantId = (req: AuthenticatedRequest) => {
+  const restaurantId = req.user?.restaurantId;
+  if (!restaurantId) {
+    throw new ForbiddenException('Restaurant context is required');
+  }
+  return restaurantId;
+};
+
+const getUserId = (req: AuthenticatedRequest) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    throw new ForbiddenException('User context is required');
+  }
+  return userId;
 };
 
 @Controller('users')
@@ -32,43 +50,64 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
     @Body() createUserDto: CreateUserDto,
   ) {
-    return this.usersService.create(
-      req.user?.restaurantId || '',
-      createUserDto,
-    );
+    return this.usersService.create(getRestaurantId(req), createUserDto);
   }
 
   @Get(':restaurantId')
   @RequirePermissions(PERMISSIONS.STAFF_EDIT)
   findAll(@Req() req: AuthenticatedRequest) {
-    return this.usersService.findAll(req.user?.restaurantId || '');
+    return this.usersService.findAll(getRestaurantId(req));
   }
 
   @Get('user/:id')
   @RequirePermissions(PERMISSIONS.STAFF_EDIT)
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  async findOne(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const user = await this.usersService.findOneInRestaurant(
+      id,
+      getRestaurantId(req),
+    );
+    if (!user) {
+      throw new BadRequestException('User not found in restaurant context');
+    }
+    return user;
   }
 
   @Patch('user/:id')
   @RequirePermissions(PERMISSIONS.STAFF_EDIT)
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
+  update(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.updateInRestaurant(
+      id,
+      getRestaurantId(req),
+      updateUserDto,
+    );
   }
 
   @Patch('onboarding/:id')
   async completeOnboarding(
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() onboardingData: any,
   ) {
+    const restaurantId = getRestaurantId(req);
+    const authenticatedUserId = getUserId(req);
+    if (authenticatedUserId !== id) {
+      throw new ForbiddenException(
+        'Cannot complete onboarding for another user',
+      );
+    }
+
     // Update user onboarding flag
-    await this.usersService.update(id, {
+    await this.usersService.updateInRestaurant(id, restaurantId, {
       onboardingCompleted: true,
       fullName: onboardingData.fullName,
     } as any);
 
     // Update restaurant if details provided
-    const user = await this.usersService.findOne(id);
+    const user = await this.usersService.findOneInRestaurant(id, restaurantId);
     if (user && user.restaurantId && onboardingData.restaurantData) {
       if (Array.isArray(onboardingData.restaurantData.serviceModels)) {
         const normalizedServiceModels = Array.from(
@@ -103,7 +142,7 @@ export class UsersController {
 
   @Delete('user/:id')
   @RequirePermissions(PERMISSIONS.STAFF_DELETE)
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  remove(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.usersService.removeInRestaurant(id, getRestaurantId(req));
   }
 }

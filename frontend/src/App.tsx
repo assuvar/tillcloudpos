@@ -146,71 +146,25 @@ function Landing() {
             system designed for the speed of modern hospitality.
           </p>
 
-          <div className="mt-10 flex flex-col items-center justify-center gap-3 text-[12px] font-bold uppercase tracking-widest text-slate-400 sm:flex-row sm:gap-6 sm:text-[14px]">
-            <div className="flex items-center space-x-2">
-              <span className="w-2 h-2 bg-[#4fc3f7] rounded-full"></span>
-              <span>Trusted by 500+ restaurants</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="w-2 h-2 bg-[#4fc3f7] rounded-full"></span>
-              <span>Designed for small businesses</span>
-            </div>
-          </div>
-
-          {/* Dashboard Mockup */}
-          <div className="mt-16 relative px-2 sm:mt-20 sm:px-4 md:px-0">
-            <div className="absolute -inset-20 bg-blue-50/50 blur-[120px] -z-10 rounded-full opacity-50"></div>
-            <div className="mx-auto max-w-[1040px] overflow-hidden rounded-[2rem] border border-slate-100/60 bg-white p-2 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.12)] transition-transform duration-700 sm:rounded-[2.5rem] sm:p-3 lg:transform lg:hover:scale-[1.01]">
-              {/* Dashboard Mockup Content (Simplified CSS) */}
-              <div className="relative flex h-[360px] flex-col overflow-hidden rounded-[1.5rem] border border-slate-100 bg-[#f8fafc] sm:h-[440px] lg:h-[580px] sm:rounded-[2rem]">
-                <div className="flex h-14 items-center justify-between border-b border-slate-100 bg-white px-4 sm:h-16 sm:px-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#4fc3f7]/10 text-xs font-bold text-[#4fc3f7] ring-1 ring-[#4fc3f7]/20">
-                      â˜
-                    </div>
-                    <div className="h-8 w-px bg-slate-100"></div>
-                    <div className="hidden space-x-2 sm:flex">
-                      <div className="h-2 w-12 rounded-full bg-slate-100"></div>
-                      <div className="h-2 w-8 rounded-full bg-slate-50"></div>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2 sm:space-x-3">
-                    <div className="h-8 w-8 rounded-full bg-slate-50"></div>
-                    <div className="h-8 w-16 rounded-lg bg-slate-50 sm:w-24"></div>
-                  </div>
-                </div>
-                <div className="flex flex-1">
-                  <div className="hidden w-16 space-y-4 border-r border-slate-100 p-4 sm:block">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div
-                        key={i}
-                        className="w-8 h-8 rounded-lg bg-slate-50"
-                      ></div>
-                    ))}
-                  </div>
-                  <div className="flex-1 p-4 sm:p-6 lg:p-8">
-                    <div className="mb-6 flex items-center justify-between sm:mb-10">
-                      <div className="h-6 w-28 rounded-lg bg-slate-200/50 sm:w-40"></div>
-                      <div className="flex space-x-2">
-                        <div className="h-10 w-16 rounded-lg bg-[#0b1b3d] sm:w-24"></div>
-                        <div className="h-10 w-16 rounded-lg border border-slate-100 bg-white sm:w-24"></div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-                      {[...Array(12)].map((_, i) => (
-                        <div
-                          key={i}
-                          className={`h-24 rounded-xl border border-slate-100 flex flex-col p-3 ${i % 3 === 0 ? "bg-emerald-50/50 border-emerald-100" : "bg-white"}`}
-                        >
-                          <div
-                            className={`h-1.5 w-full rounded-full mb-3 ${i % 3 === 0 ? "bg-emerald-400" : "bg-slate-200"}`}
-                          ></div>
-                          <div className="h-4 w-10 bg-slate-100 rounded"></div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+          <div className="mt-10 rounded-[2rem] border border-slate-100 bg-white p-8 text-left shadow-[0_20px_60px_-20px_rgba(0,0,0,0.08)] sm:mt-14 sm:p-10">
+            <div className="grid gap-6 sm:grid-cols-3">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4fc3f7]">POS</div>
+                <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
+                  Fast billing, split payments, and table-aware checkout.
+                </p>
+              </div>
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4fc3f7]">Kitchen</div>
+                <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
+                  Live order flow from cashier to kitchen display.
+                </p>
+              </div>
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4fc3f7]">Reports</div>
+                <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
+                  Track sales, inventory, and staff activity from the real system.
+                </p>
               </div>
             </div>
           </div>
@@ -232,9 +186,6 @@ function Landing() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Feature 1 */}
             <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-blue-900/5 transition-all group lg:col-span-2">
-              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-2xl mb-8 group-hover:scale-110 transition-transform">
-                ðŸ‘¤
-              </div>
               <h3 className="text-2xl font-black text-[#0b1b3d] mb-4">
                 Billing & POS
               </h3>
@@ -246,9 +197,6 @@ function Landing() {
             </div>
             {/* Feature 2 */}
             <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-blue-900/5 transition-all group">
-              <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-2xl mb-8 group-hover:scale-110 transition-transform">
-                ðŸ“‹
-              </div>
               <h3 className="text-2xl font-black text-[#0b1b3d] mb-4">KDS</h3>
               <p className="text-slate-500 font-medium leading-relaxed">
                 Keep your kitchen staff organized with real-time order tracking
@@ -257,9 +205,6 @@ function Landing() {
             </div>
             {/* Feature 3 */}
             <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-blue-900/5 transition-all group">
-              <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-2xl mb-8 group-hover:scale-110 transition-transform">
-                ðŸ“¶
-              </div>
               <h3 className="text-2xl font-black text-[#0b1b3d] mb-4">
                 Online & Mobile Order
               </h3>
@@ -270,9 +215,6 @@ function Landing() {
             </div>
             {/* Feature 4 */}
             <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-blue-900/5 transition-all group">
-              <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-2xl mb-8 group-hover:scale-110 transition-transform">
-                ðŸ“Š
-              </div>
               <h3 className="text-2xl font-black text-[#0b1b3d] mb-4">
                 Inventory Tracking
               </h3>
@@ -283,9 +225,6 @@ function Landing() {
             </div>
             {/* Feature 5 */}
             <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-blue-900/5 transition-all group">
-              <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-2xl mb-8 group-hover:scale-110 transition-transform">
-                ðŸ“ˆ
-              </div>
               <h3 className="text-2xl font-black text-[#0b1b3d] mb-4">
                 Customer Insights
               </h3>
@@ -375,9 +314,9 @@ function Landing() {
             </div>
             <div className="w-full lg:w-1/2 rounded-[2rem] bg-white p-3 shadow-2xl shadow-blue-900/5 rotate-0 sm:rounded-[3rem] sm:p-4 lg:rotate-1">
               <div className="rounded-[2.5rem] overflow-hidden border border-slate-100">
-                <div className="bg-slate-50 h-80 flex items-center justify-center text-slate-200 text-4xl font-black">
-                  MOCKUP
-                </div>
+                <div className="bg-slate-50 h-80 flex items-center justify-center text-slate-200 text-sm font-semibold uppercase tracking-[0.2em]">
+                    No demo data
+                  </div>
               </div>
             </div>
           </div>
@@ -414,9 +353,9 @@ function Landing() {
             </div>
             <div className="w-full lg:w-1/2 rounded-[2rem] bg-white p-3 shadow-2xl shadow-blue-900/5 rotate-0 sm:rounded-[3rem] sm:p-4 lg:-rotate-1">
               <div className="rounded-[2.5rem] overflow-hidden border border-slate-100">
-                <div className="bg-slate-50 h-80 flex items-center justify-center text-slate-200 text-4xl font-black">
-                  MOCKUP
-                </div>
+                <div className="bg-slate-50 h-80 flex items-center justify-center text-slate-200 text-sm font-semibold uppercase tracking-[0.2em]">
+                    No demo data
+                  </div>
               </div>
             </div>
           </div>
@@ -713,7 +652,11 @@ export default function App() {
       <Route 
         path="/dashboard" 
         element={
-          <ProtectedRoute allowedModes={["dashboard"]} allowedRoles={["ADMIN", "MANAGER"]}>
+          <ProtectedRoute
+            allowedModes={["dashboard"]}
+            allowedRoles={["ADMIN", "MANAGER"]}
+            allowedPermissions={[FRONTEND_PERMISSIONS.REPORTS_VIEW]}
+          >
             <Dashboard />
           </ProtectedRoute>
         } 
@@ -721,7 +664,7 @@ export default function App() {
       <Route
         path="/pos"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN]} redirectTo="/pos/login">
+          <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN]} redirectTo="/pos/login">
             <POSEntryScreen />
           </ProtectedRoute>
         }
@@ -729,7 +672,7 @@ export default function App() {
       <Route
         path="/pos/order-entry"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_CREATE]} redirectTo="/pos/login">
+          <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_CREATE]} redirectTo="/pos/login">
             <OrderEntryScreen />
           </ProtectedRoute>
         }
@@ -737,7 +680,7 @@ export default function App() {
       <Route
         path="/checkout"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
+          <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
             <Checkout />
           </ProtectedRoute>
         }
@@ -745,7 +688,7 @@ export default function App() {
       <Route
         path="/receipt"
         element={
-          <ProtectedRoute allowedModes={["pos"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
+          <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.PAYMENTS_CASH]} redirectTo="/pos/login">
             <ThermalReceiptScreen />
           </ProtectedRoute>
         }

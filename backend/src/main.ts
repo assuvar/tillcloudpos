@@ -45,6 +45,7 @@ async function bootstrap() {
         '/permissions',
         '/restaurant',
         '/users',
+        '/onboarding',
       ].some(
         (prefix) => pathName === prefix || pathName.startsWith(`${prefix}/`),
       );

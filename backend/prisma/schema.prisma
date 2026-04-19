@@ -32,6 +32,7 @@ model Restaurant {
   tyroTerminalId   String?
   tyroConnected    Boolean         @default(false)
   tyroConnectedAt  DateTime?
+  onboardingCompleted Boolean       @default(false)
   smsCredits       Int             @default(0)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
@@ -48,6 +49,7 @@ model Restaurant {
   terminals        Terminal[]
   users            User[]
   rolePermissions  RolePermission[]
+  dayClosures      DayClosure[]
 
   @@map("restaurants")
 }
@@ -426,6 +428,20 @@ model PinAuditLog {
   @@index([staffUserId, createdAt])
   @@index([actorUserId, createdAt])
   @@map("pin_audit_logs")
+}
+
+model DayClosure {
+  id           String     @id @default(cuid())
+  restaurantId String
+  closedDate   DateTime   @db.Date
+  totalRevenue Decimal    @db.Decimal(12, 2)
+  totalOrders  Int
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, closedDate])
+  @@index([restaurantId, closedDate])
+  @@map("day_closures")
 }
 
 enum UserRole {

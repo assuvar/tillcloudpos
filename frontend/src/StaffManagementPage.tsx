@@ -476,7 +476,7 @@ export default function StaffManagementPage() {
                 {latestStaffPin.staffName} ({latestStaffPin.staffRole})
               </p>
               <p className="text-[13px] font-semibold text-amber-800 mt-1">
-                PIN: {pinVisible ? latestStaffPin.pin : '••••••'}
+                PIN: {pinVisible ? latestStaffPin.pin : '••••'}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">

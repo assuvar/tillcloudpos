@@ -61,7 +61,6 @@ export function PaymentSetupStep({ onBack, onNext, onSkip, data, onChange }: Pay
     }
 
     setIsConnecting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1200));
     onChange({
       ...data,
       tyroConnected: true,
@@ -69,9 +68,7 @@ export function PaymentSetupStep({ onBack, onNext, onSkip, data, onChange }: Pay
     setIsConnecting(false);
   };
 
-  const runTestTransaction = async () => {
-    await new Promise((resolve) => setTimeout(resolve, 600));
-  };
+  const runTestTransaction = async () => undefined;
 
   return (
     <section>

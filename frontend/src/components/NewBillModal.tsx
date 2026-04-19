@@ -20,9 +20,6 @@ interface NewBillModalProps {
 
 type PosOrderType = ServiceModel;
 
-const isPosOrderType = (value: string): value is PosOrderType =>
-  ALLOWED_SERVICE_MODELS.includes(value as PosOrderType);
-
 const SERVICE_MODEL_CONFIG: Record<
   PosOrderType,
   { icon: any; description: string; inputLabel?: string; inputPlaceholder?: string; inputRequired?: boolean }
@@ -91,28 +88,24 @@ export default function NewBillModal({ onClose }: NewBillModalProps) {
   const navigate = useNavigate();
   const [selectedType, setSelectedType] = useState<PosOrderType>('DINE_IN');
   const [inputValue, setInputValue] = useState('');
-  const [enabledServiceModels, setEnabledServiceModels] = useState<PosOrderType[]>([
+  const [visibleServiceModels, setVisibleServiceModels] = useState<PosOrderType[]>([
     ...ALLOWED_SERVICE_MODELS,
   ]);
 
   useEffect(() => {
     const loadRestaurant = async () => {
       try {
-        const response = await api.get('/restaurant');
-        const nextModels = Array.isArray(response.data?.serviceModels)
-          ? response.data.serviceModels.filter(
-              (value: string): value is PosOrderType => isPosOrderType(value),
-            )
-          : [];
+        await api.get('/restaurant');
 
-        const normalizedModels = nextModels.length > 0 ? nextModels : ['DINE_IN'];
-        setEnabledServiceModels(normalizedModels);
+        // Keep all order modes visible in cashier New Bill flow.
+        const normalizedModels = [...ALLOWED_SERVICE_MODELS];
+        setVisibleServiceModels(normalizedModels);
         if (!normalizedModels.includes(selectedType)) {
           setSelectedType(normalizedModels[0]);
           setInputValue('');
         }
       } catch {
-        setEnabledServiceModels([...ALLOWED_SERVICE_MODELS]);
+        setVisibleServiceModels([...ALLOWED_SERVICE_MODELS]);
       }
     };
 
@@ -146,7 +139,7 @@ export default function NewBillModal({ onClose }: NewBillModalProps) {
 
           {/* Grid Options */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            {enabledServiceModels.map((model) => {
+            {visibleServiceModels.map((model) => {
               const config = SERVICE_MODEL_CONFIG[model];
               const isActive = selectedType === model;
 
@@ -216,7 +209,7 @@ export default function NewBillModal({ onClose }: NewBillModalProps) {
                
                 <button 
                   onClick={handleConfirm}
-                  disabled={!canConfirm || enabledServiceModels.length === 0}
+                  disabled={!canConfirm || visibleServiceModels.length === 0}
                   className="bg-[#0c1424] text-white h-16 px-12 rounded-[24px] flex items-center gap-4 shadow-2xl shadow-black/20 hover:bg-black transition-all active:scale-95 group"
                 >
                   <span className="text-[13px] font-black uppercase tracking-widest">Confirm & Add Items</span>

@@ -110,7 +110,7 @@ export default function InviteStaffModal({
         <form onSubmit={handleSubmit} className="space-y-6 p-4 pt-0 sm:p-8">
           <p className="text-[14px] text-slate-500 font-medium leading-relaxed">
             {mode === 'create'
-              ? 'Add a staff member and securely generate a PIN for POS access.'
+              ? 'Add a staff member. A 4-digit POS PIN is generated for Manager, Cashier, and Kitchen roles.'
               : 'Update staff details and role permissions.'}
           </p>
 

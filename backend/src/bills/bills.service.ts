@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -65,6 +66,45 @@ type KitchenOrderView = {
 @Injectable()
 export class BillsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private toClosedDate(date: Date): Date {
+    return new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+  }
+
+  private async assertBillDateOpen(restaurantId: string, billDate: Date) {
+    const closure = await this.prisma.dayClosure.findUnique({
+      where: {
+        restaurantId_closedDate: {
+          restaurantId,
+          closedDate: this.toClosedDate(billDate),
+        },
+      },
+      select: { id: true },
+    });
+
+    if (closure) {
+      throw new BadRequestException(
+        'This business day has been closed and bill edits are locked',
+      );
+    }
+  }
+
+  private async assertBillOwnership(billId: string, restaurantId: string) {
+    const bill = await this.prisma.bill.findUnique({
+      where: { id: billId },
+      select: { id: true, restaurantId: true },
+    });
+
+    if (!bill) {
+      throw new NotFoundException('Bill not found');
+    }
+
+    if (bill.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Cross-tenant bill access is forbidden');
+    }
+  }
 
   private async assertSufficientIngredientStockForBill(
     tx: Prisma.TransactionClient,
@@ -301,6 +341,8 @@ export class BillsService {
     cashierId: string,
     dto: CreateBillDto,
   ) {
+    await this.assertBillDateOpen(restaurantId, new Date());
+
     const orderNumber = await this.prisma.bill.count({
       where: { restaurantId },
     });
@@ -328,29 +370,40 @@ export class BillsService {
     return this.normalizeBill(bill);
   }
 
-  async findAll(restaurantId: string, status?: string) {
-    const bills = await this.prisma.bill.findMany({
-      where: {
-        restaurantId,
-        ...(status
-          ? { status: status as BillStatus }
+  async findAll(restaurantId: string, status?: string, limit?: number) {
+    const take = Number.isFinite(limit)
+      ? Math.min(Math.max(Number(limit), 1), 100)
+      : undefined;
+
+    const where = {
+      restaurantId,
+      ...(status
+        ? { status: status as BillStatus }
+        : take
+          ? {}
           : {
               status: {
                 in: [BillStatus.OPEN, BillStatus.KOT_SENT],
               },
             }),
-      },
+    };
+
+    const bills = await this.prisma.bill.findMany({
+      where,
       include: {
         items: true,
         kitchenOrders: true,
       },
       orderBy: { createdAt: 'desc' },
+      take,
     });
 
     return bills.map((bill) => this.normalizeBill(bill));
   }
 
   async findOne(id: string, restaurantId: string) {
+    await this.assertBillOwnership(id, restaurantId);
+
     const bill = await this.prisma.bill.findFirst({
       where: { id, restaurantId },
       include: {
@@ -367,6 +420,8 @@ export class BillsService {
   }
 
   async addBillItem(billId: string, restaurantId: string, dto: AddBillItemDto) {
+    await this.assertBillOwnership(billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, restaurantId },
@@ -380,6 +435,8 @@ export class BillsService {
       if (this.isLockedStatus(bill.status)) {
         throw new BadRequestException('Bill can no longer be edited');
       }
+
+      await this.assertBillDateOpen(restaurantId, bill.createdAt);
 
       const quantity = Number(dto.quantity);
       if (!Number.isInteger(quantity) || quantity <= 0) {
@@ -449,6 +506,8 @@ export class BillsService {
     restaurantId: string,
     dto: UpdateBillItemDto,
   ) {
+    await this.assertBillOwnership(billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, restaurantId },
@@ -462,6 +521,8 @@ export class BillsService {
       if (this.isLockedStatus(bill.status)) {
         throw new BadRequestException('Bill can no longer be edited');
       }
+
+      await this.assertBillDateOpen(restaurantId, bill.createdAt);
 
       const currentItem = await tx.billItem.findFirst({
         where: {
@@ -503,6 +564,8 @@ export class BillsService {
   }
 
   async deleteBillItem(billId: string, itemId: string, restaurantId: string) {
+    await this.assertBillOwnership(billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, restaurantId },
@@ -516,6 +579,8 @@ export class BillsService {
       if (this.isLockedStatus(bill.status)) {
         throw new BadRequestException('Bill can no longer be edited');
       }
+
+      await this.assertBillDateOpen(restaurantId, bill.createdAt);
 
       const currentItem = await tx.billItem.findFirst({
         where: {
@@ -538,6 +603,8 @@ export class BillsService {
   }
 
   async sendToKitchen(billId: string, restaurantId: string) {
+    await this.assertBillOwnership(billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, restaurantId },
@@ -550,6 +617,8 @@ export class BillsService {
       if (!bill) {
         throw new NotFoundException('Bill not found');
       }
+
+      await this.assertBillDateOpen(restaurantId, bill.createdAt);
 
       await this.assertSufficientIngredientStockForBill(
         tx,
@@ -599,6 +668,8 @@ export class BillsService {
   }
 
   async processCashPayment(restaurantId: string, dto: CashPaymentDto) {
+    await this.assertBillOwnership(dto.billId, restaurantId);
+
     return this.prisma.$transaction(async (tx) => {
       const initialBill = await tx.bill.findFirst({
         where: {

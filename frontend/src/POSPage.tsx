@@ -98,8 +98,8 @@ export default function POSPage() {
 
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex flex-col items-end mr-2">
-            <span className="text-xs font-bold text-slate-400">Cashier</span>
-            <span className="text-sm font-black">{user?.fullName || 'John Doe'}</span>
+            <span className="text-xs font-bold text-slate-400">{user?.role || 'STAFF'}</span>
+            <span className="text-sm font-black">{user?.fullName || 'Staff Member'}</span>
           </div>
           <button 
             onClick={handleLogout}

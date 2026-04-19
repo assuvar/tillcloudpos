@@ -4,6 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import api from "./services/api";
 
+const TEMP_STATIC_OTP = '526252';
+
 type LoginMethod = "password" | "otp";
 type OtpStep = "request" | "verify";
 
@@ -51,7 +53,6 @@ export default function Login() {
     setError("");
     setIsSubmitting(true);
     try {
-      // Determine if email or mobile based on input
       const channel = email.includes("@") ? "email" : "mobile";
       await api.post('/auth/otp/send', { channel, destination: email });
       setOtpStep("verify");
@@ -69,11 +70,11 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       const channel = email.includes("@") ? "email" : "mobile";
-      const response = await api.post('/auth/otp/verify', { channel, destination: email, code: otp });
+      const response = await api.post('/auth/verify-otp', { channel, destination: email, code: otp });
       await login(response.data.access_token, response.data.user);
       navigate(response.data.user.onboardingCompleted ? '/dashboard' : '/onboarding');
     } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid or expired OTP.");
+      setError(err.response?.data?.message || "Invalid OTP");
     } finally {
       setIsSubmitting(false);
     }
@@ -201,6 +202,7 @@ export default function Login() {
                         type="text"
                         required
                         value={email}
+                        autoFocus
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="email@example.com or 04XX XXX XXX"
                         className="w-full h-14 pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all sm:h-[64px]"
@@ -240,6 +242,9 @@ export default function Login() {
                       <label className="text-[13px] font-black text-slate-800 uppercase tracking-wider ml-1">
                         Enter 6-digit Code
                       </label>
+                      <p className="text-[11px] font-semibold text-slate-500 ml-1">
+                        Use OTP: {TEMP_STATIC_OTP} (for testing)
+                      </p>
                       <div className="relative">
                         <MessageSquare className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                         <input
@@ -248,11 +253,24 @@ export default function Login() {
                           maxLength={6}
                           value={otp}
                           autoFocus
-                          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                          onChange={(e) => {
+                            setOtp(e.target.value.replace(/\D/g, ''));
+                            setError('');
+                          }}
                           placeholder="0 0 0 0 0 0"
                           className="w-full h-14 pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-[20px] font-black tracking-[0.35em] placeholder:text-slate-200 placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all text-center sm:h-[72px] sm:text-[24px] sm:tracking-[0.5em]"
                         />
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtp(TEMP_STATIC_OTP);
+                          setError('');
+                        }}
+                        className="text-[11px] font-bold uppercase tracking-wider text-sky-600 hover:text-sky-700"
+                      >
+                        Autofill test OTP
+                      </button>
                     </div>
 
                     <div className="flex justify-center flex-col items-center gap-2">

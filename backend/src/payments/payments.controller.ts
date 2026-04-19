@@ -1,4 +1,10 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
 import { CashPaymentDto } from '../bills/dto/cash-payment.dto';
@@ -9,11 +15,7 @@ const getRestaurantId = (req: any): string => {
     return req.user.restaurantId;
   }
 
-  if (req.headers['x-restaurant-id']) {
-    return req.headers['x-restaurant-id'];
-  }
-
-  return 'default-restaurant';
+  throw new ForbiddenException('Restaurant context is required');
 };
 
 @Controller('payments')

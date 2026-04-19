@@ -110,6 +110,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const fetchOnboardingStatus = async (
+    tokenOverride?: string,
+  ): Promise<boolean | null> => {
+    try {
+      const response = await api.get('/onboarding/status', {
+        headers: tokenOverride
+          ? { Authorization: `Bearer ${tokenOverride}` }
+          : undefined,
+      });
+
+      return Boolean(response.data?.onboardingCompleted);
+    } catch {
+      return null;
+    }
+  };
+
   const logout = async (skipApiLogout = false) => {
     if (!skipApiLogout) {
       try {
@@ -144,17 +160,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       const nextToken = response.data.access_token as string;
       const nextUser = response.data.user as User;
+      const onboardingCompleted = await fetchOnboardingStatus(nextToken);
+      const resolvedUser =
+        onboardingCompleted === null
+          ? nextUser
+          : { ...nextUser, onboardingCompleted };
 
       setAccessToken(nextToken);
-      setUser(nextUser);
+      setUser(resolvedUser);
       setMode(currentMode || 'dashboard');
-      localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+      localStorage.setItem(USER_KEY, JSON.stringify(resolvedUser));
       if (currentMode) {
         localStorage.setItem(MODE_KEY, currentMode);
       }
 
       setPermissionsLoading(true);
-      const loadedPermissions = await fetchRolePermissions(nextUser.role, nextToken);
+      const loadedPermissions = await fetchRolePermissions(resolvedUser.role, nextToken);
       setPermissions(loadedPermissions);
       if (loadedPermissions) {
         localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(loadedPermissions));
@@ -225,9 +246,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     posSessionToken?: string,
   ) => {
     setAccessToken(token);
-    setUser(userData);
+    const onboardingCompleted = await fetchOnboardingStatus(token);
+    const resolvedUser =
+      onboardingCompleted === null
+        ? userData
+        : { ...userData, onboardingCompleted };
+
+    setUser(resolvedUser);
     setMode(loginMode);
-    localStorage.setItem(USER_KEY, JSON.stringify(userData));
+    localStorage.setItem(USER_KEY, JSON.stringify(resolvedUser));
     localStorage.setItem(MODE_KEY, loginMode);
 
     if (loginMode === 'pos' && posSessionToken) {
@@ -237,7 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setPermissionsLoading(true);
-    const loadedPermissions = await fetchRolePermissions(userData.role, token);
+    const loadedPermissions = await fetchRolePermissions(resolvedUser.role, token);
     setPermissions(loadedPermissions);
     if (loadedPermissions) {
       localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(loadedPermissions));

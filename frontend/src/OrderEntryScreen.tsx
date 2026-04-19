@@ -320,7 +320,7 @@ export default function OrderEntryScreen() {
               {visibleItems.length === 0 ? (
                 <div className="col-span-full rounded-[32px] border border-dashed border-slate-200 bg-white p-10 text-center">
                   <ShoppingBag size={48} className="mx-auto text-slate-300" />
-                  <p className="mt-4 text-lg font-black text-[#0c1424]">No items in this category</p>
+                  <p className="mt-4 text-lg font-black text-[#0c1424]">No items available</p>
                   <p className="mt-2 text-sm text-slate-500">Add items in the Admin Dashboard and refresh to see them here.</p>
                 </div>
               ) : (
@@ -370,7 +370,7 @@ export default function OrderEntryScreen() {
           <h3 className="mb-6 px-1 text-lg font-black tracking-tight text-[#0c1424]">Categories</h3>
           {categories.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs font-medium text-slate-500">
-              No active categories found.
+              No items available.
             </div>
           ) : (
             <div className="flex flex-col gap-2">

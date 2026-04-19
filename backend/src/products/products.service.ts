@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { BillStatus } from '../../generated/prisma';
@@ -130,10 +131,12 @@ export class ProductsService {
       where: { id: categoryId },
     });
 
-    if (!category || category.restaurantId !== restaurantId) {
-      throw new BadRequestException(
-        'Category not found or does not belong to this restaurant',
-      );
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    if (category.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Cross-tenant category access is forbidden');
     }
 
     const normalizedTrackInventory = trackInventory ?? false;
@@ -215,7 +218,9 @@ export class ProductsService {
     }
 
     if (product.restaurantId !== restaurantId) {
-      throw new NotFoundException('Access denied');
+      throw new ForbiddenException(
+        'Cross-tenant menu item access is forbidden',
+      );
     }
 
     return product;
@@ -240,7 +245,9 @@ export class ProductsService {
     }
 
     if (existingProduct.restaurantId !== restaurantId) {
-      throw new NotFoundException('Access denied');
+      throw new ForbiddenException(
+        'Cross-tenant menu item access is forbidden',
+      );
     }
 
     // If categoryId is being updated, verify new category exists
@@ -252,9 +259,13 @@ export class ProductsService {
         where: { id: updateProductDto.categoryId },
       });
 
-      if (!category || category.restaurantId !== restaurantId) {
-        throw new BadRequestException(
-          'Category not found or does not belong to this restaurant',
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      if (category.restaurantId !== restaurantId) {
+        throw new ForbiddenException(
+          'Cross-tenant category access is forbidden',
         );
       }
     }
@@ -362,7 +373,9 @@ export class ProductsService {
     }
 
     if (product.restaurantId !== restaurantId) {
-      throw new NotFoundException('Access denied');
+      throw new ForbiddenException(
+        'Cross-tenant menu item access is forbidden',
+      );
     }
 
     const activeBillItemCount = await this.prisma.billItem.count({

@@ -16,6 +16,7 @@ import {
   MoreVertical,
   Package,
   Plus,
+  RefreshCw,
   Search,
   Settings,
   ShoppingBag,
@@ -26,10 +27,19 @@ import {
   Utensils,
   Wallet,
 } from "lucide-react";
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from "./context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ReactNode, useState, useEffect } from "react";
 import api from "./services/api";
+import { FRONTEND_PERMISSIONS } from "./permissions";
+import {
+  reportsService,
+  type InventoryItem,
+  type Order,
+  type TrendPoint,
+  type SummaryResponse,
+} from "./services/reportsService";
 import MenuManagement from "./MenuManagement";
 import StaffManagementPage from "./StaffManagementPage";
 import StockListPage from "./StockListPage";
@@ -107,7 +117,7 @@ function SidebarIcon({
   label,
   onClick,
 }: {
-  icon: any;
+  icon: LucideIcon;
   active?: boolean;
   label?: string;
   onClick?: () => void;
@@ -127,17 +137,83 @@ function SidebarIcon({
   );
 }
 
+type StaffRow = {
+  id: string;
+  fullName?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role: string;
+  createdAt: string;
+  isActive: boolean;
+};
+
+type DashboardTrendPoint = {
+  day: string;
+  value: number;
+  active?: boolean;
+};
+
+type DashboardView = 'home' | 'menu' | 'staff' | 'orders' | 'inventory' | 'customers' | 'analytics' | 'settings' | 'reports';
+
+type QuickAction = {
+  label: string;
+  sub: string;
+  icon: LucideIcon;
+  path: '/pos' | 'menu' | 'staff';
+};
+
+type StaffViewRow = {
+  id: string;
+  name: string;
+  role: string;
+  station: string;
+  checkIn: string;
+  status: 'Active' | 'Inactive';
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'object' && error !== null) {
+    const response = error as { response?: { data?: { message?: unknown } } };
+    const message = response.response?.data?.message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+
+  return fallback;
+};
+
+type RecentOrderView = Order & {
+  createdAt: string;
+};
+
 export default function Dashboard() {
-  const { user, logout, hasModuleAccess, permissionsLoading } = useAuth();
+  const { user, logout, hasModuleAccess, hasPermission, permissionsLoading } = useAuth();
   const navigate = useNavigate();
   const [terminalLaunched, setTerminalLaunched] = useState<boolean>(() => {
     return localStorage.getItem("terminalLaunched") === "true";
   });
   const [isLaunching, setIsLaunching] = useState(false);
-  const [currentView, setCurrentView] = useState<'home' | 'menu' | 'staff' | 'orders' | 'inventory' | 'customers' | 'analytics' | 'settings' | 'reports'>('home');
-  const [realStaff, setRealStaff] = useState<any[]>([]);
+  const [currentView, setCurrentView] = useState<DashboardView>('home');
+  const [realStaff, setRealStaff] = useState<StaffRow[]>([]);
+  const [salesData, setSalesData] = useState<DashboardTrendPoint[]>([]);
+  const [peakHourLabel, setPeakHourLabel] = useState('N/A');
+  const [peakHourBills, setPeakHourBills] = useState(0);
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+  const [recentOrders, setRecentOrders] = useState<RecentOrderView[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isClosingDay, setIsClosingDay] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+
+  const canUseReports = hasPermission(FRONTEND_PERMISSIONS.REPORTS_VIEW);
+  const canExportReports = hasPermission(FRONTEND_PERMISSIONS.REPORTS_EXPORT);
+  const canCreateBill = hasPermission(FRONTEND_PERMISSIONS.BILLING_CREATE);
 
   const isAdmin = user?.role === 'ADMIN';
+  const canViewHomeDashboard = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const accessibleViews = getAccessibleDashboardViews(
     user?.role,
     hasModuleAccess,
@@ -175,18 +251,197 @@ export default function Dashboard() {
       return;
     }
     try {
-      const response = await api.get(`/users/${user.restaurantId}`);
-      setRealStaff(response.data);
+      const response = await api.get('/staff');
+      const rows = Array.isArray(response.data) ? response.data : [];
+      setRealStaff(
+        rows.map((row: unknown) => {
+          const staff = row as Partial<StaffRow>;
+          return {
+            id: String(staff.id || ''),
+            fullName: staff.fullName || null,
+            name: staff.name || null,
+            email: staff.email || null,
+            role: String(staff.role || ''),
+            createdAt: String(staff.createdAt || ''),
+            isActive: Boolean(staff.isActive),
+          };
+        }),
+      );
     } catch (err) {
       console.error("Failed to fetch staff:", err);
+      setRealStaff([]);
+    }
+  };
+
+  const loadDashboardData = async (silent = false) => {
+    if (!canUseReports) {
+      return;
+    }
+
+    try {
+      if (!silent) {
+        setIsDashboardLoading(true);
+      }
+      setDashboardError(null);
+
+      const [summaryResponse, analyticsResponse, recentBillsResponse, lowStockResponse] =
+        await Promise.all([
+          reportsService.getSummary(),
+          reportsService.getAnalytics(),
+          reportsService.getRecentOrders(),
+          reportsService.getLowStock(),
+        ]);
+
+      setSummary(summaryResponse);
+
+      const revenueTrend: TrendPoint[] = analyticsResponse.revenueTrend;
+
+      const maxRevenue = Math.max(
+        ...revenueTrend.map((entry: TrendPoint) => Number(entry.value || 0)),
+        0,
+      );
+      const activeIndex = revenueTrend.reduce(
+        (bestIndex: number, entry: TrendPoint, index: number, arr: TrendPoint[]) =>
+          Number(entry.value || 0) > Number(arr[bestIndex]?.value || 0)
+            ? index
+            : bestIndex,
+        0,
+      );
+
+      if (revenueTrend.length > 0) {
+        setSalesData(
+          revenueTrend.map((entry: TrendPoint, index: number) => {
+            const date = new Date(entry.date);
+            const day = Number.isNaN(date.getTime())
+              ? String(entry.date || '').slice(5, 10)
+              : date
+                  .toLocaleDateString('en-US', { weekday: 'short' })
+                  .toUpperCase();
+
+            return {
+              day,
+              value:
+                maxRevenue > 0
+                  ? Math.max(8, Math.round((Number(entry.value || 0) / maxRevenue) * 100))
+                  : 8,
+              active: index === activeIndex && maxRevenue > 0,
+            };
+          }),
+        );
+      }
+
+      const bills: Order[] = recentBillsResponse;
+      setRecentOrders(bills);
+
+      const hourCounts = Array.from({ length: 24 }, () => 0);
+      bills.forEach((bill) => {
+        const createdAt = new Date(bill.createdAt);
+        if (!Number.isNaN(createdAt.getTime())) {
+          hourCounts[createdAt.getHours()] += 1;
+        }
+      });
+
+      const peakHourIndex = hourCounts.reduce(
+        (bestIndex, count, idx, arr) => (count > arr[bestIndex] ? idx : bestIndex),
+        0,
+      );
+
+      if (hourCounts[peakHourIndex] > 0) {
+        const nextHour = (peakHourIndex + 1) % 24;
+        const formatHour = (hour: number) => {
+          const suffix = hour >= 12 ? 'PM' : 'AM';
+          const normalized = hour % 12 || 12;
+          return `${normalized} ${suffix}`;
+        };
+
+        setPeakHourLabel(`${formatHour(peakHourIndex)} - ${formatHour(nextHour)}`);
+        setPeakHourBills(hourCounts[peakHourIndex]);
+      } else {
+        setPeakHourLabel('N/A');
+        setPeakHourBills(0);
+      }
+
+      setLowStockItems(lowStockResponse);
+      setLastUpdatedAt(new Date().toISOString());
+      } catch (err: unknown) {
+      setDashboardError(getErrorMessage(err, 'Failed to load dashboard data'));
+      console.error('Dashboard load error:', err);
+    } finally {
+      setIsDashboardLoading(false);
     }
   };
 
   useEffect(() => {
+    if (canUseReports) {
+      void loadDashboardData();
+    }
+
     if (terminalLaunched) {
       void fetchStaff();
     }
-  }, [terminalLaunched, user?.restaurantId]);
+  }, [terminalLaunched, user?.restaurantId, canUseReports]);
+
+  useEffect(() => {
+    if (!terminalLaunched || !canUseReports) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void loadDashboardData(true);
+      void fetchStaff();
+    }, 15000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [terminalLaunched, canUseReports]);
+
+  const handleRefresh = async () => {
+    await Promise.all([loadDashboardData(), fetchStaff()]);
+  };
+
+  const handleNewOrder = async () => {
+    if (!canCreateBill) {
+      return;
+    }
+
+    navigate('/pos');
+  };
+
+  const handleOpenRecentOrder = (billId: string) => {
+    navigate(`/pos/order-entry?billId=${billId}`);
+  };
+
+  const handleExportReport = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await reportsService.exportReport();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `dashboard-report-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleCloseDay = async () => {
+    try {
+      setIsClosingDay(true);
+      await reportsService.closeDay();
+      await handleRefresh();
+    } catch (err) {
+      console.error('Close day failed', err);
+    } finally {
+      setIsClosingDay(false);
+    }
+  };
 
   const handleDeleteUser = async (userId: string) => {
     if (userId === user?.id) {
@@ -199,7 +454,7 @@ export default function Dashboard() {
     }
 
     try {
-      await api.delete(`/users/user/${userId}`);
+      await api.delete(`/staff/${userId}`);
       setRealStaff(prev => prev.filter(u => u.id !== userId));
     } catch (err) {
       alert("Failed to remove user. Please try again.");
@@ -220,34 +475,24 @@ export default function Dashboard() {
     navigate("/login");
   };
 
-  const salesData = [
-    { day: "MON", value: 40 },
-    { day: "TUE", value: 65 },
-    { day: "WED", value: 90, active: true },
-    { day: "THU", value: 60 },
-    { day: "FRI", value: 75 },
-    { day: "SAT", value: 55 },
-    { day: "SUN", value: 80 },
-  ];
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-AU', {
+      style: 'currency',
+      currency: 'AUD',
+    }).format(Number(amount || 0));
 
-  const staff = realStaff.length > 0 ? realStaff.map(u => ({
+  const outOfStockCount = lowStockItems.filter(
+    (item) => Number(item.currentStock || 0) <= 0,
+  ).length;
+
+  const staff: StaffViewRow[] = realStaff.map((u) => ({
     id: u.id,
-    name: u.fullName,
+    name: u.fullName || u.name || u.email || 'Unknown',
     role: u.role,
     station: u.role === 'KITCHEN' ? 'Kitchen' : u.role === 'CASHIER' ? 'Terminal 01' : 'Admin Portal',
     checkIn: new Date(u.createdAt).toLocaleDateString(),
-    status: u.isActive ? "Active" : "Inactive",
-  })) : [
-    {
-      id: "demo-1",
-      name: "Courtney Henry",
-      role: "Manager",
-      station: "Front Desk",
-      checkIn: "08:00 AM",
-      status: "Active",
-    },
-    // ... more demo users if needed
-  ];
+    status: u.isActive ? 'Active' : 'Inactive',
+  }));
 
   if (!terminalLaunched && isAdmin) {
     return (
@@ -355,7 +600,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Bills</div>
-                <div className="text-2xl font-black text-[#0c1424]">0</div>
+                <div className="text-2xl font-black text-[#0c1424]">{summary?.totalOrders ?? 0}</div>
               </div>
               <span className="ml-auto px-2 py-0.5 rounded-full bg-slate-50 text-[9px] font-bold text-slate-400">Today</span>
             </div>
@@ -365,7 +610,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Revenue</div>
-                <div className="text-2xl font-black text-[#0c1424]">$0.00</div>
+                <div className="text-2xl font-black text-[#0c1424]">{formatCurrency(summary?.totalRevenue ?? 0)}</div>
               </div>
               <span className="ml-auto px-2 py-0.5 rounded-full bg-slate-50 text-[9px] font-bold text-slate-400">Real-time</span>
             </div>
@@ -375,7 +620,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Active Orders</div>
-                <div className="text-2xl font-black text-[#0c1424]">0</div>
+                <div className="text-2xl font-black text-[#0c1424]">{summary?.totalOrders ?? 0}</div>
               </div>
               <span className="ml-auto px-2 py-0.5 rounded-full bg-[#f0f9ff] text-[9px] font-bold text-[#5dc7ec]">Live</span>
             </div>
@@ -385,7 +630,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Low Stock Items</div>
-                <div className="text-2xl font-black text-[#0c1424]">0</div>
+                <div className="text-2xl font-black text-[#0c1424]">{lowStockItems.length}</div>
               </div>
               <span className="ml-auto px-2 py-0.5 rounded-full bg-rose-50 text-[9px] font-bold text-rose-400">Alert</span>
             </div>
@@ -467,14 +712,21 @@ export default function Dashboard() {
             <div className="flex min-w-0 flex-col gap-6 xl:w-1/4">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Quick Actions</h3>
               
-              {[
-                { label: "Open POS", sub: "Launch your terminal", icon: Store, path: "/pos" },
-                { label: "Add Menu Items", sub: "Expand your catalogue", icon: Utensils, path: "menu" },
-                { label: "Invite Staff", sub: "Build your bistro team", icon: Users, path: "staff" },
-              ].map((action, idx) => (
+              {([
+                { label: 'Open POS', sub: 'Launch your terminal', icon: Store, path: '/pos' },
+                { label: 'Add Menu Items', sub: 'Expand your catalogue', icon: Utensils, path: 'menu' },
+                { label: 'Invite Staff', sub: 'Build your bistro team', icon: Users, path: 'staff' },
+              ] satisfies QuickAction[]).map((action, idx) => (
                 <button 
                   key={idx} 
-                  onClick={() => action.path.startsWith('/') ? navigate(action.path) : setCurrentView(action.path as any)}
+                  onClick={() => {
+                    if (action.path === '/pos') {
+                      navigate(action.path);
+                      return;
+                    }
+
+                    setCurrentView(action.path);
+                  }}
                   className="group flex items-center gap-4 rounded-[24px] border border-slate-100 bg-white p-5 text-left shadow-sm transition-all hover:shadow-md sm:gap-5 sm:p-6"
                 >
                   <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#0c1424] group-hover:text-white transition-colors duration-300">
@@ -559,7 +811,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {currentView === 'home' && isAdmin && (
+        {currentView === 'home' && canViewHomeDashboard && (
           <>
             {/* Dash Title */}
             <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between lg:mb-10">
@@ -576,47 +828,137 @@ export default function Dashboard() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <button className="h-11 px-6 rounded-full bg-white border border-slate-200 text-[13px] font-bold text-slate-700 hover:bg-slate-50 transition-colors inline-flex items-center gap-2">
-                  <FileText size={14} />
-                  Export Report
+                <button
+                  onClick={() => void handleRefresh()}
+                  className="h-11 px-6 rounded-full bg-white border border-slate-200 text-[13px] font-bold text-slate-700 hover:bg-slate-50 transition-colors inline-flex items-center gap-2"
+                >
+                  <RefreshCw size={14} />
+                  Refresh
                 </button>
-                <button className="h-11 px-6 rounded-full bg-[#0c1424] text-white text-[13px] font-bold shadow-xl shadow-black/20 hover:bg-black transition-all inline-flex items-center gap-2">
+                <button
+                  onClick={() => void handleExportReport()}
+                  disabled={!canExportReports || isExporting}
+                  className="h-11 px-6 rounded-full bg-white border border-slate-200 text-[13px] font-bold text-slate-700 hover:bg-slate-50 transition-colors inline-flex items-center gap-2 disabled:opacity-50"
+                >
+                  <FileText size={14} />
+                  {isExporting ? 'Exporting...' : 'Export Report'}
+                </button>
+                <button
+                  onClick={() => void handleCloseDay()}
+                  disabled={!canExportReports || isClosingDay}
+                  className="h-11 px-6 rounded-full bg-white border border-slate-200 text-[13px] font-bold text-slate-700 hover:bg-slate-50 transition-colors inline-flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isClosingDay ? 'Closing...' : 'Close Day'}
+                </button>
+                <button
+                  onClick={() => void handleNewOrder()}
+                  disabled={!canCreateBill}
+                  className="h-11 px-6 rounded-full bg-[#0c1424] text-white text-[13px] font-bold shadow-xl shadow-black/20 hover:bg-black transition-all inline-flex items-center gap-2 disabled:opacity-50"
+                >
                   <span className="text-lg leading-none">+</span>
                   New Order
                 </button>
               </div>
             </div>
 
+            {dashboardError ? (
+              <div className="mb-8 rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-[13px] font-semibold text-rose-700">
+                {dashboardError}
+                <button
+                  onClick={() => void handleRefresh()}
+                  className="ml-3 underline underline-offset-2"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : null}
+
             {/* Stats Grid */}
             <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
-                title="Bills Today"
-                value="84"
+                title="Orders Today"
+                value={String(summary?.totalOrders ?? 0)}
                 icon={<FileText size={20} />}
-                trend="+12%"
+                trend={lastUpdatedAt ? 'Live' : undefined}
                 statusType="success"
               />
               <StatCard
                 title="Revenue Today"
-                value="$2,450.00"
+                value={formatCurrency(summary?.totalRevenue ?? 0)}
                 icon={<Wallet size={20} />}
-                trend="+8.4%"
+                trend={lastUpdatedAt ? 'Live' : undefined}
                 statusType="success"
               />
               <StatCard
-                title="Active Orders"
-                value="12"
+                title="Avg Order Value"
+                value={formatCurrency(summary?.averageOrderValue ?? 0)}
                 icon={<ShoppingBag size={20} />}
-                statusLabel="Active"
-                statusType="warning"
+                statusLabel="Today"
+                statusType="info"
               />
               <StatCard
                 title="Low Stock Alerts"
-                value="3"
+                value={String(lowStockItems.length)}
                 icon={<ClipboardList size={20} />}
                 statusLabel="Critical"
                 statusType="error"
               />
+            </div>
+
+            <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="text-lg font-black text-[#0c1424]">Recent Orders</h3>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Last 15</span>
+                </div>
+                {recentOrders.length === 0 ? (
+                  <p className="text-[13px] font-medium text-slate-500">No recent orders</p>
+                ) : (
+                  <div className="space-y-2">
+                    {recentOrders.map((order) => (
+                      <button
+                        key={order.id}
+                        onClick={() => handleOpenRecentOrder(order.id)}
+                        className="w-full rounded-xl border border-slate-100 px-4 py-3 text-left hover:bg-slate-50"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[13px] font-black text-[#0c1424]">
+                            #{String(order.billNumber || '').padStart(3, '0')}
+                          </span>
+                          <span className="text-[11px] font-bold text-slate-400">{order.status}</span>
+                        </div>
+                        <div className="mt-1 text-[12px] font-medium text-slate-500">
+                          {formatCurrency(Number(order.total || 0))}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="text-lg font-black text-[#0c1424]">Inventory Alerts</h3>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Live</span>
+                </div>
+                {lowStockItems.length === 0 ? (
+                  <p className="text-[13px] font-medium text-slate-500">All items in stock</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-[12px] font-bold text-rose-600">
+                      Out of stock: {outOfStockCount}
+                    </div>
+                    {lowStockItems.slice(0, 6).map((item) => (
+                      <div key={item.id} className="rounded-xl border border-slate-100 px-4 py-3">
+                        <div className="text-[13px] font-black text-[#0c1424]">{item.name}</div>
+                        <div className="text-[12px] font-medium text-slate-500">
+                          {Number(item.currentStock || 0)} / threshold {Number(item.minStock || 0)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Middle Section: Chart and Peak Hour */}
@@ -637,28 +979,38 @@ export default function Dashboard() {
                   </button>
                 </div>
 
-                <div className="flex h-[240px] min-w-0 items-end justify-between gap-2 px-1 sm:h-[280px] sm:gap-4 sm:px-2">
-                  {salesData.map((item) => (
-                    <div
-                      key={item.day}
-                      className="flex-1 flex flex-col items-center gap-4 group"
-                    >
-                      <div className="relative w-full flex justify-center items-end h-[220px]">
-                        <div
-                          className={`w-6 rounded-xl transition-all duration-500 cursor-pointer sm:w-[42px] ${
-                            item.active
-                              ? "bg-[#0c1424] shadow-[0_10px_30px_rgba(12,20,36,0.3)]"
-                              : "bg-[#e2e8f0]/40 group-hover:bg-[#e2e8f0]"
-                          }`}
-                          style={{ height: `${item.value}%` }}
-                        />
+                {isDashboardLoading ? (
+                  <div className="flex h-[240px] items-center justify-center text-[13px] font-semibold text-slate-500 sm:h-[280px]">
+                    Loading sales data...
+                  </div>
+                ) : (summary?.totalOrders ?? 0) === 0 ? (
+                  <div className="flex h-[240px] items-center justify-center text-[13px] font-semibold text-slate-500 sm:h-[280px]">
+                    No data available
+                  </div>
+                ) : (
+                  <div className="flex h-[240px] min-w-0 items-end justify-between gap-2 px-1 sm:h-[280px] sm:gap-4 sm:px-2">
+                    {salesData.map((item) => (
+                      <div
+                        key={item.day}
+                        className="flex-1 flex flex-col items-center gap-4 group"
+                      >
+                        <div className="relative w-full flex justify-center items-end h-[220px]">
+                          <div
+                            className={`w-6 rounded-xl transition-all duration-500 cursor-pointer sm:w-[42px] ${
+                              item.active
+                                ? "bg-[#0c1424] shadow-[0_10px_30px_rgba(12,20,36,0.3)]"
+                                : "bg-[#e2e8f0]/40 group-hover:bg-[#e2e8f0]"
+                            }`}
+                            style={{ height: `${item.value}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 tracking-wider">
+                          {item.day}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-black text-slate-400 tracking-wider">
-                        {item.day}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Peak Hour Card */}
@@ -679,11 +1031,11 @@ export default function Dashboard() {
 
                 <div className="mt-8">
                   <div className="text-[44px] font-black leading-none tracking-tight mb-2">
-                    1 PM – 2 PM
+                    {peakHourLabel}
                   </div>
                   <div className="flex items-center gap-2 text-[#5dc7ec] text-[13px] font-bold">
                     <BarChart3 size={14} className="rotate-90" />
-                    23 bills generated
+                    {peakHourBills} bills generated
                   </div>
                 </div>
               </div>
@@ -733,6 +1085,13 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
+                    {staff.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-[13px] font-medium text-slate-500">
+                          No staff available.
+                        </td>
+                      </tr>
+                    ) : null}
                     {staff.map((person, idx) => (
                       <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
                         <td className="py-5 pl-2">
@@ -767,7 +1126,7 @@ export default function Dashboard() {
                         </td>
                         <td className="py-5 text-right pr-2">
                            <button
-                             onClick={() => handleDeleteUser((person as any).id)}
+                             onClick={() => handleDeleteUser(person.id)}
                              className="h-8 w-8 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
                              title="Remove User"
                            >

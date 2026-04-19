@@ -10,6 +10,8 @@ interface BusinessProfileStepProps {
 
 export function BusinessProfileStep({ onBack, onNext, data, onChange }: BusinessProfileStepProps) {
   const requiredReady =
+    data.name.trim() !== '' &&
+    data.phone.trim() !== '' &&
     data.streetAddress.trim() !== '' &&
     data.suburb.trim() !== '' &&
     data.state.trim() !== '' &&
@@ -34,6 +36,30 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
       <div className="mt-8 rounded-[10px] border border-slate-200 bg-white p-5 sm:p-8">
         <div className="grid md:grid-cols-2 gap-5 sm:gap-8">
           <div className="space-y-5">
+            <div>
+              <label className="text-[12px] font-semibold text-[#111827]">Business Name</label>
+              <input
+                type="text"
+                placeholder="e.g. TillCloud Cafe"
+                value={data.name}
+                onChange={(event) => updateField('name', event.target.value)}
+                className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
+                aria-label="Business Name"
+              />
+            </div>
+
+            <div>
+              <label className="text-[12px] font-semibold text-[#111827]">Phone</label>
+              <input
+                type="text"
+                placeholder="e.g. +61 2 1234 5678"
+                value={data.phone}
+                onChange={(event) => updateField('phone', event.target.value)}
+                className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
+                aria-label="Business Phone"
+              />
+            </div>
+
             <div>
               <label className="text-[12px] font-semibold text-[#111827]">Street Address</label>
               <input
@@ -106,13 +132,14 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
 
             <div>
               <label className="text-[12px] font-semibold text-[#111827]">Restaurant Logo</label>
-              <button
-                type="button"
-                onClick={() => updateField('logoUrl', 'uploaded-logo.png')}
-                className="mt-2 h-[84px] w-full rounded-md border border-dashed border-slate-300 bg-[#f4f7fc] text-[12px] text-slate-500"
-              >
-                Click to upload (SVG, PNG, JPG)
-              </button>
+              <input
+                type="text"
+                placeholder="https://example.com/logo.png"
+                value={data.logoUrl}
+                onChange={(event) => updateField('logoUrl', event.target.value)}
+                className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
+                aria-label="Restaurant Logo URL"
+              />
             </div>
 
             <div className="grid grid-cols-[1fr_1fr] gap-3">
@@ -146,25 +173,33 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
           </div>
         </div>
 
-        <div className="mt-12 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-2 text-[13px] font-medium text-slate-600"
-          >
-            <ArrowLeft size={14} />
-            Back
-          </button>
+        <div className="mt-12 space-y-4">
+          {!requiredReady ? (
+            <div className="max-w-[420px] rounded-lg border border-rose-100 bg-rose-50 px-4 py-3 text-[12px] font-semibold text-rose-700">
+              Required: business name, phone, street address, suburb, state, and postcode.
+            </div>
+          ) : null}
 
-          <button
-            type="button"
-            onClick={onNext}
-            disabled={!requiredReady}
-            className="h-11 px-8 rounded-full bg-[#07142a] text-white text-[13px] font-semibold shadow-xl shadow-black/20 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-disabled={!requiredReady}
-          >
-            Next →
-          </button>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-2 text-[13px] font-medium text-slate-600"
+            >
+              <ArrowLeft size={14} />
+              Back
+            </button>
+
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={!requiredReady}
+              className="h-11 px-8 rounded-full bg-[#07142a] text-white text-[13px] font-semibold shadow-xl shadow-black/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-disabled={!requiredReady}
+            >
+              Next →
+            </button>
+          </div>
         </div>
       </div>
     </section>

@@ -4,6 +4,7 @@ import { TaxConfigurationData } from "../OnboardingFlow";
 interface TaxConfigurationStepProps {
   onBack: () => void;
   onNext: () => void;
+  onSkip: () => void;
   data: TaxConfigurationData;
   onChange: (data: TaxConfigurationData) => void;
 }
@@ -46,7 +47,7 @@ function TaxOption({
   );
 }
 
-export function TaxConfigurationStep({ onBack, onNext, data, onChange }: TaxConfigurationStepProps) {
+export function TaxConfigurationStep({ onBack, onNext, onSkip, data, onChange }: TaxConfigurationStepProps) {
   const showTaxRateInput = data.taxMode !== 'NONE';
   const nextEnabled = data.taxMode === 'NONE' || Number(data.taxRate || 0) > 0;
 
@@ -144,6 +145,9 @@ export function TaxConfigurationStep({ onBack, onNext, data, onChange }: TaxConf
         <div className="mt-8 flex items-center justify-end gap-8">
           <button type="button" onClick={onBack} className="text-[13px] font-medium text-slate-600">
             Back
+          </button>
+          <button type="button" onClick={onSkip} className="text-[13px] text-slate-700 font-medium">
+            Skip for now
           </button>
           <button
             type="button"

@@ -1,162 +1,214 @@
-import { ArrowLeft, BriefcaseBusiness, Monitor } from "lucide-react";
-import { StaffInviteRow } from "../OnboardingFlow";
-import { isValidEmail } from "../validation";
+import { ArrowLeft, BriefcaseBusiness, Copy } from "lucide-react";
+import { useState } from "react";
+import api from "../../services/api";
 
 interface StaffTerminalsStepProps {
   onBack: () => void;
   onNext: () => void;
   onSkip: () => void;
-  invites: StaffInviteRow[];
-  onInvitesChange: (rows: StaffInviteRow[]) => void;
+  isSubmitting: boolean;
 }
+
+type StaffRole = 'MANAGER' | 'CASHIER' | 'KITCHEN';
+
+type CreatedStaff = {
+  id: string;
+  name: string;
+  role: StaffRole;
+  pin?: string | null;
+  generatedPin?: string | null;
+};
+
+const roleOptions: Array<{ label: string; value: StaffRole }> = [
+  { label: 'Manager', value: 'MANAGER' },
+  { label: 'Cashier', value: 'CASHIER' },
+  { label: 'Kitchen', value: 'KITCHEN' },
+];
 
 export function StaffTerminalsStep({
   onBack,
   onNext,
   onSkip,
-  invites,
-  onInvitesChange,
+  isSubmitting,
 }: StaffTerminalsStepProps) {
-  const updateInvite = (id: string, field: keyof StaffInviteRow, value: string) => {
-    onInvitesChange(
-      invites.map((invite) =>
-        invite.id === id
-          ? {
-              ...invite,
-              [field]: value,
-            }
-          : invite,
-      ),
-    );
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'' | StaffRole>('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [createdStaff, setCreatedStaff] = useState<CreatedStaff | null>(null);
+
+  const generatedPin = createdStaff?.pin || createdStaff?.generatedPin || '';
+
+  const resetForm = () => {
+    setName('');
+    setEmail('');
+    setRole('');
   };
 
-  const sendInvite = (id: string) => {
-    onInvitesChange(
-      invites.map((invite) =>
-        invite.id === id
-          ? {
-              ...invite,
-              status: 'sent',
-            }
-          : invite,
-      ),
-    );
+  const handleCreateStaff = async () => {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedName || !trimmedEmail || !role) {
+      setError('Name, email, and role are required.');
+      return;
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(trimmedEmail)) {
+      setError('Enter a valid staff email.');
+      return;
+    }
+
+    setIsCreating(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await api.post('/staff', {
+        name: trimmedName,
+        email: trimmedEmail,
+        role,
+      });
+
+      const created = response.data?.staff as CreatedStaff | undefined;
+      const pin = response.data?.pin || response.data?.generatedPin || created?.pin || created?.generatedPin;
+
+      if (!created || !created.id) {
+        throw new Error('Invalid staff creation response');
+      }
+
+      setCreatedStaff({
+        ...created,
+        pin,
+      });
+      setSuccessMessage('Staff created successfully');
+      resetForm();
+    } catch (createError) {
+      console.error('Failed to create staff', createError);
+      setError('Failed to create staff member. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
-  const addInviteRow = () => {
-    onInvitesChange([
-      ...invites,
-      {
-        id: crypto.randomUUID(),
-        name: '',
-        email: '',
-        role: '',
-        status: 'idle',
-      },
-    ]);
+  const copyPin = async () => {
+    if (!generatedPin) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(generatedPin);
+      setSuccessMessage('PIN copied to clipboard');
+    } catch {
+      setError('Could not copy PIN. Please copy it manually.');
+    }
   };
 
   return (
     <section>
       <h1 className="text-[34px] sm:text-[52px] font-extrabold text-[#0b1324] leading-[1.05] tracking-[-0.02em]">
-        Set up your staff & terminals
+        Set up your staff
       </h1>
       <p className="text-slate-600 mt-3 text-[15px]">
-        Invite your team and configure your billing counters. You can skip this and complete it later.
+        Create a staff member now or skip this step and continue onboarding.
       </p>
 
       <div className="mt-8 rounded-[10px] border border-slate-200 bg-white overflow-hidden">
         <div className="p-5 sm:p-6 border-b border-slate-200">
           <div className="flex items-center gap-2 mb-4">
             <BriefcaseBusiness size={16} className="text-[#59c9ef]" />
-            <h2 className="text-[20px] font-bold text-[#111827]">Invite Your Staff</h2>
+            <h2 className="text-[20px] font-bold text-[#111827]">Create Staff Member</h2>
           </div>
 
-          <div className="space-y-3">
-            {invites.map((invite) => {
-              const canSend = isValidEmail(invite.email) && invite.role !== '';
-              return (
-                <div key={invite.id} className="grid md:grid-cols-[1fr_1fr_130px_110px] gap-3">
-                  <input
-                    type="text"
-                    value={invite.name}
-                    onChange={(event) => updateInvite(invite.id, 'name', event.target.value)}
-                    placeholder="e.g. Alex Rivera"
-                    className="h-10 rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
-                  />
-                  <div>
-                    <input
-                      type="email"
-                      value={invite.email}
-                      onChange={(event) => updateInvite(invite.id, 'email', event.target.value)}
-                      placeholder="alex@tillcloud.com"
-                      className="h-10 w-full rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
-                    />
-                    {invite.email && !isValidEmail(invite.email) && (
-                      <p className="mt-1 text-[10px] font-semibold text-rose-600">Enter a valid email address.</p>
-                    )}
-                  </div>
-                  <select
-                    value={invite.role}
-                    onChange={(event) => updateInvite(invite.id, 'role', event.target.value)}
-                    className="h-10 rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
-                  >
-                    <option value="">Select Role</option>
-                    <option value="CASHIER">Cashier</option>
-                    <option value="MANAGER">Manager</option>
-                    <option value="ADMIN">Admin</option>
-                    <option value="KITCHEN">Kitchen</option>
-                  </select>
-                  <button
-                    type="button"
-                    disabled={!canSend}
-                    onClick={() => sendInvite(invite.id)}
-                    className="h-10 rounded-full bg-[#07142a] text-white text-[12px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {invite.status === 'sent' ? '✓ Sent' : 'Send Invite'}
-                  </button>
-                </div>
-              );
-            })}
+          <div className="grid gap-3 md:grid-cols-[1fr_1fr_220px_auto]">
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                setError('');
+              }}
+              placeholder="e.g. Alex Rivera"
+              className="h-11 rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
+              aria-label="Staff name"
+            />
+
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setError('');
+              }}
+              placeholder="e.g. alex@yourrestaurant.com"
+              className="h-11 rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
+              aria-label="Staff email"
+            />
+
+            <select
+              value={role}
+              onChange={(event) => {
+                setRole(event.target.value as StaffRole | '');
+                setError('');
+              }}
+              className="h-11 rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
+              aria-label="Staff role"
+            >
+              <option value="">Select Role</option>
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              disabled={isCreating || isSubmitting}
+              onClick={() => {
+                void handleCreateStaff();
+              }}
+              className="h-11 rounded-full bg-[#07142a] px-5 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isCreating ? 'Creating...' : 'Create Staff'}
+            </button>
           </div>
 
-          <button type="button" onClick={addInviteRow} className="mt-4 text-[13px] font-semibold text-[#1fa8d8]">
-            + Add Staff
-          </button>
-        </div>
+          {error ? (
+            <div className="mt-3 rounded-lg border border-rose-100 bg-rose-50 px-4 py-3 text-[12px] font-semibold text-rose-700">
+              {error}
+            </div>
+          ) : null}
 
-        <div className="p-5 sm:p-6 bg-[#fbfdff]">
-          <div className="flex items-center gap-2 mb-4">
-            <Monitor size={16} className="text-[#59c9ef]" />
-            <h2 className="text-[20px] font-bold text-[#111827]">Set Up Your Terminals</h2>
-          </div>
+          {successMessage ? (
+            <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-[12px] font-semibold text-emerald-700">
+              {successMessage}
+            </div>
+          ) : null}
 
-          <div className="grid md:grid-cols-2 gap-3">
-            <input
-              type="text"
-              placeholder="e.g. Front Counter"
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-[13px]"
-            />
-            <input
-              type="text"
-              placeholder="e.g. iPad-01"
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-[13px]"
-            />
-            <input
-              type="text"
-              placeholder="e.g. Drive-Thru"
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-[13px]"
-            />
-            <input
-              type="text"
-              placeholder="e.g. Pos-Terminal-B"
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-[13px]"
-            />
-          </div>
-
-          <button type="button" className="mt-4 text-[13px] font-semibold text-[#1fa8d8]">
-            + Add Terminal
-          </button>
+          {generatedPin ? (
+            <div className="mt-4 rounded-[10px] border border-[#b6e5f6] bg-[#e9f7fc] p-4">
+              <div className="text-[12px] font-bold uppercase tracking-widest text-[#0c607b]">
+                PIN: {generatedPin}
+              </div>
+              <p className="mt-2 text-[12px] font-medium text-[#0c607b]">
+                Save this PIN. It will not be shown again.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  void copyPin();
+                }}
+                className="mt-3 inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-[#0c607b] hover:text-[#09556d]"
+              >
+                <Copy size={14} />
+                Copy PIN
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 

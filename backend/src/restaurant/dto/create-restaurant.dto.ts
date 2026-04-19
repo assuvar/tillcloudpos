@@ -1,4 +1,12 @@
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { ALLOWED_SERVICE_MODELS } from '../restaurant.constants';
 
 export class CreateRestaurantDto {
@@ -10,6 +18,41 @@ export class CreateRestaurantDto {
   @IsArray()
   @IsString({ each: true })
   serviceModels?: string[];
+
+  @IsOptional()
+  @IsString()
+  streetAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  suburb?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  postcode?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  logoUrl?: string;
+
+  @IsOptional()
+  @IsIn(['INCLUSIVE', 'EXCLUSIVE', 'NONE'])
+  taxMode?: 'INCLUSIVE' | 'EXCLUSIVE' | 'NONE';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  taxRate?: number;
 }
 
 export function validateServiceModelsOrThrow(values: string[] | undefined) {

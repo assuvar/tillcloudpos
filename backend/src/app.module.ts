@@ -20,6 +20,8 @@ import { StaffModule } from './staff/staff.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { RestaurantModule } from './restaurant/restaurant.module';
     StaffModule,
     PermissionsModule,
     RestaurantModule,
+    OnboardingModule,
+    ReportsModule,
     InventoryModule,
     ProductsModule,
     CategoriesModule,

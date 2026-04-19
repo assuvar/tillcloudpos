@@ -10,8 +10,6 @@ import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ServiceModel } from '../../generated/prisma';
 import * as bcrypt from 'bcrypt';
-import * as sgMail from '@sendgrid/mail';
-import { Twilio } from 'twilio';
 import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
 
 type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
@@ -34,6 +32,17 @@ type AuthenticatedUser = {
   onboardingCompleted: boolean;
 };
 
+type RestaurantOnboardingSnapshot = {
+  onboardingCompleted?: boolean | null;
+  name?: string | null;
+  streetAddress?: string | null;
+  suburb?: string | null;
+  state?: string | null;
+  postcode?: string | null;
+  phone?: string | null;
+  serviceModels?: string[] | null;
+};
+
 type RefreshResult = {
   accessToken: string;
   user: AuthenticatedUser;
@@ -54,37 +63,17 @@ type OtpVerifyResult = {
 
 const MAX_PIN_ATTEMPTS = 5;
 const PIN_LOCKOUT_MS = 5 * 60 * 1000;
+const TEMP_STATIC_OTP = '526252';
+// TODO: Replace with real OTP service (Twilio / Email) using ENV variables
 
 @Injectable()
 export class AuthService {
-  private otpMemoryStore = new Map<
-    string,
-    {
-      codeHash: string;
-      expiresAt: Date;
-      attempts: number;
-      used: boolean;
-    }
-  >();
-
   constructor(
     public usersService: UsersService,
     private jwtService: JwtService,
     private prisma: PrismaService,
     private configService: ConfigService,
   ) {}
-
-  private isOtpTableMissing(error: unknown): boolean {
-    return (
-      typeof error === 'object' &&
-      error !== null &&
-      (error as { code?: string }).code === 'P2021'
-    );
-  }
-
-  private otpKey(channel: OtpChannel, destination: string) {
-    return `${channel}:${destination.trim().toLowerCase()}`;
-  }
 
   private validateOtpDestination(channel: OtpChannel, destination: string) {
     if (!destination?.trim()) {
@@ -111,91 +100,9 @@ export class AuthService {
   ): Promise<OtpSendResult> {
     this.validateOtpDestination(channel, destination);
 
-    const normalizedDestination = destination.trim().toLowerCase();
-    const otp = '526252'; // Fixed OTP for development as requested
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    const codeHash = await bcrypt.hash(otp, 10);
-
-    try {
-      // Invalidate previous unused OTPs for this identifier
-      await this.prisma.otp.updateMany({
-        where: { identifier: normalizedDestination, used: false },
-        data: { used: true },
-      });
-
-      await this.prisma.otp.create({
-        data: {
-          identifier: normalizedDestination,
-          codeHash,
-          expiresAt,
-        },
-      });
-    } catch (error) {
-      if (!this.isOtpTableMissing(error)) {
-        throw error;
-      }
-
-      // Fallback for environments where OTP migration was not applied yet.
-      this.otpMemoryStore.set(normalizedDestination, {
-        codeHash,
-        expiresAt,
-        attempts: 0,
-        used: false,
-      });
-    }
-
-    // In Development Mode, we log the OTP to the console.
-    console.log(
-      `\x1b[33m%s\x1b[0m`,
-      `[OTP_DEV_MODE] ${channel.toUpperCase()} to ${normalizedDestination}: ${otp}`,
-    );
-
-    // Try to send via real providers if configured
-    try {
-      const isEmail = channel === 'email';
-
-      if (isEmail) {
-        const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
-        const fromEmail = this.configService.get<string>('SENDGRID_FROM_EMAIL');
-        if (apiKey && fromEmail) {
-          sgMail.setApiKey(apiKey);
-          await sgMail.send({
-            to: normalizedDestination,
-            from: fromEmail,
-            subject: 'Verification Code - TillCloudPOS',
-            text: `Your verification code is: ${otp}. It expires in 5 minutes.`,
-            html: `<strong>Your verification code is: ${otp}</strong><p>It expires in 5 minutes.</p>`,
-          });
-          console.log(`[REAL_OTP] Email sent to ${normalizedDestination}`);
-        }
-      } else {
-        const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
-        const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
-        const fromNumber = this.configService.get<string>(
-          'TWILIO_PHONE_NUMBER',
-        );
-        if (accountSid && authToken && fromNumber) {
-          const client = new Twilio(accountSid, authToken);
-          await client.messages.create({
-            body: `Your TillCloudPOS verification code is: ${otp}`,
-            from: fromNumber,
-            to: normalizedDestination,
-          });
-          console.log(`[REAL_OTP] SMS sent to ${normalizedDestination}`);
-        }
-      }
-    } catch (err: any) {
-      console.error(
-        `[OTP_SEND_ERROR] Failed to send via real provider: ${err.message}`,
-      );
-      // Don't throw, we've already logged it to console as fallback
-    }
-
     return {
       success: true,
       expiresIn: 300,
-      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
     };
   }
 
@@ -211,73 +118,8 @@ export class AuthService {
       throw new BadRequestException('OTP must be a 6-digit code');
     }
 
-    const normalizedDestination = destination.trim().toLowerCase();
-    try {
-      const otpRecord = await this.prisma.otp.findFirst({
-        where: {
-          identifier: normalizedDestination,
-          used: false,
-          expiresAt: { gt: new Date() },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!otpRecord) {
-        throw new UnauthorizedException('OTP has expired or does not exist');
-      }
-
-      if (otpRecord.attempts >= 5) {
-        await this.prisma.otp.update({
-          where: { id: otpRecord.id },
-          data: { used: true },
-        });
-        throw new UnauthorizedException(
-          'Too many failed attempts. Please request a new OTP.',
-        );
-      }
-
-      const isMatch = await bcrypt.compare(normalizedCode, otpRecord.codeHash);
-      if (!isMatch) {
-        await this.prisma.otp.update({
-          where: { id: otpRecord.id },
-          data: { attempts: { increment: 1 } },
-        });
-        throw new UnauthorizedException('Invalid OTP code');
-      }
-
-      // Mark as used
-      await this.prisma.otp.update({
-        where: { id: otpRecord.id },
-        data: { used: true },
-      });
-    } catch (error) {
-      if (!this.isOtpTableMissing(error)) {
-        throw error;
-      }
-
-      const otpRecord = this.otpMemoryStore.get(normalizedDestination);
-      if (!otpRecord || otpRecord.used || otpRecord.expiresAt <= new Date()) {
-        this.otpMemoryStore.delete(normalizedDestination);
-        throw new UnauthorizedException('OTP has expired or does not exist');
-      }
-
-      if (otpRecord.attempts >= 5) {
-        otpRecord.used = true;
-        this.otpMemoryStore.set(normalizedDestination, otpRecord);
-        throw new UnauthorizedException(
-          'Too many failed attempts. Please request a new OTP.',
-        );
-      }
-
-      const isMatch = await bcrypt.compare(normalizedCode, otpRecord.codeHash);
-      if (!isMatch) {
-        otpRecord.attempts += 1;
-        this.otpMemoryStore.set(normalizedDestination, otpRecord);
-        throw new UnauthorizedException('Invalid OTP code');
-      }
-
-      otpRecord.used = true;
-      this.otpMemoryStore.set(normalizedDestination, otpRecord);
+    if (normalizedCode !== TEMP_STATIC_OTP) {
+      throw new UnauthorizedException('Invalid OTP');
     }
 
     return { success: true };
@@ -291,7 +133,24 @@ export class AuthService {
     role: string;
     restaurantId: string;
     onboardingCompleted: boolean;
+    restaurant?: RestaurantOnboardingSnapshot | null;
   }): AuthenticatedUser {
+    const normalizedServiceModels = Array.isArray(
+      user.restaurant?.serviceModels,
+    )
+      ? user.restaurant.serviceModels
+          .map((value) => String(value).trim().toUpperCase())
+          .filter((value) =>
+            ALLOWED_SERVICE_MODELS.includes(value as ServiceModel),
+          )
+      : [];
+
+    const restaurantSetupComplete =
+      !!user.restaurant?.name?.trim() &&
+      !!user.restaurant?.streetAddress?.trim() &&
+      !!user.restaurant?.phone?.trim() &&
+      normalizedServiceModels.length > 0;
+
     return {
       id: user.id,
       email: user.email,
@@ -299,7 +158,10 @@ export class AuthService {
       phone: user.phone,
       role: user.role as UserRole,
       restaurantId: user.restaurantId,
-      onboardingCompleted: user.onboardingCompleted,
+      onboardingCompleted:
+        user.onboardingCompleted ||
+        Boolean(user.restaurant?.onboardingCompleted) ||
+        restaurantSetupComplete,
     };
   }
 
@@ -421,7 +283,7 @@ export class AuthService {
       selectedRole === 'CASHIER'
         ? user.role === 'CASHIER'
         : selectedRole === 'MANAGER'
-          ? user.role === 'MANAGER' || user.role === 'ADMIN'
+          ? user.role === 'MANAGER'
           : user.role === 'KITCHEN';
 
     if (!validForSelectedRole) {
@@ -575,6 +437,7 @@ export class AuthService {
     password?: string;
     businessName?: string;
     fullName?: string;
+    mobile?: string;
     serviceModels?: string[];
   }) {
     const normalizedEmail = registrationData?.email?.trim().toLowerCase();
@@ -626,6 +489,8 @@ export class AuthService {
           streetAddress: '',
           suburb: '',
           postcode: '',
+          phone: registrationData.mobile?.trim() || null,
+          onboardingCompleted: false,
         },
       });
 
@@ -635,6 +500,7 @@ export class AuthService {
         data: {
           email: normalizedEmail,
           fullName: registrationData.fullName || normalizedEmail,
+          phone: registrationData.mobile?.trim() || null,
           role: 'ADMIN',
           passwordHash,
           restaurantId: restaurant.id,
