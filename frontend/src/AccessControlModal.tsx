@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import {
   BadgeDollarSign,
   Banknote,
@@ -83,7 +83,7 @@ export default function AccessControlModal({
   staffName,
   staffRole,
 }: AccessControlModalProps) {
-  const { refreshPermissions, user: currentUser } = useAuth();
+  const { refreshPermissions } = useAuth();
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
   const [savedPermissions, setSavedPermissions] = useState<Record<string, string[]>>({});
   const [draftPermissions, setDraftPermissions] = useState<Record<string, string[]>>({});
@@ -131,18 +131,8 @@ export default function AccessControlModal({
     setError(null);
     setSuccess(null);
     try {
-      // Flatten PermissionMap Record<string, string[]> to string[] ["module:action"]
-      const flatPermissions: string[] = [];
-      Object.entries(draftPermissions).forEach(([module, actions]) => {
-        actions.forEach(action => {
-          flatPermissions.push(`${module}:${action}`);
-        });
-      });
-
-      console.log(`[Permissions] Saving updated permissions for ${staffId}:`, flatPermissions);
-      
       await api.patch(`/users/${staffId}/permissions`, { 
-        permissions: flatPermissions 
+        permissions: draftPermissions 
       });
 
       setSavedPermissions(draftPermissions);

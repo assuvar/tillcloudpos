@@ -88,7 +88,7 @@ export const FRONTEND_PERMISSIONS = {
 } as const;
 
 export const getLandingPage = (
-  _permissions: PermissionMap | null,
+  _permissions: PermissionMap | string[] | null,
   role?: string,
 ): string => {
   if (role === 'CASHIER') {

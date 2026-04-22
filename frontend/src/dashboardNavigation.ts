@@ -1,3 +1,14 @@
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Menu as MenuIcon,
+  Users,
+  Package,
+  BarChart,
+  Users2,
+  Settings as SettingsIcon,
+  type LucideIcon,
+} from 'lucide-react';
 import type { PermissionGroup } from './permissions';
 
 export type DashboardViewId =
@@ -13,18 +24,19 @@ export type DashboardViewId =
 export type DashboardView = {
   id: DashboardViewId;
   label: string;
-  permissionGroup?: PermissionGroup;
+  module?: PermissionGroup;
+  icon: LucideIcon | any;
 };
 
 export const DASHBOARD_VIEWS: DashboardView[] = [
-  { id: 'home', label: 'Home' },
-  { id: 'orders', label: 'POS', permissionGroup: 'BILLING' },
-  { id: 'menu', label: 'Menu', permissionGroup: 'MENU' },
-  { id: 'staff', label: 'Staff', permissionGroup: 'STAFF' },
-  { id: 'inventory', label: 'Inventory', permissionGroup: 'INVENTORY' },
-  { id: 'customers', label: 'Customers', permissionGroup: 'CUSTOMERS' },
-  { id: 'reports', label: 'Reports', permissionGroup: 'REPORTS' },
-  { id: 'settings', label: 'Settings', permissionGroup: 'SETTINGS' },
+  { id: 'home', label: 'Home', icon: LayoutDashboard },
+  { id: 'orders', label: 'POS', module: 'BILLING', icon: ShoppingCart },
+  { id: 'menu', label: 'Menu', module: 'MENU', icon: MenuIcon },
+  { id: 'staff', label: 'Staff', module: 'STAFF', icon: Users },
+  { id: 'inventory', label: 'Inventory', module: 'INVENTORY', icon: Package },
+  { id: 'customers', label: 'Customers', module: 'CUSTOMERS', icon: Users2 },
+  { id: 'reports', label: 'Reports', module: 'REPORTS', icon: BarChart },
+  { id: 'settings', label: 'Settings', module: 'SETTINGS', icon: SettingsIcon },
 ];
 
 export const getAccessibleDashboardViews = (
@@ -43,6 +55,6 @@ export const getAccessibleDashboardViews = (
       return isManager && hasModuleAccess('REPORTS');
     }
 
-    return item.permissionGroup ? hasModuleAccess(item.permissionGroup) : false;
+    return item.module ? hasModuleAccess(item.module) : false;
   });
 };

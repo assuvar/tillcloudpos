@@ -19,8 +19,7 @@ import {
   CheckCircle2,
   ChevronDown,
   TrendingUp,
-   Bell,
-   UserCog
+   Bell
 } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { FRONTEND_PERMISSIONS } from './permissions';

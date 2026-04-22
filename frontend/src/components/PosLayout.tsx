@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LayoutGrid, HelpCircle, ChefHat, Utensils } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -19,7 +18,7 @@ const navItems = [
 const PosLayout: React.FC<PosLayoutProps> = ({ children, className = 'bg-[#f8fafc]', mainClassName = 'pb-24' }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { hasPermission, user } = useAuth();
+  const { user } = useAuth();
 
   const handleNavClick = (item: (typeof navItems)[number]) => {
     navigate(item.path);

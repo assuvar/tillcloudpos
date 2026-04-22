@@ -21,7 +21,7 @@ import { FRONTEND_PERMISSIONS, getPosExitRoute } from './permissions';
 
 export default function POSEntryScreen() {
   const navigate = useNavigate();
-  const { user, logout, hasModuleAccess, hasPermission } = useAuth();
+  const { user, hasModuleAccess, hasPermission } = useAuth();
   const { openBills, activeBill, loadOpenBills, isLoading, error } = usePosCart();
   const [showNewBillModal, setShowNewBillModal] = useState(false);
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import api, { configureApiAuthHandlers } from '../services/api';
 import {
@@ -6,6 +6,7 @@ import {
   hasPermissionCode,
   isGroupEnabled,
   getLandingPage,
+  buildPermissionMap,
   type PermissionGroup,
   type PermissionMap,
 } from '../permissions';
@@ -19,7 +20,7 @@ interface User {
   role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
   restaurantId: string;
   onboardingCompleted: boolean;
-  permissions: string[];
+  permissions?: string[] | PermissionMap;
 }
 
 export type AuthMode = 'dashboard' | 'pos' | 'kitchen';
@@ -74,6 +75,22 @@ const isTokenExpired = (token: string): boolean => {
   }
 };
 
+const normalizePermissionPayload = (payload: unknown): PermissionMap | null => {
+  if (!payload) {
+    return null;
+  }
+
+  if (Array.isArray(payload)) {
+    return buildPermissionMap(payload as string[]);
+  }
+
+  if (typeof payload === 'object') {
+    return payload as PermissionMap;
+  }
+
+  return null;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -81,50 +98,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [permissions, setPermissions] = useState<PermissionMap | null>(null);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
   const hasHydratedRef = useRef(false);
   const accessTokenRef = useRef<string | null>(null);
+  const lastRefreshRef = useRef<number>(0);
+
+  const location = useLocation();
 
   useEffect(() => {
     accessTokenRef.current = accessToken;
   }, [accessToken]);
 
   const isNetworkError = (error: unknown): boolean => {
-    const axiosLikeError = error as { response?: unknown; code?: string } | undefined;
+    const axiosLikeError = error as { response?: unknown } | undefined;
     return !axiosLikeError?.response;
+  };
+
+  const savePermissions = (nextPermissions: PermissionMap | null) => {
+    setPermissions(nextPermissions);
+    if (nextPermissions) {
+      localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(nextPermissions));
+    } else {
+      localStorage.removeItem(PERMISSIONS_KEY);
+    }
   };
 
   const fetchCurrentUser = async (
     tokenOverride?: string,
   ): Promise<{ user: User } | null> => {
     try {
-      console.log('[Auth] Fetching /auth/me to sync permissions and status');
       const response = await api.get('/auth/me', {
         headers: tokenOverride
           ? { Authorization: `Bearer ${tokenOverride}` }
           : undefined,
       });
-
-      return response.data;
-    } catch (err: any) {
-      console.error('[Auth] Token refresh failed:', err?.response?.status === 401 ? 'Unauthorized (401)' : err.message);
-      if (err?.response?.status === 401) {
-        await logout(true);
-      }
+      return response.data as { user: User };
+    } catch {
       return null;
     }
   };
 
-  const fetchOnboardingStatus = async (
+  const fetchUserPermissions = async (
     tokenOverride?: string,
-  ): Promise<boolean | null> => {
+  ): Promise<PermissionMap | null> => {
     try {
-      const response = await api.get('/onboarding/status', {
+      const response = await api.get('/permissions/me', {
         headers: tokenOverride
           ? { Authorization: `Bearer ${tokenOverride}` }
           : undefined,
       });
 
-      return Boolean(response.data?.onboardingCompleted);
+      return normalizePermissionPayload(response.data?.permissions);
     } catch {
       return null;
     }
@@ -135,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         await api.post('/auth/logout');
       } catch {
-        // Ignore network/logout endpoint errors and continue local cleanup.
+        // Ignore logout endpoint failures and still clear local state.
       }
     }
 
@@ -162,29 +186,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await api.post('/auth/refresh', {
         posSessionToken: currentMode === 'pos' ? posSessionToken : undefined,
       });
-      
+
       const nextToken = response.data.access_token as string;
       setAccessToken(nextToken);
-      
+
       const sessionData = await fetchCurrentUser(nextToken);
-      if (!sessionData) {
-        throw new Error('Could not refresh session data');
+      if (!sessionData?.user) {
+        throw new Error('Could not refresh session user');
       }
 
-      const { user: refreshedUser } = sessionData;
+      const refreshedUser = sessionData.user;
+      const fetchedPermissions = await fetchUserPermissions(nextToken);
+      const fallbackPermissions = normalizePermissionPayload(refreshedUser.permissions);
+
       setUser(refreshedUser);
       setMode(currentMode || 'dashboard');
-      
+      savePermissions(fetchedPermissions || fallbackPermissions);
+
       localStorage.setItem(USER_KEY, JSON.stringify(refreshedUser));
       if (currentMode) {
         localStorage.setItem(MODE_KEY, currentMode);
       }
 
-      setPermissions(refreshedUser.permissions || []);
-      if (refreshedUser.permissions) {
-        localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(refreshedUser.permissions));
-      }
-      
       return nextToken;
     } catch (error: unknown) {
       if (isNetworkError(error)) {
@@ -226,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (storedPermissions) {
         try {
-          setPermissions(JSON.parse(storedPermissions) as string[]);
+          setPermissions(normalizePermissionPayload(JSON.parse(storedPermissions)));
         } catch {
           localStorage.removeItem(PERMISSIONS_KEY);
         }
@@ -239,38 +262,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void hydrateAuth();
   }, []);
 
-  const location = useLocation();
-  const lastRefreshRef = useRef<number>(0);
-
-  const isAuthenticated = !!user;
-
   useEffect(() => {
-    // Refresh permissions on navigation to ensure real-time propagation
-    // Throttle to once every 10 seconds to avoid spamming the server
-    if (isAuthenticated && Date.now() - lastRefreshRef.current > 10000) {
-      console.log(`[Auth] Navigation detected to ${location.pathname}, refreshing metadata`);
-      lastRefreshRef.current = Date.now();
-      void (async () => {
-        const sessionData = await fetchCurrentUser(accessToken || undefined);
+    if (!user || !accessToken) {
+      return;
+    }
+
+    if (Date.now() - lastRefreshRef.current <= 10000) {
+      return;
+    }
+
+    lastRefreshRef.current = Date.now();
+
+    void (async () => {
+      setPermissionsLoading(true);
+      try {
+        const [sessionData, fetchedPermissions] = await Promise.all([
+          fetchCurrentUser(accessToken),
+          fetchUserPermissions(accessToken),
+        ]);
+
         if (sessionData?.user) {
           setUser(sessionData.user);
-          setPermissions(sessionData.user.permissions || []);
           localStorage.setItem(USER_KEY, JSON.stringify(sessionData.user));
-          localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(sessionData.user.permissions));
+
+          const fallbackPermissions = normalizePermissionPayload(sessionData.user.permissions);
+          savePermissions(fetchedPermissions || fallbackPermissions);
         }
-      })();
-    }
-  }, [location.pathname, isAuthenticated, accessToken]);
+      } finally {
+        setPermissionsLoading(false);
+      }
+    })();
+  }, [location.pathname, user?.id, accessToken]);
 
   const login = async (
     token: string,
     userData: User,
     loginMode: AuthMode = 'dashboard',
     posSessionToken?: string,
-  ): Promise<any> => {
+  ): Promise<PermissionMap | null> => {
     setAccessToken(token);
-    
-    // Get full user profile including permissions
+
     const sessionData = await fetchCurrentUser(token);
     const resolvedUser = sessionData?.user || userData;
 
@@ -285,35 +316,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem(POS_SESSION_KEY);
     }
 
-    setPermissions(resolvedUser.permissions || []);
-    if (resolvedUser.permissions) {
-      localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(resolvedUser.permissions));
-    }
+    const fetchedPermissions = await fetchUserPermissions(token);
+    const fallbackPermissions = normalizePermissionPayload(resolvedUser.permissions);
+    const finalPermissions = fetchedPermissions || fallbackPermissions;
 
-    console.log(`[Auth] Logged in user ${resolvedUser.email} with ${resolvedUser.permissions?.length} permissions`);
-
-    return resolvedUser.permissions;
+    savePermissions(finalPermissions);
+    return finalPermissions;
   };
 
   const updateOnboardingStatus = (status: boolean) => {
-    if (user) {
-      const updatedUser = { ...user, onboardingCompleted: status };
-      setUser(updatedUser);
-      localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    if (!user) {
+      return;
     }
+
+    const updatedUser = { ...user, onboardingCompleted: status };
+    setUser(updatedUser);
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
   };
 
-  const hasPermission = (code: string) => {
-    return hasPermissionCode(permissions, code);
-  };
+  const hasPermission = (code: string) => hasPermissionCode(permissions, code);
 
-  const canAccess = (module: string, action: string) => {
-    return canAccessPermission(permissions, module, action);
-  };
+  const canAccess = (module: string, action: string) =>
+    canAccessPermission(permissions, module, action);
 
-  const hasModuleAccess = (group: PermissionGroup) => {
-    return isGroupEnabled(permissions, group);
-  };
+  const hasModuleAccess = (group: PermissionGroup) =>
+    isGroupEnabled(permissions, group);
 
   return (
     <AuthContext.Provider
@@ -330,24 +357,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateOnboardingStatus,
         refreshAccessToken,
         refreshPermissions: async () => {
-          if (!accessToken) return;
-          console.log('[Auth] Manually refreshing permissions');
+          if (!accessToken) {
+            return;
+          }
+
+          setPermissionsLoading(true);
           try {
-            const sessionData = await fetchCurrentUser(accessToken);
-            if (sessionData?.user) {
-              const fetchedPerms = sessionData.user.permissions || [];
-              console.log(`[Auth] Sync successful. Permissions (${fetchedPerms.length}):`, fetchedPerms);
-              setUser(sessionData.user);
-              setPermissions(fetchedPerms);
-              localStorage.setItem(USER_KEY, JSON.stringify(sessionData.user));
-              localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(sessionData.user.permissions));
-            }
-          } catch (err: any) {
-            console.error('[Auth] Permission sync failed:', err?.response?.status || err.message);
-            if (err?.response?.status === 401) {
-              console.warn('[Auth] Session invalid during sync, logging out...');
-              await logout(true);
-            }
+            const fetchedPermissions = await fetchUserPermissions(accessToken);
+            savePermissions(fetchedPermissions);
+          } finally {
+            setPermissionsLoading(false);
           }
         },
         hasPermission,

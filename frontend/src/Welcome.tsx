@@ -15,7 +15,7 @@ const NAV_ITEMS = [
 
 export default function Welcome() {
   const navigate = useNavigate();
-  const { user, hasPermission } = useAuth();
+  const { user } = useAuth();
 
   const handleNavigate = (item: (typeof NAV_ITEMS)[number]) => {
 

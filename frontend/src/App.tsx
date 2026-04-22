@@ -29,7 +29,6 @@ function ProtectedRoute({
 }) {
   const { isAuthenticated, user, isLoading, mode, hasPermission, permissionsLoading } = useAuth();
   const location = useLocation();
-  const fallbackRoute = user && !user.onboardingCompleted ? "/onboarding" : "/";
 
   // Wait until auth state (and permission state for authenticated users) is stable.
   if (isLoading || (isAuthenticated && permissionsLoading)) {

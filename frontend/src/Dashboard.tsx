@@ -47,7 +47,11 @@ import CustomersPage from "./CustomersPage";
 import ReportsPage from "./ReportsPage";
 import SettingsPage from "./SettingsPage";
 import AccessDenied from "./components/AccessDenied";
-import { DASHBOARD_VIEWS } from "./dashboardNavigation";
+import {
+  DASHBOARD_VIEWS,
+  type DashboardViewId,
+  type DashboardView as DashboardNavView,
+} from "./dashboardNavigation";
 
 interface StatCardProps {
   title: string;
@@ -154,8 +158,6 @@ type DashboardTrendPoint = {
   active?: boolean;
 };
 
-type DashboardView = 'home' | 'menu' | 'staff' | 'orders' | 'inventory' | 'customers' | 'analytics' | 'settings' | 'reports';
-
 type QuickAction = {
   label: string;
   sub: string;
@@ -195,7 +197,7 @@ export default function Dashboard() {
     return localStorage.getItem("terminalLaunched") === "true";
   });
   const [isLaunching, setIsLaunching] = useState(false);
-  const [currentView, setCurrentView] = useState<DashboardView>('home');
+  const [currentView, setCurrentView] = useState<DashboardViewId>('home');
   const [realStaff, setRealStaff] = useState<StaffRow[]>([]);
   const [salesData, setSalesData] = useState<DashboardTrendPoint[]>([]);
   const [peakHourLabel, setPeakHourLabel] = useState('N/A');
@@ -235,20 +237,20 @@ export default function Dashboard() {
                     : Settings,
   }));
 
-  const hasViewAccess = (viewId: DashboardView) => {
+  const hasViewAccess = (viewId: DashboardViewId) => {
     const targetView = accessibleViews.find((item) => item.id === viewId);
     if (!targetView) {
       return false;
     }
 
-    if (!targetView.permissionGroup) {
+    if (!targetView.module) {
       return user?.role === 'ADMIN' || user?.role === 'MANAGER';
     }
 
-    return hasModuleAccess(targetView.permissionGroup);
+    return hasModuleAccess(targetView.module);
   };
 
-  const handleViewSelection = (viewId: DashboardView) => {
+  const handleViewSelection = (viewId: DashboardViewId) => {
     if (viewId === 'orders') {
       if (!hasModuleAccess('BILLING')) {
         setCurrentView('orders');
@@ -535,8 +537,8 @@ export default function Dashboard() {
           </div>
 
           <nav className="flex flex-row flex-wrap justify-center gap-2 lg:flex-col lg:gap-6">
-            {DASHBOARD_VIEWS.map((view) => {
-              const hasAccess = hasModuleAccess(view.module);
+            {DASHBOARD_VIEWS.map((view: DashboardNavView) => {
+              const hasAccess = hasModuleAccess(view.module || 'BILLING');
               if (!hasAccess) return null;
 
               return (
@@ -545,7 +547,7 @@ export default function Dashboard() {
                   icon={view.icon}
                   active={currentView === view.id}
                   onClick={() => handleViewSelection(view.id)}
-                  tooltip={view.label}
+                  label={view.label}
                 />
               );
             })}
@@ -774,7 +776,7 @@ export default function Dashboard() {
                           : undefined;
 
                     if (permissionGroup && !hasModuleAccess(permissionGroup)) {
-                      setCurrentView(action.path as DashboardView);
+                      setCurrentView(action.path as DashboardViewId);
                       return;
                     }
 

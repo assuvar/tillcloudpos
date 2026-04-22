@@ -22,7 +22,6 @@ import { FRONTEND_PERMISSIONS, getPosExitRoute } from './permissions';
 import api from './services/api';
 import { ALLOWED_SERVICE_MODELS, type ServiceModel } from './serviceModels';
 import PosLayout from './components/PosLayout';
-import ServiceModeModal from './components/ServiceModeModal';
 
 interface CustomerData {
   name: string;
@@ -67,7 +66,6 @@ export default function OrderEntryScreen() {
     isLoading,
     error,
     loadMenuItems,
-    createBillSession,
     loadBill,
     activeBill,
   } = usePosCart();
@@ -80,7 +78,6 @@ export default function OrderEntryScreen() {
   const [loyaltyPointsUsed, setLoyaltyPointsUsed] = useState(0);
   const [toastMessage, setToastMessage] = useState('');
   const [isSendingToKitchen, setIsSendingToKitchen] = useState(false);
-  const [isCreatingBill, setIsCreatingBill] = useState(false);
   const [enabledServiceModels, setEnabledServiceModels] = useState<PosOrderType[]>([
     ...ALLOWED_SERVICE_MODELS,
   ]);
@@ -130,10 +127,10 @@ export default function OrderEntryScreen() {
 
   // If no bill is active and no session is being created, redirect to terminal entry
   useEffect(() => {
-    if (!activeBill && !isLoading && !isCreatingBill && !billId) {
+    if (!activeBill && !isLoading && !billId) {
       navigate('/pos');
     }
-  }, [activeBill, isLoading, isCreatingBill, billId, navigate]);
+  }, [activeBill, isLoading, billId, navigate]);
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
   const visibleItems = useMemo(
