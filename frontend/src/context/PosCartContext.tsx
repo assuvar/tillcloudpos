@@ -1,6 +1,6 @@
-import { createContext, useContext, useMemo, useState, useEffect } from 'react';
-import api from '../services/api';
-import { useAuth } from './AuthContext';
+import { createContext, useContext, useMemo, useState, useEffect } from "react";
+import api from "../services/api";
+import { useAuth } from "./AuthContext";
 
 export interface MenuItem {
   id: string;
@@ -78,21 +78,32 @@ interface PosCartContextType {
   isLoading: boolean;
   error: string | null;
   loadOpenBills: () => Promise<void>;
-  createBillSession: (orderType: string, tableNumber?: string | null) => Promise<BillRecord>;
+  createBillSession: (
+    orderType: string,
+    tableNumber?: string | null,
+  ) => Promise<BillRecord>;
   loadBill: (billId: string) => Promise<BillRecord | null>;
   addItemToBill: (item: MenuItem) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<void>;
-  updateQuantity: (itemId: string, action: 'increase' | 'decrease') => Promise<void>;
+  updateQuantity: (
+    itemId: string,
+    action: "increase" | "decrease",
+  ) => Promise<void>;
   clearBill: () => void;
   sendToKitchen: () => Promise<SendToKitchenResult>;
-  processCashPayment: (amount: number, cashReceived: number) => Promise<CashPaymentResult>;
+  processCashPayment: (
+    amount: number,
+    cashReceived: number,
+  ) => Promise<CashPaymentResult>;
   loadMenuItems: () => Promise<void>;
 }
 
 const PosCartContext = createContext<PosCartContextType | undefined>(undefined);
-const ACTIVE_BILL_KEY = 'active_pos_bill_id';
+const ACTIVE_BILL_KEY = "active_pos_bill_id";
 
-export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { user, accessToken } = useAuth();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -103,11 +114,15 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const parseApiError = (err: any, fallback: string) => {
     const payload = err?.response?.data?.message;
-    if (typeof payload === 'string' && payload.trim()) {
+    if (typeof payload === "string" && payload.trim()) {
       return payload;
     }
 
-    if (payload && typeof payload === 'object' && typeof payload.message === 'string') {
+    if (
+      payload &&
+      typeof payload === "object" &&
+      typeof payload.message === "string"
+    ) {
       return payload.message;
     }
 
@@ -116,7 +131,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const normalizeMenuCategories = (responseData: unknown): MenuCategory[] => {
     if (!Array.isArray(responseData)) {
-      throw new Error('Invalid response from server');
+      throw new Error("Invalid response from server");
     }
 
     return responseData.map((category: any) => {
@@ -134,7 +149,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
           image: item.image ?? item.imageUrl ?? null,
           isActive: item.isActive !== false,
           isOutOfStock: item.isOutOfStock,
-          description: item.description || '',
+          description: item.description || "",
         })),
       };
     });
@@ -182,16 +197,19 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsLoading(true);
       setError(null);
 
-      const response = await api.get('/menu/categories');
+      const response = await api.get("/menu/categories");
       const transformedCategories = normalizeMenuCategories(response.data);
 
       setCategories(transformedCategories);
       setMenuItems(transformedCategories.flatMap((category) => category.items));
       setError(null);
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to load menu items';
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to load menu items";
       setError(errorMsg);
-      console.error('Error loading menu items:', err);
+      console.error("Error loading menu items:", err);
       setCategories([]);
       setMenuItems([]);
     } finally {
@@ -200,12 +218,17 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const loadOpenBills = async () => {
-    const response = await api.get('/bills');
-    setOpenBills(Array.isArray(response.data) ? response.data.map(normalizeBill) : []);
+    const response = await api.get("/bills");
+    setOpenBills(
+      Array.isArray(response.data) ? response.data.map(normalizeBill) : [],
+    );
   };
 
-  const createBillSession = async (orderType: string, tableNumber?: string | null) => {
-    const response = await api.post('/bills', {
+  const createBillSession = async (
+    orderType: string,
+    tableNumber?: string | null,
+  ) => {
+    const response = await api.post("/bills", {
       orderType,
       tableNumber: tableNumber || undefined,
     });
@@ -222,7 +245,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
       syncBill(bill);
       return bill;
     } catch (err) {
-      console.error('Error loading bill:', err);
+      console.error("Error loading bill:", err);
       syncBill(null);
       return null;
     }
@@ -270,9 +293,9 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setError(null);
       return true;
     } catch (err: any) {
-      const errorMsg = parseApiError(err, 'Failed to add item to bill');
+      const errorMsg = parseApiError(err, "Failed to add item to bill");
       setError(errorMsg);
-      console.error('Error adding bill item:', err);
+      console.error("Error adding bill item:", err);
       return false;
     }
   };
@@ -282,11 +305,16 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    const response = await api.delete(`/bills/${activeBill.id}/items/${itemId}`);
+    const response = await api.delete(
+      `/bills/${activeBill.id}/items/${itemId}`,
+    );
     syncBill(normalizeBill(response.data));
   };
 
-  const updateQuantity = async (itemId: string, action: 'increase' | 'decrease') => {
+  const updateQuantity = async (
+    itemId: string,
+    action: "increase" | "decrease",
+  ) => {
     if (!activeBill) {
       return;
     }
@@ -296,20 +324,27 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    if (action === 'decrease' && item.quantity <= 1) {
+    if (action === "decrease" && item.quantity <= 1) {
       await removeItem(itemId);
       return;
     }
 
     try {
-      const response = await api.patch(`/bills/${activeBill.id}/items/${itemId}`, {
-        quantity: action === 'increase' ? item.quantity + 1 : item.quantity - 1,
-      });
+      const response = await api.patch(
+        `/bills/${activeBill.id}/items/${itemId}`,
+        {
+          quantity:
+            action === "increase" ? item.quantity + 1 : item.quantity - 1,
+        },
+      );
 
       syncBill(normalizeBill(response.data));
       setError(null);
     } catch (err: any) {
-      const errorMsg = parseApiError(err, 'Failed to update bill item quantity');
+      const errorMsg = parseApiError(
+        err,
+        "Failed to update bill item quantity",
+      );
       setError(errorMsg);
     }
   };
@@ -320,7 +355,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const sendToKitchen = async (): Promise<SendToKitchenResult> => {
     if (!activeBill) {
-      return { success: false, error: 'No active bill' };
+      return { success: false, error: "No active bill" };
     }
 
     try {
@@ -332,8 +367,9 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
         kitchenOrderId: response.data.kitchenOrder?.id,
       };
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || 'Error sending order to kitchen';
-      console.error('Send to kitchen error:', err);
+      const errorMsg =
+        err?.response?.data?.message || "Error sending order to kitchen";
+      console.error("Send to kitchen error:", err);
       return { success: false, error: errorMsg };
     }
   };
@@ -343,11 +379,11 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
     cashReceived: number,
   ): Promise<CashPaymentResult> => {
     if (!activeBill) {
-      return { success: false, error: 'No active bill' };
+      return { success: false, error: "No active bill" };
     }
 
     try {
-      const response = await api.post('/payments/cash', {
+      const response = await api.post("/payments/cash", {
         billId: activeBill.id,
         amount,
         cashReceived,
@@ -362,8 +398,9 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
         payment: response.data.payment,
       };
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || 'Error processing cash payment';
-      console.error('Cash payment error:', err);
+      const errorMsg =
+        err?.response?.data?.message || "Error processing cash payment";
+      console.error("Cash payment error:", err);
       return { success: false, error: errorMsg };
     }
   };
@@ -409,7 +446,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({ child
 export const usePosCart = () => {
   const context = useContext(PosCartContext);
   if (!context) {
-    throw new Error('usePosCart must be used within a PosCartProvider');
+    throw new Error("usePosCart must be used within a PosCartProvider");
   }
 
   return context;

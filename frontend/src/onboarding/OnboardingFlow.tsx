@@ -439,9 +439,27 @@ export default function OnboardingFlow() {
       }
 
       setCurrentStep((previous) => Math.min(5, previous + 1));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to persist onboarding step', error);
-      setStepFeedback('Unable to save step. Please try again.');
+      
+      const responseData = error?.response?.data;
+      if (error?.response?.status === 400 && responseData?.missingSteps) {
+        const missing = responseData.missingSteps as string[];
+        
+        if (missing.includes('business')) {
+          setStepFeedback('Missing business identity (Name, Address, or Phone). Redirecting to Step 1...');
+          window.setTimeout(() => setCurrentStep(1), 1500);
+        } else if (missing.includes('serviceModel')) {
+          setStepFeedback('Please select at least one Service Model. Redirecting to Step 1...');
+          window.setTimeout(() => setCurrentStep(1), 1500);
+        } else if (missing.includes('emailVerification')) {
+          setStepFeedback('Email verification is required. Please verify your email first.');
+        } else {
+          setStepFeedback(responseData.message || 'Mandatory steps are incomplete.');
+        }
+      } else {
+        setStepFeedback('Unable to save step. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -1,30 +1,37 @@
-import { 
-  Building2, 
-  ChevronDown, 
-  ShieldCheck, 
-  UserCog, 
-  UtensilsCrossed, 
-  Eye, 
-  EyeOff, 
+import {
+  Building2,
+  ChevronDown,
+  ShieldCheck,
+  UserCog,
+  UtensilsCrossed,
+  Eye,
+  EyeOff,
   ArrowLeft,
-  Mail
-} from 'lucide-react';
-import { KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from './services/api';
-import { useAuth } from './context/AuthContext';
-import { Loader2 } from 'lucide-react';
-import { calculatePasswordStrength, isValidEmail, isValidPhone } from './onboarding/validation';
-import { ALLOWED_SERVICE_MODELS, SERVICE_MODEL_LABELS, type ServiceModel } from './serviceModels';
+  Mail,
+} from "lucide-react";
+import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "./services/api";
+import { useAuth } from "./context/AuthContext";
+import { Loader2 } from "lucide-react";
+import {
+  calculatePasswordStrength,
+  isValidEmail,
+  isValidPhone,
+} from "./onboarding/validation";
+import {
+  ALLOWED_SERVICE_MODELS,
+  SERVICE_MODEL_LABELS,
+  type ServiceModel,
+} from "./serviceModels";
 
 const OTP_LENGTH = 6;
-const TEMP_STATIC_OTP = '526252';
 
 const registrationSteps = [
-  { id: 1, label: 'Business Info', icon: Building2 },
-  { id: 2, label: 'Admin Account', icon: UserCog },
-  { id: 3, label: 'Restaurant Type', icon: UtensilsCrossed },
-  { id: 4, label: 'Verification', icon: ShieldCheck },
+  { id: 1, label: "Business Info", icon: Building2 },
+  { id: 2, label: "Admin Account", icon: UserCog },
+  { id: 3, label: "Restaurant Type", icon: UtensilsCrossed },
+  { id: 4, label: "Verification", icon: ShieldCheck },
 ];
 
 export default function Register() {
@@ -36,104 +43,106 @@ export default function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [adminAcceptedTerms, setAdminAcceptedTerms] = useState(false);
-  const [emailError, setEmailError] = useState('');
-  const [mobileError, setMobileError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [emailError, setEmailError] = useState("");
+  const [mobileError, setMobileError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedComms, setAcceptedComms] = useState(false);
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailResendCountdown, setEmailResendCountdown] = useState(60);
-  const [emailOtp, setEmailOtp] = useState(Array(OTP_LENGTH).fill(''));
+  const [emailOtp, setEmailOtp] = useState(Array(OTP_LENGTH).fill(""));
   const [emailOtpVerified, setEmailOtpVerified] = useState(false);
-  const [emailOtpMessage, setEmailOtpMessage] = useState('');
-  const [emailOtpError, setEmailOtpError] = useState('');
+  const [emailOtpMessage, setEmailOtpMessage] = useState("");
+  const [emailOtpError, setEmailOtpError] = useState("");
   const [isVerifyingEmailOtp, setIsVerifyingEmailOtp] = useState(false);
   const emailOtpRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const [formData, setFormData] = useState({
-    businessName: '',
-    country: '',
-    fullName: '',
-    mobile: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    businessType: '',
-    outlets: '',
+    businessName: "",
+    country: "",
+    fullName: "",
+    mobile: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    businessType: "",
+    outlets: "",
     serviceModels: [] as ServiceModel[],
   });
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
-  const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));
+  const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
 
-    if (name === 'mobile') {
+    if (name === "mobile") {
       if (!value) {
-        setMobileError('');
+        setMobileError("");
       } else if (!isValidPhone(value)) {
-        setMobileError('Enter a valid mobile number.');
+        setMobileError("Enter a valid mobile number.");
       } else {
-        setMobileError('');
+        setMobileError("");
       }
     }
 
-    if (name === 'password') {
+    if (name === "password") {
       if (!value) {
-        setPasswordError('');
+        setPasswordError("");
       } else if (value.length < 8) {
-        setPasswordError('Password must be at least 8 characters.');
+        setPasswordError("Password must be at least 8 characters.");
       } else {
-        setPasswordError('');
+        setPasswordError("");
       }
 
       if (formData.confirmPassword && formData.confirmPassword !== value) {
-        setConfirmPasswordError('Passwords do not match.');
+        setConfirmPasswordError("Passwords do not match.");
       } else if (formData.confirmPassword) {
-        setConfirmPasswordError('');
+        setConfirmPasswordError("");
       }
     }
 
-    if (name === 'confirmPassword') {
+    if (name === "confirmPassword") {
       if (!value) {
-        setConfirmPasswordError('');
+        setConfirmPasswordError("");
       } else if (value !== formData.password) {
-        setConfirmPasswordError('Passwords do not match.');
+        setConfirmPasswordError("Passwords do not match.");
       } else {
-        setConfirmPasswordError('');
+        setConfirmPasswordError("");
       }
     }
 
-    if (name === 'email') {
-      setEmailError('');
+    if (name === "email") {
+      setEmailError("");
     }
   };
 
   const handleEmailBlur = async () => {
     const normalizedEmail = formData.email.trim().toLowerCase();
     if (!normalizedEmail) {
-      setEmailError('Email is required.');
+      setEmailError("Email is required.");
       return;
     }
 
     if (!isValidEmail(normalizedEmail)) {
-      setEmailError('Enter a valid email address.');
+      setEmailError("Enter a valid email address.");
       return;
     }
 
     setEmailChecking(true);
     try {
-      const availability = await api.post('/auth/check-email', {
+      const availability = await api.post("/auth/check-email", {
         email: normalizedEmail,
       });
 
       if (!availability.data?.available) {
-        setEmailError('Email already exists. Please use another email.');
+        setEmailError("Email already exists. Please use another email.");
       } else {
-        setEmailError('');
+        setEmailError("");
       }
     } finally {
       setEmailChecking(false);
@@ -146,7 +155,9 @@ export default function Register() {
   );
 
   const isBusinessInfoValid = useMemo(() => {
-    return formData.businessName.trim() !== '' && formData.country.trim() !== '';
+    return (
+      formData.businessName.trim() !== "" && formData.country.trim() !== ""
+    );
   }, [formData.businessName, formData.country]);
 
   const isAdminStepValid = useMemo(() => {
@@ -170,26 +181,40 @@ export default function Register() {
   const safeEmailDestination = formData.email.trim().toLowerCase();
 
   async function sendOtp() {
-    if (!safeEmailDestination || !isValidEmail(safeEmailDestination)) {
-      setEmailOtpError('Enter a valid email before requesting OTP.');
+    const email = formData.email.trim().toLowerCase();
+
+    if (!email || !isValidEmail(email)) {
+      setEmailOtpError("Enter a valid email before requesting OTP.");
+      return;
+    }
+
+    if (emailError) {
+      setEmailOtpError("Fix email error before requesting OTP.");
       return;
     }
 
     try {
-      await api.post('/auth/otp/send', {
-        channel: 'email',
-        destination: safeEmailDestination,
+      const res = await api.post("/auth/otp/send", {
+        email: email,
       });
+
+      console.log("OTP SENT:", res.data);
+
       setEmailOtpVerified(false);
-      setEmailOtpMessage('OTP sent successfully');
-      setEmailOtpError('');
-    } catch {
-      setEmailOtpError('Failed to send OTP. Please try again.');
+      setEmailOtpMessage("OTP sent successfully");
+      setEmailOtpError("");
+    } catch (err: any) {
+      console.error("OTP ERROR:", err?.response?.data || err.message);
+
+      setEmailOtpError(
+        err?.response?.data?.message || "Failed to send OTP. Check backend.",
+      );
     }
   }
-
   async function verifyOtp() {
-    const code = emailOtp.join('');
+    const code = emailOtp.join("");
+    const email = formData.email.trim().toLowerCase();
+
     if (code.length !== OTP_LENGTH) {
       setEmailOtpError(`Enter all ${OTP_LENGTH} OTP digits.`);
       return;
@@ -198,29 +223,32 @@ export default function Register() {
     setIsVerifyingEmailOtp(true);
 
     try {
-      await api.post('/auth/verify-otp', {
-        channel: 'email',
-        destination: safeEmailDestination,
-        code,
+      const res = await api.post("/auth/verify-otp", {
+        email: email,
+        otp: code,
       });
 
+      console.log("VERIFY RESPONSE:", res.data);
+
       setEmailOtpVerified(true);
-      setEmailOtpError('');
-      setEmailOtpMessage('Email OTP verified');
-    } catch {
-      setEmailOtpError('Invalid OTP');
+      setEmailOtpError("");
+      setEmailOtpMessage("Email OTP verified");
+    } catch (err: any) {
+      console.error("VERIFY ERROR:", err?.response?.data || err.message);
+
+      setEmailOtpError(err?.response?.data?.message || "Invalid OTP");
     } finally {
       setIsVerifyingEmailOtp(false);
     }
   }
 
   const handleOtpDigitChange = (index: number, rawValue: string) => {
-    const digits = rawValue.replace(/\D/g, '');
+    const digits = rawValue.replace(/\D/g, "");
     if (!digits) {
       const nextArray = [...emailOtp];
-      nextArray[index] = '';
+      nextArray[index] = "";
       setEmailOtp(nextArray);
-      setEmailOtpError('');
+      setEmailOtpError("");
       return;
     }
 
@@ -231,27 +259,33 @@ export default function Register() {
     }
 
     setEmailOtp(nextArray);
-    setEmailOtpError('');
+    setEmailOtpError("");
 
-    const nextFocusIndex = Math.min(index + digits.length, nextArray.length - 1);
+    const nextFocusIndex = Math.min(
+      index + digits.length,
+      nextArray.length - 1,
+    );
     emailOtpRefs.current[nextFocusIndex]?.focus();
   };
 
-  const handleOtpKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
+  const handleOtpKeyDown = (
+    index: number,
+    event: KeyboardEvent<HTMLInputElement>,
+  ) => {
     const refs = emailOtpRefs;
     const currentArray = emailOtp;
 
-    if (event.key === 'Backspace' && currentArray[index] === '' && index > 0) {
+    if (event.key === "Backspace" && currentArray[index] === "" && index > 0) {
       refs.current[index - 1]?.focus();
       return;
     }
 
-    if (event.key === 'ArrowLeft' && index > 0) {
+    if (event.key === "ArrowLeft" && index > 0) {
       refs.current[index - 1]?.focus();
       return;
     }
 
-    if (event.key === 'ArrowRight' && index < currentArray.length - 1) {
+    if (event.key === "ArrowRight" && index < currentArray.length - 1) {
       refs.current[index + 1]?.focus();
       return;
     }
@@ -262,7 +296,7 @@ export default function Register() {
   };
 
   const handleOtpPaste = (index: number, pastedText: string) => {
-    const digits = pastedText.replace(/\D/g, '');
+    const digits = pastedText.replace(/\D/g, "");
     if (!digits) {
       return;
     }
@@ -275,7 +309,7 @@ export default function Register() {
     const focusIndex = Math.min(index + digits.length, nextArray.length - 1);
 
     setEmailOtp(nextArray);
-    setEmailOtpError('');
+    setEmailOtpError("");
 
     emailOtpRefs.current[focusIndex]?.focus();
   };
@@ -286,9 +320,9 @@ export default function Register() {
     }
 
     setEmailResendCountdown(60);
-    setEmailOtp(Array(OTP_LENGTH).fill(''));
-    setEmailOtpError('');
-    setEmailOtpMessage('');
+    setEmailOtp(Array(OTP_LENGTH).fill(""));
+    setEmailOtpError("");
+    setEmailOtpMessage("");
     setEmailOtpVerified(false);
     setAcceptedTerms(false);
     setAcceptedComms(false);
@@ -309,15 +343,15 @@ export default function Register() {
   }, [currentStep, formData.email]);
 
   useEffect(() => {
-    setError('');
+    setError("");
   }, [currentStep]);
 
   const handleCheckboxChange = (model: ServiceModel) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       serviceModels: prev.serviceModels.includes(model)
-        ? prev.serviceModels.filter(m => m !== model)
-        : [...prev.serviceModels, model]
+        ? prev.serviceModels.filter((m) => m !== model)
+        : [...prev.serviceModels, model],
     }));
   };
 
@@ -327,12 +361,12 @@ export default function Register() {
     }
 
     if (!emailOtpVerified) {
-      setError('Please verify your email OTP before finishing registration.');
+      setError("Please verify your email OTP before finishing registration.");
       return;
     }
 
     if (!acceptedTerms || !acceptedComms) {
-      setError('Please accept both checkboxes before finishing registration.');
+      setError("Please accept both checkboxes before finishing registration.");
       return;
     }
 
@@ -345,7 +379,7 @@ export default function Register() {
     setError("");
     setIsSubmitting(true);
     try {
-      const response = await api.post('/auth/register', {
+      const response = await api.post("/auth/register", {
         businessName: formData.businessName,
         country: formData.country,
         fullName: formData.fullName,
@@ -354,19 +388,25 @@ export default function Register() {
         password: formData.password,
         businessType: formData.businessType,
         outlets: formData.outlets,
-        serviceModels: formData.serviceModels
+        serviceModels: formData.serviceModels,
       });
-      
+
       await login(response.data.access_token, response.data.user);
-      navigate('/onboarding');
+      navigate("/onboarding");
     } catch (err: any) {
       const backendMessage = err.response?.data?.message;
-      const normalizedMessage = Array.isArray(backendMessage) ? backendMessage.join(', ') : backendMessage;
-      const finalMessage = normalizedMessage || "Registration failed. Please try again.";
+      const normalizedMessage = Array.isArray(backendMessage)
+        ? backendMessage.join(", ")
+        : backendMessage;
+      const finalMessage =
+        normalizedMessage || "Registration failed. Please try again.";
       setError(finalMessage);
 
-      if (typeof finalMessage === 'string' && finalMessage.toLowerCase().includes('already exists')) {
-        setEmailError('Email already exists. Please use another email.');
+      if (
+        typeof finalMessage === "string" &&
+        finalMessage.toLowerCase().includes("already exists")
+      ) {
+        setEmailError("Email already exists. Please use another email.");
         setCurrentStep(2);
       }
     } finally {
@@ -380,11 +420,15 @@ export default function Register() {
         <div className="min-h-[calc(100vh-24px)] border border-slate-200 bg-white grid grid-cols-1 lg:grid-cols-[280px_1fr] sm:min-h-[calc(100vh-32px)]">
           {/* Sidebar */}
           <aside className="border-r border-slate-200 bg-white hidden lg:block">
-            <div className="px-6 py-5 text-[30px] font-black tracking-tight text-[#0b1731]">TILLCLOUD</div>
+            <div className="px-6 py-5 text-[30px] font-black tracking-tight text-[#0b1731]">
+              TILLCLOUD
+            </div>
 
             <div className="px-6 pt-6 pb-4 border-b border-slate-100">
               <p className="text-2xl font-black text-[#0b1731]">Registration</p>
-              <p className="text-sm text-slate-500 mt-1">Step {currentStep} of 4</p>
+              <p className="text-sm text-slate-500 mt-1">
+                Step {currentStep} of 4
+              </p>
             </div>
 
             <nav className="py-2">
@@ -397,14 +441,20 @@ export default function Register() {
                     key={step.id}
                     className={`flex items-center gap-3 px-6 py-4 text-[15px] font-semibold transition-all ${
                       isActive
-                        ? 'bg-[#f3f6fb] text-[#0b1731] border-r-2 border-r-cyan-400'
-                        : isCompleted 
-                        ? 'text-cyan-600'
-                        : 'text-slate-400'
+                        ? "bg-[#f3f6fb] text-[#0b1731] border-r-2 border-r-cyan-400"
+                        : isCompleted
+                          ? "text-cyan-600"
+                          : "text-slate-400"
                     }`}
                   >
-                    <div className={`flex items-center justify-center w-5 h-5 rounded-full border ${isActive ? 'border-cyan-400' : isCompleted ? 'bg-cyan-400 border-cyan-400 text-white' : 'border-slate-200'}`}>
-                      {isCompleted ? <span className="text-[10px]">✓</span> : <Icon className="h-3 w-3" />}
+                    <div
+                      className={`flex items-center justify-center w-5 h-5 rounded-full border ${isActive ? "border-cyan-400" : isCompleted ? "bg-cyan-400 border-cyan-400 text-white" : "border-slate-200"}`}
+                    >
+                      {isCompleted ? (
+                        <span className="text-[10px]">✓</span>
+                      ) : (
+                        <Icon className="h-3 w-3" />
+                      )}
                     </div>
                     <span>{step.label}</span>
                   </div>
@@ -419,9 +469,11 @@ export default function Register() {
 
             <div className="relative h-full px-6 py-6 sm:px-10 sm:py-10 lg:px-16 lg:py-12 flex flex-col">
               <div className="flex justify-between items-center mb-10">
-                <div className="lg:hidden text-xl font-black text-[#0b1731]">TILLCLOUD</div>
+                <div className="lg:hidden text-xl font-black text-[#0b1731]">
+                  TILLCLOUD
+                </div>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate("/login")}
                   className="rounded-full bg-[#0b1731] px-8 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-white hover:bg-[#162a4d] transition-colors ml-auto"
                 >
                   Login
@@ -437,7 +489,8 @@ export default function Register() {
                       Establishment
                     </h1>
                     <p className="mt-4 text-lg text-slate-600 max-w-[560px] leading-relaxed">
-                      Start your journey with TILLCLOUD by providing the foundational details of your business.
+                      Start your journey with TILLCLOUD by providing the
+                      foundational details of your business.
                     </p>
 
                     <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
@@ -446,10 +499,12 @@ export default function Register() {
                         onSubmit={(e) => {
                           e.preventDefault();
                           if (!isBusinessInfoValid) {
-                            setError('Please complete business name and country.');
+                            setError(
+                              "Please complete business name and country.",
+                            );
                             return;
                           }
-                          setError('');
+                          setError("");
                           nextStep();
                         }}
                       >
@@ -473,7 +528,7 @@ export default function Register() {
                             Country of Operation
                           </label>
                           <div className="relative group">
-                            <select 
+                            <select
                               name="country"
                               required
                               value={formData.country}
@@ -506,7 +561,8 @@ export default function Register() {
                       Create Admin Profile
                     </h1>
                     <p className="mt-4 text-lg text-slate-600 max-w-[560px] leading-relaxed">
-                      Set up the primary administrative credentials for your restaurant's digital atrium.
+                      Set up the primary administrative credentials for your
+                      restaurant's digital atrium.
                     </p>
 
                     <div className="mt-10 rounded-[2.5rem] border border-slate-100 bg-white p-8 sm:p-12 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.05)]">
@@ -515,10 +571,12 @@ export default function Register() {
                         onSubmit={(e) => {
                           e.preventDefault();
                           if (!isAdminStepValid) {
-                            setError('Please fix all required fields before continuing.');
+                            setError(
+                              "Please fix all required fields before continuing.",
+                            );
                             return;
                           }
-                          setError('');
+                          setError("");
                           nextStep();
                         }}
                       >
@@ -529,7 +587,9 @@ export default function Register() {
                         )}
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                           <div className="space-y-3">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Owner Name</label>
+                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
+                              Owner Name
+                            </label>
                             <input
                               type="text"
                               name="fullName"
@@ -541,7 +601,9 @@ export default function Register() {
                             />
                           </div>
                           <div className="space-y-3">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Owner Mobile Number</label>
+                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
+                              Owner Mobile Number
+                            </label>
                             <input
                               type="tel"
                               name="mobile"
@@ -549,19 +611,30 @@ export default function Register() {
                               value={formData.mobile}
                               onChange={handleInputChange}
                               onBlur={() => {
-                                if (formData.mobile && !isValidPhone(formData.mobile)) {
-                                  setMobileError('Enter a valid mobile number.');
+                                if (
+                                  formData.mobile &&
+                                  !isValidPhone(formData.mobile)
+                                ) {
+                                  setMobileError(
+                                    "Enter a valid mobile number.",
+                                  );
                                 }
                               }}
                               placeholder="+91 9874563210"
                               className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all"
                             />
-                            {mobileError && <p className="text-xs font-semibold text-rose-600">{mobileError}</p>}
+                            {mobileError && (
+                              <p className="text-xs font-semibold text-rose-600">
+                                {mobileError}
+                              </p>
+                            )}
                           </div>
                         </div>
 
                         <div className="space-y-3">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Email ID</label>
+                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
+                            Email ID
+                          </label>
                           <input
                             type="email"
                             name="email"
@@ -572,13 +645,23 @@ export default function Register() {
                             placeholder="owner@restaurant.com"
                             className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all"
                           />
-                          {emailChecking && <p className="text-xs font-semibold text-slate-500">Checking email...</p>}
-                          {emailError && <p className="text-xs font-semibold text-rose-600">{emailError}</p>}
+                          {emailChecking && (
+                            <p className="text-xs font-semibold text-slate-500">
+                              Checking email...
+                            </p>
+                          )}
+                          {emailError && (
+                            <p className="text-xs font-semibold text-rose-600">
+                              {emailError}
+                            </p>
+                          )}
                         </div>
 
                         <div className="relative grid grid-cols-1 gap-6 md:grid-cols-2">
                           <div className="space-y-3">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Enter Password</label>
+                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
+                              Enter Password
+                            </label>
                             <div className="relative">
                               <input
                                 type={showPassword ? "text" : "password"}
@@ -589,23 +672,39 @@ export default function Register() {
                                 placeholder="••••••••"
                                 className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all tracking-widest"
                               />
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
                               >
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                {showPassword ? (
+                                  <EyeOff size={18} />
+                                ) : (
+                                  <Eye size={18} />
+                                )}
                               </button>
                             </div>
-                            {passwordError && <p className="text-xs font-semibold text-rose-600">{passwordError}</p>}
+                            {passwordError && (
+                              <p className="text-xs font-semibold text-rose-600">
+                                {passwordError}
+                              </p>
+                            )}
                             {!!formData.password && (
-                              <p className="text-xs font-semibold text-slate-500" aria-live="polite">
-                                Password strength: <span className="text-slate-700">{passwordStrength}</span>
+                              <p
+                                className="text-xs font-semibold text-slate-500"
+                                aria-live="polite"
+                              >
+                                Password strength:{" "}
+                                <span className="text-slate-700">
+                                  {passwordStrength}
+                                </span>
                               </p>
                             )}
                           </div>
                           <div className="space-y-3">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Confirm Password</label>
+                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
+                              Confirm Password
+                            </label>
                             <div className="relative">
                               <input
                                 type={showConfirmPassword ? "text" : "password"}
@@ -616,29 +715,44 @@ export default function Register() {
                                 placeholder="••••••••"
                                 className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all tracking-widest"
                               />
-                              <button 
+                              <button
                                 type="button"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                onClick={() =>
+                                  setShowConfirmPassword(!showConfirmPassword)
+                                }
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
                               >
-                                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                {showConfirmPassword ? (
+                                  <EyeOff size={18} />
+                                ) : (
+                                  <Eye size={18} />
+                                )}
                               </button>
                             </div>
-                            {confirmPasswordError && <p className="text-xs font-semibold text-rose-600">{confirmPasswordError}</p>}
+                            {confirmPasswordError && (
+                              <p className="text-xs font-semibold text-rose-600">
+                                {confirmPasswordError}
+                              </p>
+                            )}
                           </div>
-                          <p className="absolute -bottom-6 left-1 text-[10px] text-slate-400 font-medium">Must contain 8 characters, one special symbol</p>
+                          <p className="absolute -bottom-6 left-1 text-[10px] text-slate-400 font-medium">
+                            Must contain 8 characters, one special symbol
+                          </p>
                         </div>
 
                         <label className="flex items-center gap-3 cursor-pointer group">
                           <input
                             type="checkbox"
                             checked={adminAcceptedTerms}
-                            onChange={(event) => setAdminAcceptedTerms(event.target.checked)}
+                            onChange={(event) =>
+                              setAdminAcceptedTerms(event.target.checked)
+                            }
                             className="h-4 w-4 rounded border-slate-300"
                             aria-label="Agree to registration terms"
                           />
                           <span className="text-sm font-semibold text-slate-600 group-hover:text-slate-800">
-                            I agree to the terms and confirm all registration details are correct.
+                            I agree to the terms and confirm all registration
+                            details are correct.
                           </span>
                         </label>
 
@@ -648,7 +762,10 @@ export default function Register() {
                             onClick={prevStep}
                             className="flex items-center gap-2 text-slate-400 hover:text-[#0b1731] font-bold text-sm transition-colors group"
                           >
-                            <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
+                            <ArrowLeft
+                              size={16}
+                              className="transition-transform group-hover:-translate-x-1"
+                            />
                             <span>Back</span>
                           </button>
                           <button
@@ -671,7 +788,8 @@ export default function Register() {
                       Define your Venue
                     </h1>
                     <p className="mt-4 text-lg text-slate-600 max-w-[560px] leading-relaxed">
-                      Tell us about the structure and service model of your restaurant to help us tailor your experience.
+                      Tell us about the structure and service model of your
+                      restaurant to help us tailor your experience.
                     </p>
 
                     <div className="mt-10 rounded-[2.5rem] border border-slate-100 bg-white p-8 sm:p-12 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.05)]">
@@ -680,22 +798,26 @@ export default function Register() {
                         onSubmit={(e) => {
                           e.preventDefault();
                           const isStep3Valid =
-                            formData.businessType.trim() !== '' &&
-                            formData.outlets.trim() !== '' &&
+                            formData.businessType.trim() !== "" &&
+                            formData.outlets.trim() !== "" &&
                             formData.serviceModels.length > 0;
 
                           if (!isStep3Valid) {
-                            setError('Please select business type, number of outlets, and at least one service model.');
+                            setError(
+                              "Please select business type, number of outlets, and at least one service model.",
+                            );
                             return;
                           }
-                          setError('');
+                          setError("");
                           nextStep();
                         }}
                       >
                         <div className="space-y-3">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Business Type</label>
+                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
+                            Business Type
+                          </label>
                           <div className="relative group">
-                            <select 
+                            <select
                               name="businessType"
                               required
                               value={formData.businessType}
@@ -712,9 +834,11 @@ export default function Register() {
                         </div>
 
                         <div className="space-y-3">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Number of Outlets</label>
+                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
+                            Number of Outlets
+                          </label>
                           <div className="relative group">
-                            <select 
+                            <select
                               name="outlets"
                               required
                               value={formData.outlets}
@@ -731,22 +855,33 @@ export default function Register() {
                         </div>
 
                         <div className="space-y-4">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">Service Model</label>
+                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
+                            Service Model
+                          </label>
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             {ALLOWED_SERVICE_MODELS.map((model) => (
-                              <label key={model} className="flex items-center gap-3 p-4 rounded-xl border border-slate-50 bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors group">
+                              <label
+                                key={model}
+                                className="flex items-center gap-3 p-4 rounded-xl border border-slate-50 bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors group"
+                              >
                                 <div className="relative flex items-center">
-                                  <input 
-                                    type="checkbox" 
-                                    checked={formData.serviceModels.includes(model)}
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.serviceModels.includes(
+                                      model,
+                                    )}
                                     onChange={() => handleCheckboxChange(model)}
-                                    className="peer w-5 h-5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer" 
+                                    className="peer w-5 h-5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer"
                                   />
                                   <div className="absolute inset-0 bg-[#0b1731] rounded opacity-0 peer-checked:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
-                                    <span className="text-white text-[10px]">✓</span>
+                                    <span className="text-white text-[10px]">
+                                      ✓
+                                    </span>
                                   </div>
                                 </div>
-                                <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900 transition-colors">{SERVICE_MODEL_LABELS[model]}</span>
+                                <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900 transition-colors">
+                                  {SERVICE_MODEL_LABELS[model]}
+                                </span>
                               </label>
                             ))}
                           </div>
@@ -758,12 +893,19 @@ export default function Register() {
                             onClick={prevStep}
                             className="flex items-center gap-2 text-slate-400 hover:text-[#0b1731] font-bold text-sm transition-colors group"
                           >
-                            <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
+                            <ArrowLeft
+                              size={16}
+                              className="transition-transform group-hover:-translate-x-1"
+                            />
                             <span>Back</span>
                           </button>
                           <button
                             type="submit"
-                            disabled={formData.businessType.trim() === '' || formData.outlets.trim() === '' || formData.serviceModels.length === 0}
+                            disabled={
+                              formData.businessType.trim() === "" ||
+                              formData.outlets.trim() === "" ||
+                              formData.serviceModels.length === 0
+                            }
                             className="h-14 px-12 rounded-full bg-[#0b1731] text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-xl shadow-blue-900/20 active:scale-[0.98] flex items-center justify-center gap-3"
                           >
                             <span>Next Step</span>
@@ -781,7 +923,9 @@ export default function Register() {
                       Verify Identity
                     </h1>
                     <p className="mt-4 text-lg text-slate-600 max-w-[560px] leading-relaxed">
-                      Complete the final security check to activate your TILLCLOUD dashboard. We've sent a code to your registered email.
+                      Complete the final security check to activate your
+                      TILLCLOUD dashboard. We've sent a code to your registered
+                      email.
                     </p>
 
                     {error && (
@@ -797,12 +941,17 @@ export default function Register() {
                             <Mail size={20} />
                           </div>
                           <div>
-                            <p className="text-sm font-black text-[#0b1731]">Email OTP</p>
-                            <p className="text-[10px] text-slate-400 font-medium">Enter the {OTP_LENGTH}-digit code sent to {safeEmailDestination || 'your email'}</p>
+                            <p className="text-sm font-black text-[#0b1731]">
+                              Email OTP
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-medium">
+                              Enter the {OTP_LENGTH}-digit code sent to{" "}
+                              {safeEmailDestination || "your email"}
+                            </p>
                           </div>
                         </div>
                         <p className="w-full text-[11px] font-semibold text-slate-500 -mt-2 mb-4">
-                          Use OTP: {TEMP_STATIC_OTP} (for testing)
+                          Check your email inbox for the verification code.
                         </p>
                         <div className="flex gap-2 mb-6">
                           {emailOtp.map((digit, index) => (
@@ -816,45 +965,58 @@ export default function Register() {
                               ref={(element) => {
                                 emailOtpRefs.current[index] = element;
                               }}
-                              onChange={(event) => handleOtpDigitChange(index, event.target.value)}
-                              onKeyDown={(event) => handleOtpKeyDown(index, event)}
+                              onChange={(event) =>
+                                handleOtpDigitChange(index, event.target.value)
+                              }
+                              onKeyDown={(event) =>
+                                handleOtpKeyDown(index, event)
+                              }
                               onPaste={(event) => {
                                 event.preventDefault();
-                                handleOtpPaste(index, event.clipboardData.getData('text'));
+                                handleOtpPaste(
+                                  index,
+                                  event.clipboardData.getData("text"),
+                                );
                               }}
-                              onFocus={() => setEmailOtpError('')}
+                              onFocus={() => setEmailOtpError("")}
                               className="w-10 h-12 rounded-xl bg-[#f0f7ff] border-none text-center font-bold text-[#0b1731] focus:ring-2 focus:ring-cyan-300 focus:bg-white transition-all shadow-inner"
                             />
                           ))}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEmailOtp(TEMP_STATIC_OTP.split(''));
-                            setEmailOtpError('');
-                          }}
-                          className="mb-4 self-start text-[11px] font-bold uppercase tracking-wider text-cyan-600 hover:text-cyan-700"
-                        >
-                          Autofill test OTP
-                        </button>
                         <div className="w-full flex items-center justify-between mb-3">
                           <button
                             type="button"
-                            disabled={isVerifyingEmailOtp || emailOtpVerified || emailOtp.join('').length !== OTP_LENGTH}
+                            disabled={
+                              isVerifyingEmailOtp ||
+                              emailOtpVerified ||
+                              emailOtp.join("").length !== OTP_LENGTH
+                            }
                             onClick={() => {
                               void verifyOtp();
                             }}
                             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                              emailOtpVerified 
-                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
-                                : 'bg-[#0b1731] text-white hover:bg-[#162a4d] shadow-sm'
+                              emailOtpVerified
+                                ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                : "bg-[#0b1731] text-white hover:bg-[#162a4d] shadow-sm"
                             } disabled:opacity-50`}
                           >
-                            {emailOtpVerified ? '✓ Email Verified' : isVerifyingEmailOtp ? 'Verifying...' : 'Verify Email OTP'}
+                            {emailOtpVerified
+                              ? "✓ Email Verified"
+                              : isVerifyingEmailOtp
+                                ? "Verifying..."
+                                : "Verify Email OTP"}
                           </button>
-                          {emailOtpMessage && <span className="text-[10px] font-semibold text-emerald-600">{emailOtpMessage}</span>}
+                          {emailOtpMessage && (
+                            <span className="text-[10px] font-semibold text-emerald-600">
+                              {emailOtpMessage}
+                            </span>
+                          )}
                         </div>
-                        {emailOtpError && <p className="w-full text-[10px] font-semibold text-rose-600 mb-2">{emailOtpError}</p>}
+                        {emailOtpError && (
+                          <p className="w-full text-[10px] font-semibold text-rose-600 mb-2">
+                            {emailOtpError}
+                          </p>
+                        )}
                         <button
                           type="button"
                           disabled={emailResendCountdown > 0}
@@ -864,7 +1026,9 @@ export default function Register() {
                           }}
                           className="text-xs font-bold text-cyan-500 hover:text-cyan-600 transition-colors uppercase tracking-wider ml-auto disabled:text-slate-400 disabled:cursor-not-allowed"
                         >
-                          {emailResendCountdown > 0 ? `Resend in ${emailResendCountdown}s` : 'Resend OTP'}
+                          {emailResendCountdown > 0
+                            ? `Resend in ${emailResendCountdown}s`
+                            : "Resend OTP"}
                         </button>
                       </div>
                     </div>
@@ -875,28 +1039,37 @@ export default function Register() {
                           <input
                             type="checkbox"
                             checked={acceptedTerms}
-                            onChange={(event) => setAcceptedTerms(event.target.checked)}
+                            onChange={(event) =>
+                              setAcceptedTerms(event.target.checked)
+                            }
                             className="peer w-5 h-5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer"
                           />
                           <div className="absolute inset-0 bg-[#0b1731] rounded opacity-0 peer-checked:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
                             <span className="text-white text-[10px]">✓</span>
                           </div>
                         </div>
-                        <span className="text-sm font-bold text-slate-500 group-hover:text-slate-700 transition-colors">I agree to the Terms of Service and Privacy Policy</span>
+                        <span className="text-sm font-bold text-slate-500 group-hover:text-slate-700 transition-colors">
+                          I agree to the Terms of Service and Privacy Policy
+                        </span>
                       </label>
                       <label className="flex items-center gap-4 cursor-pointer group">
                         <div className="relative flex items-center">
                           <input
                             type="checkbox"
                             checked={acceptedComms}
-                            onChange={(event) => setAcceptedComms(event.target.checked)}
+                            onChange={(event) =>
+                              setAcceptedComms(event.target.checked)
+                            }
                             className="peer w-5 h-5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer"
                           />
                           <div className="absolute inset-0 bg-[#0b1731] rounded opacity-0 peer-checked:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
                             <span className="text-white text-[10px]">✓</span>
                           </div>
                         </div>
-                        <span className="text-sm font-bold text-slate-500 group-hover:text-slate-700 transition-colors">I consent to receiving electronic communications regarding my account</span>
+                        <span className="text-sm font-bold text-slate-500 group-hover:text-slate-700 transition-colors">
+                          I consent to receiving electronic communications
+                          regarding my account
+                        </span>
                       </label>
                     </div>
 
@@ -906,12 +1079,20 @@ export default function Register() {
                         onClick={prevStep}
                         className="h-14 px-10 rounded-full border border-slate-100 bg-[#f4faff] text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2 group"
                       >
-                        <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
+                        <ArrowLeft
+                          size={16}
+                          className="transition-transform group-hover:-translate-x-1"
+                        />
                         <span>Back</span>
                       </button>
                       <button
                         type="button"
-                        disabled={isSubmitting || !emailOtpVerified || !acceptedTerms || !acceptedComms}
+                        disabled={
+                          isSubmitting ||
+                          !emailOtpVerified ||
+                          !acceptedTerms ||
+                          !acceptedComms
+                        }
                         onClick={handleSubmit}
                         className="h-14 px-12 rounded-full bg-[#0b1731] text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-2xl shadow-blue-900/30 active:scale-[0.98] flex items-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
                       >
@@ -935,5 +1116,3 @@ export default function Register() {
     </div>
   );
 }
-
-

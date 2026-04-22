@@ -13,8 +13,9 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PermissionsService } from '../permissions/permissions.service';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { PERMISSIONS } from '../auth/permissions/permissions.constants';
+import { PERMISSIONS, buildPermissionMap, flattenPermissionMap } from '../auth/permissions/permissions.constants';
 import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
 
 type AuthenticatedRequest = {
@@ -42,7 +43,10 @@ const getUserId = (req: AuthenticatedRequest) => {
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   @Post(':restaurantId')
   @RequirePermissions(PERMISSIONS.STAFF_INVITE)
@@ -57,6 +61,43 @@ export class UsersController {
   @RequirePermissions(PERMISSIONS.STAFF_EDIT)
   findAll(@Req() req: AuthenticatedRequest) {
     return this.usersService.findAll(getRestaurantId(req));
+  }
+
+  @Get(':id/permissions')
+  @RequirePermissions(PERMISSIONS.SETTINGS_CONFIGURE_PERMISSIONS)
+  getUserPermissions(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.permissionsService.getStaffPermissions(getRestaurantId(req), id);
+  }
+
+  @Patch(':id/permissions')
+  @RequirePermissions(PERMISSIONS.SETTINGS_CONFIGURE_PERMISSIONS)
+  async updateUserPermissions(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: { permissions: string[] },
+  ) {
+    const restaurantId = getRestaurantId(req);
+    console.log(`[Permissions] Updating user ${id} in restaurant ${restaurantId}`);
+    console.log(`[Permissions] Payload:`, body.permissions);
+
+    // Convert flat array ["module:action"] to Map { module: ["action"] }
+    const permissionMap = buildPermissionMap(body.permissions || []);
+    
+    const result = await this.permissionsService.updateStaffPermissions(
+      restaurantId,
+      id,
+      permissionMap,
+    );
+
+    console.log(`[Permissions] Stored permissions for ${id}:`, result.permissions);
+
+    return {
+      userId: result.staffId,
+      permissions: flattenPermissionMap(result.permissions),
+    };
   }
 
   @Get('user/:id')

@@ -1,5 +1,22 @@
 export type PermissionMap = Record<string, string[]>;
 
+export const buildPermissionMap = (codes: string[] | null | undefined): PermissionMap => {
+  const grouped: PermissionMap = {};
+  if (!codes || !Array.isArray(codes)) return grouped;
+
+  for (const code of codes) {
+    const [module, action] = code.split(':');
+    if (!module || !action) continue;
+    
+    grouped[module] = grouped[module] || [];
+    if (!grouped[module].includes(action)) {
+      grouped[module].push(action);
+    }
+  }
+
+  return grouped;
+};
+
 export type PermissionRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
 
 export type PermissionGroup =
@@ -15,81 +32,152 @@ export type PermissionGroup =
   | 'SETTINGS';
 
 export const FRONTEND_PERMISSIONS = {
-  BILLING_CREATE: 'BILLING:CREATE_BILL',
-  BILLING_VOID: 'BILLING:VOID_BILL',
-  BILLING_DISCOUNT: 'BILLING:APPLY_MANUAL_DISCOUNT',
-  BILLING_VIEW_OPEN: 'BILLING:VIEW_ALL_OPEN_BILLS',
+  DASHBOARD_VIEW: 'dashboard:view',
 
-  PAYMENTS_CASH: 'PAYMENTS:CASH',
-  PAYMENTS_CARD: 'PAYMENTS:CARD',
-  PAYMENTS_SPLIT: 'PAYMENTS:SPLIT',
-  PAYMENTS_DELIVERY_PAID: 'PAYMENTS:MARK_DELIVERY_AS_PAID',
+  BILLING_CREATE: 'pos:create',
+  BILLING_VOID: 'pos:delete',
+  BILLING_DISCOUNT: 'pos:edit',
+  BILLING_VIEW_OPEN: 'pos:view',
 
-  RECEIPTS_PRINT: 'RECEIPTS:PRINT_RECEIPT',
-  RECEIPTS_SMS: 'RECEIPTS:SEND_SMS_RECEIPT',
+  PAYMENTS_CASH: 'pos:edit',
+  PAYMENTS_CARD: 'pos:edit',
+  PAYMENTS_SPLIT: 'pos:edit',
+  PAYMENTS_DELIVERY_PAID: 'pos:edit',
 
-  KITCHEN_SEND: 'KITCHEN:SAVE_AND_SEND_TO_KITCHEN',
-  KITCHEN_VIEW: 'KITCHEN:VIEW_KITCHEN_DASHBOARD',
-  KITCHEN_MARK_READY: 'KITCHEN:MARK_READY',
-  KITCHEN_BUMP: 'KITCHEN:BUMP',
-  KITCHEN_RECALL: 'KITCHEN:RECALL',
+  RECEIPTS_PRINT: 'pos:view',
+  RECEIPTS_SMS: 'pos:edit',
 
-  CUSTOMERS_LOOKUP: 'CUSTOMERS:LOOK_UP_CUSTOMER',
-  CUSTOMERS_VIEW_PROFILES: 'CUSTOMERS:VIEW_CUSTOMER_PROFILES',
-  CUSTOMERS_VIEW_HISTORY: 'CUSTOMERS:VIEW_PURCHASE_HISTORY',
-  CUSTOMERS_ADJUST_LOYALTY: 'CUSTOMERS:ADJUST_LOYALTY_POINTS_MANUALLY',
+  KITCHEN_SEND: 'kitchen:edit',
+  KITCHEN_VIEW: 'kitchen:view',
+  KITCHEN_MARK_READY: 'kitchen:edit',
+  KITCHEN_BUMP: 'kitchen:edit',
+  KITCHEN_RECALL: 'kitchen:edit',
 
-  MENU_ADD_EDIT_ITEMS: 'MENU:ADD_EDIT_ITEMS',
-  MENU_DELETE_ITEMS: 'MENU:DELETE_ITEMS',
-  MENU_ADD_EDIT_CATEGORIES: 'MENU:ADD_EDIT_CATEGORIES',
-  MENU_DELETE_CATEGORIES: 'MENU:DELETE_CATEGORIES',
-  MENU_HIDE_SHOW_ITEMS: 'MENU:HIDE_SHOW_ITEMS',
+  CUSTOMERS_LOOKUP: 'customers:view',
+  CUSTOMERS_VIEW_PROFILES: 'customers:view',
+  CUSTOMERS_VIEW_HISTORY: 'customers:view',
+  CUSTOMERS_ADJUST_LOYALTY: 'customers:edit',
 
-  INVENTORY_VIEW_STOCK: 'INVENTORY:VIEW_STOCK',
-  INVENTORY_ADJUST_STOCK: 'INVENTORY:MANUALLY_ADJUST_STOCK',
-  INVENTORY_VIEW_LOW_STOCK: 'INVENTORY:VIEW_LOW_STOCK_ALERTS',
+  MENU_ADD_EDIT_ITEMS: 'menu:edit',
+  MENU_DELETE_ITEMS: 'menu:delete',
+  MENU_ADD_EDIT_CATEGORIES: 'menu:edit',
+  MENU_DELETE_CATEGORIES: 'menu:delete',
+  MENU_HIDE_SHOW_ITEMS: 'menu:view',
 
-  REPORTS_VIEW: 'REPORTS:VIEW_REPORTS',
-  REPORTS_EXPORT: 'REPORTS:EXPORT_REPORTS',
+  INVENTORY_VIEW_STOCK: 'inventory:view',
+  INVENTORY_ADJUST_STOCK: 'inventory:edit',
+  INVENTORY_VIEW_LOW_STOCK: 'inventory:view',
 
-  STAFF_INVITE: 'STAFF:INVITE_STAFF',
-  STAFF_EDIT: 'STAFF:EDIT_STAFF',
-  STAFF_DEACTIVATE: 'STAFF:DEACTIVATE_STAFF',
-  STAFF_DELETE: 'STAFF:DELETE_STAFF',
+  REPORTS_VIEW: 'reports:view',
+  REPORTS_EXPORT: 'reports:create',
 
-  SETTINGS_VIEW: 'SETTINGS:VIEW_SETTINGS',
-  SETTINGS_EDIT_PROFILE: 'SETTINGS:EDIT_RESTAURANT_PROFILE',
-  SETTINGS_EDIT_TAX: 'SETTINGS:EDIT_TAX',
-  SETTINGS_EDIT_LOYALTY: 'SETTINGS:EDIT_LOYALTY',
-  SETTINGS_TYRO: 'SETTINGS:SET_UP_TYRO',
-  SETTINGS_SMS_CREDITS: 'SETTINGS:PURCHASE_SMS_CREDITS',
-  SETTINGS_TERMINALS: 'SETTINGS:MANAGE_TERMINALS',
-  SETTINGS_CONFIGURE_PERMISSIONS: 'SETTINGS:CONFIGURE_ROLE_PERMISSIONS',
+  STAFF_INVITE: 'staff:create',
+  STAFF_VIEW: 'staff:view',
+  STAFF_EDIT: 'staff:edit',
+  STAFF_DEACTIVATE: 'staff:edit',
+  STAFF_DELETE: 'staff:delete',
+
+  SETTINGS_VIEW: 'settings:view',
+  SETTINGS_EDIT_PROFILE: 'settings:edit',
+  SETTINGS_EDIT_TAX: 'settings:edit',
+  SETTINGS_EDIT_LOYALTY: 'settings:edit',
+  SETTINGS_TYRO: 'settings:edit',
+  SETTINGS_SMS_CREDITS: 'settings:edit',
+  SETTINGS_TERMINALS: 'settings:edit',
+  SETTINGS_CONFIGURE_PERMISSIONS: 'staff:full_access',
 } as const;
 
+export const getLandingPage = (
+  _permissions: PermissionMap | null,
+  role?: string,
+): string => {
+  if (role === 'CASHIER') {
+    return '/welcome';
+  }
+
+  if (role === 'KITCHEN') {
+    return '/kitchen';
+  }
+
+  return '/dashboard';
+};
+
+const GROUP_TO_MODULE: Record<PermissionGroup, string> = {
+  BILLING: 'pos',
+  PAYMENTS: 'pos',
+  RECEIPTS: 'pos',
+  KITCHEN: 'kitchen',
+  CUSTOMERS: 'customers',
+  MENU: 'menu',
+  INVENTORY: 'inventory',
+  REPORTS: 'reports',
+  STAFF: 'staff',
+  SETTINGS: 'settings',
+};
+
 export const hasPermissionCode = (
-  permissions: PermissionMap | null | undefined,
+  permissions: PermissionMap | string[] | null | undefined,
   code: string,
+): boolean => {
+  if (!permissions) return false;
+  
+  if (Array.isArray(permissions)) {
+    if (permissions.includes(code)) return true;
+    const [module] = code.split(':');
+    return permissions.includes(`${module}:full_access`);
+  }
+
+  const [module, action] = code.split(':');
+  if (!module || !action) {
+    return false;
+  }
+
+  return canAccess(permissions, module, action);
+};
+
+export const canAccess = (
+  permissions: PermissionMap | string[] | null | undefined,
+  module: string,
+  action: string,
 ): boolean => {
   if (!permissions) {
     return false;
   }
 
-  const [group, action] = code.split(':');
-  if (!group || !action) {
-    return false;
+  if (Array.isArray(permissions)) {
+    return permissions.includes(`${module}:${action}`) || permissions.includes(`${module}:full_access`);
   }
 
-  return (permissions[group] || []).includes(action);
+  const modulePermissions = permissions[module] || [];
+  return (
+    modulePermissions.includes('full_access') ||
+    modulePermissions.includes(action)
+  );
 };
 
 export const isGroupEnabled = (
-  permissions: PermissionMap | null | undefined,
+  permissions: PermissionMap | string[] | null | undefined,
   group: PermissionGroup,
 ): boolean => {
   if (!permissions) {
     return false;
   }
 
-  return (permissions[group] || []).length > 0;
+  const moduleKey = GROUP_TO_MODULE[group];
+
+  // Handle case where permissions are a string array (e.g. from Admin role)
+  if (Array.isArray(permissions)) {
+    return (
+      permissions.includes(`${moduleKey}:view`) ||
+      permissions.includes(`${moduleKey}:full_access`)
+    );
+  }
+
+  // Handle case where permissions are a PermissionMap object
+  const actions = permissions[moduleKey] || [];
+  return actions.includes('view') || actions.includes('full_access') || actions.length > 0;
+};
+
+export const getPosExitRoute = (role?: string): string => {
+  return role === 'CASHIER' ? '/welcome' : '/dashboard';
 };

@@ -1,8 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import api, { configureApiAuthHandlers } from '../services/api';
 import {
+  canAccess as canAccessPermission,
   hasPermissionCode,
   isGroupEnabled,
+  getLandingPage,
   type PermissionGroup,
   type PermissionMap,
 } from '../permissions';
@@ -16,6 +19,7 @@ interface User {
   role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
   restaurantId: string;
   onboardingCompleted: boolean;
+  permissions: string[];
 }
 
 export type AuthMode = 'dashboard' | 'pos' | 'kitchen';
@@ -32,13 +36,16 @@ interface AuthContextType {
     user: User,
     mode?: AuthMode,
     posSessionToken?: string,
-  ) => Promise<void>;
+  ) => Promise<PermissionMap | null>;
   logout: (skipApiLogout?: boolean) => Promise<void>;
   isLoading: boolean;
   updateOnboardingStatus: (status: boolean) => void;
   refreshAccessToken: () => Promise<string | null>;
+  refreshPermissions: () => Promise<void>;
   hasPermission: (code: string) => boolean;
+  canAccess: (module: string, action: string) => boolean;
   hasModuleAccess: (group: PermissionGroup) => boolean;
+  getLandingRoute: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -75,37 +82,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const hasHydratedRef = useRef(false);
+  const accessTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    accessTokenRef.current = accessToken;
+  }, [accessToken]);
 
   const isNetworkError = (error: unknown): boolean => {
     const axiosLikeError = error as { response?: unknown; code?: string } | undefined;
     return !axiosLikeError?.response;
   };
 
-  const fetchRolePermissions = async (
-    role: User['role'],
+  const fetchCurrentUser = async (
     tokenOverride?: string,
-  ): Promise<PermissionMap | null> => {
-    if (role === 'ADMIN') {
-      try {
-        const response = await api.get(`/permissions/${role}`, {
-          headers: tokenOverride
-            ? { Authorization: `Bearer ${tokenOverride}` }
-            : undefined,
-        });
-        return response.data?.permissions || null;
-      } catch {
-        return null;
-      }
-    }
-
+  ): Promise<{ user: User } | null> => {
     try {
-      const response = await api.get(`/permissions/${role}`, {
+      console.log('[Auth] Fetching /auth/me to sync permissions and status');
+      const response = await api.get('/auth/me', {
         headers: tokenOverride
           ? { Authorization: `Bearer ${tokenOverride}` }
           : undefined,
       });
-      return response.data?.permissions || null;
-    } catch {
+
+      return response.data;
+    } catch (err: any) {
+      console.error('[Auth] Token refresh failed:', err?.response?.status === 401 ? 'Unauthorized (401)' : err.message);
+      if (err?.response?.status === 401) {
+        await logout(true);
+      }
       return null;
     }
   };
@@ -158,36 +162,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await api.post('/auth/refresh', {
         posSessionToken: currentMode === 'pos' ? posSessionToken : undefined,
       });
+      
       const nextToken = response.data.access_token as string;
-      const nextUser = response.data.user as User;
-      const onboardingCompleted = await fetchOnboardingStatus(nextToken);
-      const resolvedUser =
-        onboardingCompleted === null
-          ? nextUser
-          : { ...nextUser, onboardingCompleted };
-
       setAccessToken(nextToken);
-      setUser(resolvedUser);
+      
+      const sessionData = await fetchCurrentUser(nextToken);
+      if (!sessionData) {
+        throw new Error('Could not refresh session data');
+      }
+
+      const { user: refreshedUser } = sessionData;
+      setUser(refreshedUser);
       setMode(currentMode || 'dashboard');
-      localStorage.setItem(USER_KEY, JSON.stringify(resolvedUser));
+      
+      localStorage.setItem(USER_KEY, JSON.stringify(refreshedUser));
       if (currentMode) {
         localStorage.setItem(MODE_KEY, currentMode);
       }
 
-      setPermissionsLoading(true);
-      const loadedPermissions = await fetchRolePermissions(resolvedUser.role, nextToken);
-      setPermissions(loadedPermissions);
-      if (loadedPermissions) {
-        localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(loadedPermissions));
-      } else {
-        localStorage.removeItem(PERMISSIONS_KEY);
+      setPermissions(refreshedUser.permissions || []);
+      if (refreshedUser.permissions) {
+        localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(refreshedUser.permissions));
       }
-      setPermissionsLoading(false);
-
+      
       return nextToken;
     } catch (error: unknown) {
       if (isNetworkError(error)) {
-        // Backend is unreachable (for example not started yet). Avoid clearing local auth state.
         return null;
       }
       await logout(true);
@@ -197,13 +197,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     configureApiAuthHandlers({
-      getAccessToken: () => accessToken,
+      getAccessToken: () => accessTokenRef.current,
       refreshAccessToken,
       onLogout: () => {
         void logout(true);
       },
     });
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => {
     if (hasHydratedRef.current) {
@@ -226,7 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (storedPermissions) {
         try {
-          setPermissions(JSON.parse(storedPermissions) as PermissionMap);
+          setPermissions(JSON.parse(storedPermissions) as string[]);
         } catch {
           localStorage.removeItem(PERMISSIONS_KEY);
         }
@@ -239,18 +239,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void hydrateAuth();
   }, []);
 
+  const location = useLocation();
+  const lastRefreshRef = useRef<number>(0);
+
+  const isAuthenticated = !!user;
+
+  useEffect(() => {
+    // Refresh permissions on navigation to ensure real-time propagation
+    // Throttle to once every 10 seconds to avoid spamming the server
+    if (isAuthenticated && Date.now() - lastRefreshRef.current > 10000) {
+      console.log(`[Auth] Navigation detected to ${location.pathname}, refreshing metadata`);
+      lastRefreshRef.current = Date.now();
+      void (async () => {
+        const sessionData = await fetchCurrentUser(accessToken || undefined);
+        if (sessionData?.user) {
+          setUser(sessionData.user);
+          setPermissions(sessionData.user.permissions || []);
+          localStorage.setItem(USER_KEY, JSON.stringify(sessionData.user));
+          localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(sessionData.user.permissions));
+        }
+      })();
+    }
+  }, [location.pathname, isAuthenticated, accessToken]);
+
   const login = async (
     token: string,
     userData: User,
     loginMode: AuthMode = 'dashboard',
     posSessionToken?: string,
-  ) => {
+  ): Promise<any> => {
     setAccessToken(token);
-    const onboardingCompleted = await fetchOnboardingStatus(token);
-    const resolvedUser =
-      onboardingCompleted === null
-        ? userData
-        : { ...userData, onboardingCompleted };
+    
+    // Get full user profile including permissions
+    const sessionData = await fetchCurrentUser(token);
+    const resolvedUser = sessionData?.user || userData;
 
     setUser(resolvedUser);
     setMode(loginMode);
@@ -263,15 +285,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem(POS_SESSION_KEY);
     }
 
-    setPermissionsLoading(true);
-    const loadedPermissions = await fetchRolePermissions(resolvedUser.role, token);
-    setPermissions(loadedPermissions);
-    if (loadedPermissions) {
-      localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(loadedPermissions));
-    } else {
-      localStorage.removeItem(PERMISSIONS_KEY);
+    setPermissions(resolvedUser.permissions || []);
+    if (resolvedUser.permissions) {
+      localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(resolvedUser.permissions));
     }
-    setPermissionsLoading(false);
+
+    console.log(`[Auth] Logged in user ${resolvedUser.email} with ${resolvedUser.permissions?.length} permissions`);
+
+    return resolvedUser.permissions;
   };
 
   const updateOnboardingStatus = (status: boolean) => {
@@ -283,16 +304,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasPermission = (code: string) => {
-    if (user?.role === 'ADMIN') {
-      return true;
-    }
     return hasPermissionCode(permissions, code);
   };
 
+  const canAccess = (module: string, action: string) => {
+    return canAccessPermission(permissions, module, action);
+  };
+
   const hasModuleAccess = (group: PermissionGroup) => {
-    if (user?.role === 'ADMIN') {
-      return true;
-    }
     return isGroupEnabled(permissions, group);
   };
 
@@ -310,8 +329,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         updateOnboardingStatus,
         refreshAccessToken,
+        refreshPermissions: async () => {
+          if (!accessToken) return;
+          console.log('[Auth] Manually refreshing permissions');
+          try {
+            const sessionData = await fetchCurrentUser(accessToken);
+            if (sessionData?.user) {
+              const fetchedPerms = sessionData.user.permissions || [];
+              console.log(`[Auth] Sync successful. Permissions (${fetchedPerms.length}):`, fetchedPerms);
+              setUser(sessionData.user);
+              setPermissions(fetchedPerms);
+              localStorage.setItem(USER_KEY, JSON.stringify(sessionData.user));
+              localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(sessionData.user.permissions));
+            }
+          } catch (err: any) {
+            console.error('[Auth] Permission sync failed:', err?.response?.status || err.message);
+            if (err?.response?.status === 401) {
+              console.warn('[Auth] Session invalid during sync, logging out...');
+              await logout(true);
+            }
+          }
+        },
         hasPermission,
+        canAccess,
         hasModuleAccess,
+        getLandingRoute: () => {
+          if (user && !user.onboardingCompleted) {
+            return '/onboarding';
+          }
+          return getLandingPage(permissions, user?.role);
+        },
       }}
     >
       {children}

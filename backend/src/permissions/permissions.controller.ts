@@ -19,6 +19,7 @@ import { PermissionsService } from './permissions.service';
 
 type AuthenticatedRequest = {
   user: {
+    userId: string;
     role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
     restaurantId: string;
   };
@@ -34,6 +35,14 @@ type AuthenticatedRequest = {
 )
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
+
+  @Get('me')
+  getMyPermissions(@Req() req: AuthenticatedRequest) {
+    return this.permissionsService.getMyPermissions(
+      req.user.restaurantId,
+      req.user.userId,
+    );
+  }
 
   @Get('catalog')
   @RequirePermissions(PERMISSIONS.SETTINGS_CONFIGURE_PERMISSIONS)

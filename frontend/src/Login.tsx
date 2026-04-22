@@ -3,8 +3,9 @@ import { Eye, Loader2, MessageSquare, Mail, Smartphone, ArrowLeft } from "lucide
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import api from "./services/api";
+import { getLandingPage } from "./permissions";
 
-const TEMP_STATIC_OTP = '526252';
+
 
 type LoginMethod = "password" | "otp";
 type OtpStep = "request" | "verify";
@@ -40,7 +41,11 @@ export default function Login() {
     try {
       const response = await api.post('/auth/login', { email, password });
       await login(response.data.access_token, response.data.user);
-      navigate(response.data.user.onboardingCompleted ? '/dashboard' : '/onboarding');
+      navigate(
+        response.data.user.onboardingCompleted
+          ? getLandingPage(null, response.data.user.role)
+          : '/onboarding',
+      );
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid credentials. Please try again.");
     } finally {
@@ -53,8 +58,7 @@ export default function Login() {
     setError("");
     setIsSubmitting(true);
     try {
-      const channel = email.includes("@") ? "email" : "mobile";
-      await api.post('/auth/otp/send', { channel, destination: email });
+      await api.post('/auth/otp/send', { email });
       setOtpStep("verify");
       setCountdown(60);
     } catch (err: any) {
@@ -69,10 +73,15 @@ export default function Login() {
     setError("");
     setIsSubmitting(true);
     try {
-      const channel = email.includes("@") ? "email" : "mobile";
-      const response = await api.post('/auth/verify-otp', { channel, destination: email, code: otp });
-      await login(response.data.access_token, response.data.user);
-      navigate(response.data.user.onboardingCompleted ? '/dashboard' : '/onboarding');
+      const response = await api.post('/auth/verify-otp', { email, otp });
+      if (response.data?.access_token && response.data?.user) {
+        await login(response.data.access_token, response.data.user);
+        navigate(
+          response.data.user.onboardingCompleted
+            ? getLandingPage(null, response.data.user.role)
+            : '/onboarding',
+        );
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid OTP");
     } finally {
@@ -243,7 +252,7 @@ export default function Login() {
                         Enter 6-digit Code
                       </label>
                       <p className="text-[11px] font-semibold text-slate-500 ml-1">
-                        Use OTP: {TEMP_STATIC_OTP} (for testing)
+                        We've sent a 6-digit code to your email.
                       </p>
                       <div className="relative">
                         <MessageSquare className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
@@ -261,16 +270,7 @@ export default function Login() {
                           className="w-full h-14 pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-[20px] font-black tracking-[0.35em] placeholder:text-slate-200 placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all text-center sm:h-[72px] sm:text-[24px] sm:tracking-[0.5em]"
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOtp(TEMP_STATIC_OTP);
-                          setError('');
-                        }}
-                        className="text-[11px] font-bold uppercase tracking-wider text-sky-600 hover:text-sky-700"
-                      >
-                        Autofill test OTP
-                      </button>
+
                     </div>
 
                     <div className="flex justify-center flex-col items-center gap-2">

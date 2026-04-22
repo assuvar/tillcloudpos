@@ -18,7 +18,7 @@ export type DashboardView = {
 
 export const DASHBOARD_VIEWS: DashboardView[] = [
   { id: 'home', label: 'Home' },
-  { id: 'orders', label: 'Orders', permissionGroup: 'BILLING' },
+  { id: 'orders', label: 'POS', permissionGroup: 'BILLING' },
   { id: 'menu', label: 'Menu', permissionGroup: 'MENU' },
   { id: 'staff', label: 'Staff', permissionGroup: 'STAFF' },
   { id: 'inventory', label: 'Inventory', permissionGroup: 'INVENTORY' },

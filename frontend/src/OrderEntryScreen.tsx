@@ -12,16 +12,17 @@ import {
   Send,
   ShoppingBag,
   Trash2,
-  UtensilsCrossed,
   X,
 } from 'lucide-react';
 import CustomerModal from './components/CustomerModal';
 import LoyaltyModal from './components/LoyaltyModal';
 import { useAuth } from './context/AuthContext';
 import { usePosCart } from './context/PosCartContext';
-import { FRONTEND_PERMISSIONS } from './permissions';
+import { FRONTEND_PERMISSIONS, getPosExitRoute } from './permissions';
 import api from './services/api';
 import { ALLOWED_SERVICE_MODELS, type ServiceModel } from './serviceModels';
+import PosLayout from './components/PosLayout';
+import ServiceModeModal from './components/ServiceModeModal';
 
 interface CustomerData {
   name: string;
@@ -125,20 +126,14 @@ export default function OrderEntryScreen() {
       void loadBill(billId);
       return;
     }
+  }, [billId]);
 
-    if (!activeBill && !isCreatingBill) {
-      const createDraftBill = async () => {
-        try {
-          setIsCreatingBill(true);
-          await createBillSession(effectiveOrderType, orderDetail || null);
-        } finally {
-          setIsCreatingBill(false);
-        }
-      };
-
-      void createDraftBill();
+  // If no bill is active and no session is being created, redirect to terminal entry
+  useEffect(() => {
+    if (!activeBill && !isLoading && !isCreatingBill && !billId) {
+      navigate('/pos');
     }
-  }, [billId, activeBill?.id, effectiveOrderType, orderDetail]);
+  }, [activeBill, isLoading, isCreatingBill, billId, navigate]);
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
   const visibleItems = useMemo(
@@ -187,7 +182,7 @@ export default function OrderEntryScreen() {
   };
 
   const handleItemClick = async (item: any) => {
-    if (!item.isActive || item.isOutOfStock) {
+    if (!item.isActive || item.isOutOfStock || !activeBill) {
       return;
     }
 
@@ -239,9 +234,10 @@ export default function OrderEntryScreen() {
   const detailLabel = effectiveOrderType === 'DINE_IN' ? 'Table' : effectiveOrderType === 'PICKUP' ? 'Pickup' : 'Reference';
   const detailValue = orderDetail || activeBill?.tableNumber || '';
 
+
   return (
-    <div className="h-[100dvh] w-screen overflow-hidden bg-[#f8fafc] font-sans text-slate-900 flex flex-col">
-      <header className="fixed left-0 right-0 top-0 z-30 flex h-20 items-center justify-between border-b border-slate-100 bg-white px-8">
+    <PosLayout>
+      <header className="sticky top-0 z-40 flex h-20 w-full shrink-0 items-center justify-between border-b border-slate-100 bg-white/80 px-8 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <div className="text-xl font-black tracking-tighter text-[#0b1b3d]">TILLCLOUD</div>
           <div className="h-6 w-px bg-slate-100" />
@@ -269,7 +265,7 @@ export default function OrderEntryScreen() {
             <button className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-50">
               <HelpCircle size={20} />
             </button>
-            <button onClick={() => navigate('/pos/login')} className="flex h-10 w-10 items-center justify-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50">
+            <button onClick={() => navigate(getPosExitRoute(user?.role))} className="flex h-10 w-10 items-center justify-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50">
               <LogOut size={20} />
             </button>
           </div>
@@ -389,7 +385,7 @@ export default function OrderEntryScreen() {
         </aside>
 
         <aside className="custom-scrollbar min-h-0 flex w-[450px] shrink-0 flex-col overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm">
-          <div className="border-b border-slate-50 p-8">
+          <div className="border-b border-slate-50 p-6">
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <h2 className="flex items-center gap-3 text-2xl font-black capitalize text-[#0c1424]">
@@ -426,16 +422,16 @@ export default function OrderEntryScreen() {
             )}
           </div>
 
-          <div className="custom-scrollbar flex-1 min-h-0 space-y-6 overflow-y-auto p-8">
+          <div className="custom-scrollbar flex-1 min-h-0 space-y-4 overflow-y-auto p-6">
             {billItems.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center opacity-20">
-                <ShoppingBag size={48} className="mb-4" />
-                <p className="text-sm font-black uppercase tracking-widest">Bag is Empty</p>
+                <ShoppingBag size={42} className="mb-4" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#0c1424]">Bag is Empty</p>
               </div>
             ) : (
               <>
                 {billItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-4 rounded-2xl border border-transparent px-2 py-2 transition-colors hover:border-slate-100 hover:bg-slate-50/60">
+                  <div key={item.id} className="flex items-center justify-between gap-4 rounded-2xl border border-transparent px-2 py-1.5 transition-colors hover:border-slate-100 hover:bg-slate-50/60">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-black text-[#0c1424]">{item.quantity} × {item.name}</span>
@@ -483,7 +479,7 @@ export default function OrderEntryScreen() {
             )}
           </div>
 
-          <div className="border-t border-slate-100 bg-slate-50/50 p-8">
+          <div className="border-t border-slate-100 bg-slate-50/30 p-6">
             <div className="mb-10 space-y-4">
               <div className="flex items-center justify-between px-1 text-sm font-bold text-slate-500">
                 <span>Subtotal</span>
@@ -507,7 +503,7 @@ export default function OrderEntryScreen() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <button className="flex h-12 items-center justify-center gap-2 rounded-[22px] bg-[#dcf0ff] px-3 font-black text-[11px] uppercase tracking-widest text-blue-700 transition-all active:scale-95 hover:bg-blue-200">
                 <Send size={18} />
                 Split Bill
@@ -530,47 +526,6 @@ export default function OrderEntryScreen() {
         </aside>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-30 flex h-20 items-center justify-between bg-[#0c1424] px-8 text-white">
-        <nav className="flex h-full items-center gap-8">
-          <button onClick={() => navigate('/pos')} className="group relative flex flex-col items-center gap-1">
-            <ShoppingBag size={20} className="text-[#5dc7ec]" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#5dc7ec]">Orders</span>
-            <div className="absolute bottom-0 h-0.5 w-6 bg-[#5dc7ec]" />
-          </button>
-          <button className="flex flex-col items-center gap-1 opacity-40 transition-opacity hover:opacity-100">
-            <LayoutGrid size={20} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Tables</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 opacity-40 transition-opacity hover:opacity-100">
-            <UtensilsCrossed size={20} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
-          </button>
-        </nav>
-
-        <div className="flex h-full items-center gap-6">
-          {loyaltyDiscount > 0 ? (
-            <div className="text-[10px] font-black uppercase tracking-widest text-[#5dc7ec] opacity-60">Loyalty Points Deducted</div>
-          ) : null}
-          <button className="h-12 rounded-full border border-white/10 bg-white/5 px-8 text-xs font-black uppercase tracking-widest hover:bg-white/10">
-            Switch User
-          </button>
-          <HelpCircle size={20} className="text-white/40" />
-        </div>
-      </footer>
-
-      {showCustomerModal ? (
-        <CustomerModal onClose={() => setShowCustomerModal(false)} onSelect={handleCustomerSelect} />
-      ) : null}
-
-      {showLoyaltyModal && customer ? (
-        <LoyaltyModal
-          customer={customer}
-          onApplyDiscount={handleApplyDiscount}
-          onSkip={handleSkipLoyalty}
-          onClose={handleSkipLoyalty}
-        />
-      ) : null}
-
       {toastMessage ? (
         <div className="fixed left-1/2 top-28 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/5 bg-[#0c1424] px-6 py-4 text-white shadow-2xl shadow-black/20">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500">
@@ -582,6 +537,22 @@ export default function OrderEntryScreen() {
           </button>
         </div>
       ) : null}
-    </div>
+
+      {showCustomerModal ? (
+        <CustomerModal
+          onClose={() => setShowCustomerModal(false)}
+          onSelect={handleCustomerSelect}
+        />
+      ) : null}
+
+      {showLoyaltyModal && customer ? (
+        <LoyaltyModal
+          customer={customer}
+          onApplyDiscount={handleApplyDiscount}
+          onSkip={handleSkipLoyalty}
+          onClose={() => setShowLoyaltyModal(false)}
+        />
+      ) : null}
+    </PosLayout>
   );
 }

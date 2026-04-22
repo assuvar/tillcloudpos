@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, Clock3, RefreshCw, Table2 } from 'lucide-react';
 import api from './services/api';
 import { useAuth } from './context/AuthContext';
+import { FRONTEND_PERMISSIONS } from './permissions';
 
 interface KitchenOrderItem {
   id: string;
@@ -30,7 +31,7 @@ export default function KitchenDisplay() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const canViewKitchen = hasPermission('KITCHEN:VIEW_KITCHEN_DASHBOARD');
+  const canViewKitchen = hasPermission(FRONTEND_PERMISSIONS.KITCHEN_VIEW);
 
   const loadOrders = async () => {
     try {
