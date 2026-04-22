@@ -37,7 +37,9 @@ export type PermissionModule = (typeof PERMISSION_MODULES)[number];
 export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
 export type PermissionCode = `${PermissionModule}:${PermissionAction}`;
 
-export type PermissionMap = Partial<Record<PermissionModule, PermissionAction[]>>;
+export type PermissionMap = Partial<
+  Record<PermissionModule, PermissionAction[]>
+>;
 
 const toCode = (
   module: PermissionModule,
@@ -144,8 +146,11 @@ export const PERMISSION_CATALOG: Record<
   },
 };
 
-const allPermissionCodes: PermissionCode[] = PERMISSION_MODULES.flatMap((module) =>
-  PERMISSION_CATALOG[module].actions.map((action) => toCode(module, action.key)),
+const allPermissionCodes: PermissionCode[] = PERMISSION_MODULES.flatMap(
+  (module) =>
+    PERMISSION_CATALOG[module].actions.map((action) =>
+      toCode(module, action.key),
+    ),
 );
 
 const managerDefaultCodes: PermissionCode[] = [
@@ -257,7 +262,10 @@ export const flattenPermissionMap = (
   const output: PermissionCode[] = [];
 
   for (const [module, actions] of Object.entries(map)) {
-    if (!PERMISSION_MODULES.includes(module as PermissionModule) || !Array.isArray(actions)) {
+    if (
+      !PERMISSION_MODULES.includes(module as PermissionModule) ||
+      !Array.isArray(actions)
+    ) {
       continue;
     }
 
@@ -280,7 +288,10 @@ export const buildPermissionMap = (codes: string[]): PermissionMap => {
       continue;
     }
 
-    const [module, action] = code.split(':') as [PermissionModule, PermissionAction];
+    const [module, action] = code.split(':') as [
+      PermissionModule,
+      PermissionAction,
+    ];
     grouped[module] = grouped[module] || [];
     if (!grouped[module]?.includes(action)) {
       grouped[module]?.push(action);
@@ -297,13 +308,20 @@ export const sanitizePermissionMap = (map: unknown): PermissionMap => {
 
   const result: PermissionMap = {};
 
-  for (const [module, actions] of Object.entries(map as Record<string, unknown>)) {
-    if (!PERMISSION_MODULES.includes(module as PermissionModule) || !Array.isArray(actions)) {
+  for (const [module, actions] of Object.entries(
+    map as Record<string, unknown>,
+  )) {
+    if (
+      !PERMISSION_MODULES.includes(module as PermissionModule) ||
+      !Array.isArray(actions)
+    ) {
       continue;
     }
 
     const allowedActions = new Set(
-      PERMISSION_CATALOG[module as PermissionModule].actions.map((action) => action.key),
+      PERMISSION_CATALOG[module as PermissionModule].actions.map(
+        (action) => action.key,
+      ),
     );
 
     const filtered = actions
@@ -342,7 +360,10 @@ export const hasPermissionCode = (
     return true;
   }
 
-  const [requiredModule] = required.split(':') as [PermissionModule, PermissionAction];
+  const [requiredModule] = required.split(':') as [
+    PermissionModule,
+    PermissionAction,
+  ];
   const wildcard = `${requiredModule}:full_access` as PermissionCode;
   return granted.includes(wildcard);
 };

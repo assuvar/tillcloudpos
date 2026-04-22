@@ -224,9 +224,13 @@ export class AuthController {
       throw new UnauthorizedException('User account unavailable');
     }
 
-    const resolvedUser = await this.authService.resolveUserWithPermissions(user);
-    console.log(`[Auth] GET /me for ${userId}. Resolved permissions:`, resolvedUser.permissions.length);
-    
+    const resolvedUser =
+      await this.authService.resolveUserWithPermissions(user);
+    console.log(
+      `[Auth] GET /me for ${userId}. Resolved permissions:`,
+      resolvedUser.permissions.length,
+    );
+
     return {
       user: resolvedUser,
     };
@@ -277,7 +281,9 @@ export class AuthController {
       };
     }
 
-    const session = await this.authService.login(await this.authService.resolveUserWithPermissions(user));
+    const session = await this.authService.login(
+      await this.authService.resolveUserWithPermissions(user),
+    );
     this.setRefreshCookie(res, session.refreshToken);
 
     return {

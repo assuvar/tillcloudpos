@@ -8,4 +8,7 @@ export type RequiredPermission = {
 export const REQUIRE_PERMISSION_KEY = 'require_permission';
 
 export const RequirePermission = (module: string, action: string) =>
-  SetMetadata(REQUIRE_PERMISSION_KEY, { module, action } satisfies RequiredPermission);
+  SetMetadata(REQUIRE_PERMISSION_KEY, {
+    module,
+    action,
+  } satisfies RequiredPermission);

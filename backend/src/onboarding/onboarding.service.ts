@@ -169,14 +169,15 @@ export class OnboardingService {
 
     if (missingSteps.length > 0) {
       const details = {
-        business: !restaurant.name || !restaurant.streetAddress || !restaurant.phone,
+        business:
+          !restaurant.name || !restaurant.streetAddress || !restaurant.phone,
         serviceModel: (restaurant.serviceModels || []).length === 0,
         emailVerification: !user.emailVerified,
       };
 
       this.logger.warn(
         `Onboarding COMPLETION BLOCKED for user=${userId} restaurant=${restaurantId}. Missing Steps: [${missingSteps.join(', ')}]. ` +
-        `Details: ${JSON.stringify(details)}`
+          `Details: ${JSON.stringify(details)}`,
       );
 
       throw new BadRequestException({

@@ -88,8 +88,8 @@ export class RestaurantService {
     const nextPostcode = dto.postcode?.trim();
     const nextPhone = dto.phone?.trim();
 
-    // Note: We remove the strict multi-field check here. 
-    // Data completeness is validated by OnboardingService.getMissingSteps() 
+    // Note: We remove the strict multi-field check here.
+    // Data completeness is validated by OnboardingService.getMissingSteps()
     // before allowing the onboarding to be marked as 'complete'.
 
     if (dto.taxMode && !ALLOWED_TAX_MODES.includes(dto.taxMode as any)) {

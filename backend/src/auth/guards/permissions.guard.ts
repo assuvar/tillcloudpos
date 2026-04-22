@@ -55,9 +55,7 @@ export class PermissionsGuard implements CanActivate {
       return false;
     }
 
-    const sanitizedUserPermissions = sanitizePermissionMap(
-      dbUser.permissions,
-    );
+    const sanitizedUserPermissions = sanitizePermissionMap(dbUser.permissions);
 
     let stored = sanitizedUserPermissions;
     if (Object.keys(stored).length === 0) {
@@ -73,7 +71,9 @@ export class PermissionsGuard implements CanActivate {
         },
       });
 
-      const sanitizedStored = sanitizePermissionMap(rolePermission?.permissions);
+      const sanitizedStored = sanitizePermissionMap(
+        rolePermission?.permissions,
+      );
       stored =
         Object.keys(sanitizedStored).length > 0
           ? sanitizedStored

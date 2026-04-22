@@ -107,7 +107,7 @@ export class AuthService {
     this.validateOtpDestination(channel, destination);
 
     const email = destination.trim().toLowerCase();
-    
+
     // Generate a secure 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const codeHash = await bcrypt.hash(otp, 10);
@@ -160,7 +160,9 @@ export class AuthService {
     });
 
     if (!storedOtp) {
-      throw new UnauthorizedException('OTP has expired or does not exist. Please request a new one.');
+      throw new UnauthorizedException(
+        'OTP has expired or does not exist. Please request a new one.',
+      );
     }
 
     // Check code hash
@@ -474,10 +476,12 @@ export class AuthService {
     const resolved = await this.resolveUserWithPermissions({
       ...user,
       id: user.id,
-      restaurantId: user.restaurantId
+      restaurantId: user.restaurantId,
     });
-    
-    console.log(`[Auth] User ${user.email} logged in with ${resolved.permissions.length} permissions`);
+
+    console.log(
+      `[Auth] User ${user.email} logged in with ${resolved.permissions.length} permissions`,
+    );
 
     return {
       accessToken: this.accessToken(payload),
@@ -493,7 +497,7 @@ export class AuthService {
     const resolved = await this.resolveUserWithPermissions({
       ...user,
       id: user.id,
-      restaurantId: user.restaurantId
+      restaurantId: user.restaurantId,
     });
 
     return {
@@ -557,7 +561,10 @@ export class AuthService {
     const authUser = await this.resolveUserWithPermissions(user);
     const nextPayload = this.buildSessionPayload(authUser);
 
-    console.log(`[Auth] Tokens refreshed for ${authUser.email}. Permissions:`, authUser.permissions.length);
+    console.log(
+      `[Auth] Tokens refreshed for ${authUser.email}. Permissions:`,
+      authUser.permissions.length,
+    );
 
     return {
       accessToken: this.accessToken(nextPayload),

@@ -15,7 +15,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PermissionsService } from '../permissions/permissions.service';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { PERMISSIONS, buildPermissionMap, flattenPermissionMap } from '../auth/permissions/permissions.constants';
+import {
+  PERMISSIONS,
+  buildPermissionMap,
+  flattenPermissionMap,
+} from '../auth/permissions/permissions.constants';
 import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
 
 type AuthenticatedRequest = {
@@ -69,7 +73,10 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.permissionsService.getStaffPermissions(getRestaurantId(req), id);
+    return this.permissionsService.getStaffPermissions(
+      getRestaurantId(req),
+      id,
+    );
   }
 
   @Patch(':id/permissions')
@@ -80,19 +87,24 @@ export class UsersController {
     @Body() body: { permissions: string[] },
   ) {
     const restaurantId = getRestaurantId(req);
-    console.log(`[Permissions] Updating user ${id} in restaurant ${restaurantId}`);
+    console.log(
+      `[Permissions] Updating user ${id} in restaurant ${restaurantId}`,
+    );
     console.log(`[Permissions] Payload:`, body.permissions);
 
     // Convert flat array ["module:action"] to Map { module: ["action"] }
     const permissionMap = buildPermissionMap(body.permissions || []);
-    
+
     const result = await this.permissionsService.updateStaffPermissions(
       restaurantId,
       id,
       permissionMap,
     );
 
-    console.log(`[Permissions] Stored permissions for ${id}:`, result.permissions);
+    console.log(
+      `[Permissions] Stored permissions for ${id}:`,
+      result.permissions,
+    );
 
     return {
       userId: result.staffId,

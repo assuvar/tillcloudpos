@@ -9,11 +9,16 @@ export class MailService {
 
   constructor(private configService: ConfigService) {
     const host = this.configService.get<string>('SMTP_HOST');
-    const port = parseInt(this.configService.get<string>('SMTP_PORT') || '587', 10);
+    const port = parseInt(
+      this.configService.get<string>('SMTP_PORT') || '587',
+      10,
+    );
     const user = this.configService.get<string>('SMTP_USER');
     const pass = this.configService.get<string>('SMTP_PASS');
 
-    this.logger.log(`Initializing MailService for Gmail (Manual Config) with user: ${user}`);
+    this.logger.log(
+      `Initializing MailService for Gmail (Manual Config) with user: ${user}`,
+    );
 
     this.transporter = nodemailer.createTransport({
       host,
@@ -25,8 +30,8 @@ export class MailService {
       },
       tls: {
         // Do not fail on invalid certs
-        rejectUnauthorized: false
-      }
+        rejectUnauthorized: false,
+      },
     });
 
     // Verify connection on startup
@@ -52,7 +57,9 @@ export class MailService {
         html,
       });
 
-      this.logger.log(`Email successfully sent to ${to}. MessageId: ${info.messageId}`);
+      this.logger.log(
+        `Email successfully sent to ${to}. MessageId: ${info.messageId}`,
+      );
       return info;
     } catch (error) {
       this.logger.error(`Critical Email Failure for ${to}:`, error.stack);
