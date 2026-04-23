@@ -7,10 +7,13 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
+import { PermissionsService } from '../permissions/permissions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ServiceModel } from '../../generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
+import { flattenPermissionMap } from './permissions/permissions.constants';
+import { MailService } from '../mail/mail.service';
 
 type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
 
@@ -30,6 +33,7 @@ type AuthenticatedUser = {
   role: UserRole;
   restaurantId: string;
   onboardingCompleted: boolean;
+  permissions: string[];
 };
 
 type RestaurantOnboardingSnapshot = {
@@ -63,8 +67,8 @@ type OtpVerifyResult = {
 
 const MAX_PIN_ATTEMPTS = 5;
 const PIN_LOCKOUT_MS = 5 * 60 * 1000;
-const TEMP_STATIC_OTP = '526252';
-// TODO: Replace with real OTP service (Twilio / Email) using ENV variables
+// OTP Expiry in minutes
+const OTP_EXPIRY_MINS = 5;
 
 @Injectable()
 export class AuthService {
@@ -73,6 +77,8 @@ export class AuthService {
     private jwtService: JwtService,
     private prisma: PrismaService,
     private configService: ConfigService,
+    private permissionsService: PermissionsService,
+    private mailService: MailService,
   ) {}
 
   private validateOtpDestination(channel: OtpChannel, destination: string) {
@@ -100,9 +106,28 @@ export class AuthService {
   ): Promise<OtpSendResult> {
     this.validateOtpDestination(channel, destination);
 
+    const email = destination.trim().toLowerCase();
+
+    // Generate a secure 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const codeHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINS * 60 * 1000);
+
+    // Save to database
+    await this.prisma.otp.create({
+      data: {
+        identifier: email,
+        codeHash,
+        expiresAt,
+      },
+    });
+
+    // Send email
+    await this.mailService.sendOtpEmail(email, otp);
+
     return {
       success: true,
-      expiresIn: 300,
+      expiresIn: OTP_EXPIRY_MINS * 60,
     };
   }
 
@@ -113,13 +138,60 @@ export class AuthService {
   ): Promise<OtpVerifyResult> {
     this.validateOtpDestination(channel, destination);
 
+    const email = destination.trim().toLowerCase();
     const normalizedCode = code?.trim();
+
     if (!/^\d{6}$/.test(normalizedCode)) {
       throw new BadRequestException('OTP must be a 6-digit code');
     }
 
-    if (normalizedCode !== TEMP_STATIC_OTP) {
+    // Find the latest unexpired and unused OTP for this email
+    const storedOtp = await this.prisma.otp.findFirst({
+      where: {
+        identifier: email,
+        used: false,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!storedOtp) {
+      throw new UnauthorizedException(
+        'OTP has expired or does not exist. Please request a new one.',
+      );
+    }
+
+    // Check code hash
+    const isMatch = await bcrypt.compare(normalizedCode, storedOtp.codeHash);
+    if (!isMatch) {
+      // Increment attempts
+      await this.prisma.otp.update({
+        where: { id: storedOtp.id },
+        data: { attempts: { increment: 1 } },
+      });
       throw new UnauthorizedException('Invalid OTP');
+    }
+
+    // Mark as used
+    await this.prisma.otp.update({
+      where: { id: storedOtp.id },
+      data: { used: true },
+    });
+
+    // Update user if they exist
+    const user = await this.prisma.user.findFirst({
+      where: { email },
+    });
+
+    if (user) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
+      });
     }
 
     return { success: true };
@@ -162,6 +234,20 @@ export class AuthService {
         user.onboardingCompleted ||
         Boolean(user.restaurant?.onboardingCompleted) ||
         restaurantSetupComplete,
+      permissions: [], // Will be populated by the caller if async context allows
+    };
+  }
+
+  async resolveUserWithPermissions(user: any): Promise<AuthenticatedUser> {
+    const mapped = this.mapUser(user);
+    const { permissions } = await this.permissionsService.getStaffPermissions(
+      user.restaurantId,
+      user.id,
+    );
+
+    return {
+      ...mapped,
+      permissions: flattenPermissionMap(permissions),
     };
   }
 
@@ -256,40 +342,18 @@ export class AuthService {
     return null;
   }
 
-  async validatePosUser(
-    identifier: string,
+  private async validatePinForUser(
+    user: {
+      id: string;
+      isActive: boolean;
+      pinHash: string | null;
+      pinFailedAttempts: number;
+      pinLockedUntil: Date | null;
+    },
     pin: string,
-    selectedRole: 'MANAGER' | 'CASHIER' | 'KITCHEN',
-  ): Promise<AuthenticatedUser> {
-    if (!/^\d{4}$/.test(pin)) {
+  ): Promise<void> {
+    if (!/^[0-9]{4}$/.test(pin)) {
       throw new UnauthorizedException('Invalid PIN');
-    }
-
-    const normalizedIdentifier = identifier.trim();
-    const maybeEmail = normalizedIdentifier.toLowerCase();
-
-    const user = normalizedIdentifier.includes('@')
-      ? await this.findLoginCandidateByEmail(maybeEmail)
-      : await this.prisma.user.findUnique({
-          where: { id: normalizedIdentifier },
-          include: { restaurant: true },
-        });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const validForSelectedRole =
-      selectedRole === 'CASHIER'
-        ? user.role === 'CASHIER'
-        : selectedRole === 'MANAGER'
-          ? user.role === 'MANAGER'
-          : user.role === 'KITCHEN';
-
-    if (!validForSelectedRole) {
-      throw new UnauthorizedException(
-        'Role does not match selected POS login type',
-      );
     }
 
     if (!user.isActive) {
@@ -322,12 +386,6 @@ export class AuthService {
         },
       });
 
-      console.warn(
-        `[POS_PIN_FAILED] user=${user.id} attempts=${nextAttempts}${
-          shouldLock ? ' LOCKED' : ''
-        }`,
-      );
-
       if (shouldLock) {
         throw new UnauthorizedException(
           'Account temporarily locked. Please try again later.',
@@ -345,23 +403,103 @@ export class AuthService {
         pinLockedUntil: null,
       },
     });
+  }
+
+  async validateStaffByEmailPin(
+    email: string,
+    pin: string,
+  ): Promise<AuthenticatedUser> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.findLoginCandidateByEmail(normalizedEmail);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!['MANAGER', 'CASHIER', 'KITCHEN'].includes(user.role)) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    await this.validatePinForUser(user, pin);
+    return this.mapUser(user);
+  }
+
+  async validatePosUser(
+    identifier: string,
+    pin: string,
+    selectedRole: 'MANAGER' | 'CASHIER' | 'KITCHEN',
+  ): Promise<AuthenticatedUser> {
+    const normalizedIdentifier = identifier.trim();
+    const maybeEmail = normalizedIdentifier.toLowerCase();
+
+    const user = normalizedIdentifier.includes('@')
+      ? await this.findLoginCandidateByEmail(maybeEmail)
+      : await this.prisma.user.findUnique({
+          where: { id: normalizedIdentifier },
+          include: { restaurant: true },
+        });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const validForSelectedRole =
+      selectedRole === 'CASHIER'
+        ? user.role === 'CASHIER'
+        : selectedRole === 'MANAGER'
+          ? user.role === 'MANAGER'
+          : user.role === 'KITCHEN';
+
+    if (!validForSelectedRole) {
+      throw new UnauthorizedException(
+        'Role does not match selected POS login type',
+      );
+    }
+
+    await this.validatePinForUser(user, pin);
 
     return this.mapUser(user);
   }
 
-  login(user: AuthenticatedUser) {
+  createOtpVerificationToken(email: string): string {
+    return this.jwtService.sign(
+      {
+        type: 'otp_verified',
+        email: email.trim().toLowerCase(),
+      },
+      { expiresIn: '15m' },
+    );
+  }
+
+  async login(user: AuthenticatedUser) {
     const payload = this.buildSessionPayload(user);
+    const resolved = await this.resolveUserWithPermissions({
+      ...user,
+      id: user.id,
+      restaurantId: user.restaurantId,
+    });
+
+    console.log(
+      `[Auth] User ${user.email} logged in with ${resolved.permissions.length} permissions`,
+    );
+
     return {
       accessToken: this.accessToken(payload),
       refreshToken: this.refreshToken(payload),
       accessTokenExpiresIn: 3600,
       refreshTokenExpiresIn: 60 * 60 * 24 * 30,
-      user,
+      user: resolved,
     };
   }
 
-  loginPos(user: AuthenticatedUser) {
+  async loginPos(user: AuthenticatedUser) {
     const payload = this.buildSessionPayload(user);
+    const resolved = await this.resolveUserWithPermissions({
+      ...user,
+      id: user.id,
+      restaurantId: user.restaurantId,
+    });
+
     return {
       accessToken: this.accessToken(payload),
       refreshToken: this.refreshToken(payload),
@@ -369,7 +507,7 @@ export class AuthService {
       accessTokenExpiresIn: 3600,
       posSessionTokenExpiresIn: 60 * 60 * 8,
       refreshTokenExpiresIn: 60 * 60 * 24 * 30,
-      user,
+      user: resolved,
     };
   }
 
@@ -420,8 +558,13 @@ export class AuthService {
       throw new UnauthorizedException('User account unavailable');
     }
 
-    const authUser = this.mapUser(user);
+    const authUser = await this.resolveUserWithPermissions(user);
     const nextPayload = this.buildSessionPayload(authUser);
+
+    console.log(
+      `[Auth] Tokens refreshed for ${authUser.email}. Permissions:`,
+      authUser.permissions.length,
+    );
 
     return {
       accessToken: this.accessToken(nextPayload),

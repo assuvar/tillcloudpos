@@ -14,24 +14,31 @@ import {
   ShoppingBag,
   UtensilsCrossed,
 } from 'lucide-react';
-import NewBillModal from './components/NewBillModal';
+import ServiceModeModal from './components/ServiceModeModal';
 import { useAuth } from './context/AuthContext';
 import { usePosCart } from './context/PosCartContext';
-import { FRONTEND_PERMISSIONS } from './permissions';
+import { FRONTEND_PERMISSIONS, getPosExitRoute } from './permissions';
 
 export default function POSEntryScreen() {
   const navigate = useNavigate();
-  const { user, logout, hasModuleAccess, hasPermission } = useAuth();
-  const { openBills, loadOpenBills, isLoading, error } = usePosCart();
+  const { user, hasModuleAccess, hasPermission } = useAuth();
+  const { openBills, activeBill, loadOpenBills, isLoading, error } = usePosCart();
   const [showNewBillModal, setShowNewBillModal] = useState(false);
-
-  const canAccessBilling = hasModuleAccess('BILLING');
-  const canCreateBill = hasPermission(FRONTEND_PERMISSIONS.BILLING_CREATE);
-  const canAccessMenu = hasModuleAccess('MENU');
 
   useEffect(() => {
     void loadOpenBills();
   }, []);
+
+  // POS flow state fix: Automatically redirect to Order Entry if a bill is already active
+  useEffect(() => {
+    if (activeBill?.id) {
+       navigate(`/pos/order-entry?billId=${activeBill.id}`);
+    }
+  }, [activeBill?.id, navigate]);
+
+  const canAccessBilling = hasModuleAccess('BILLING');
+  const canCreateBill = hasPermission(FRONTEND_PERMISSIONS.BILLING_CREATE);
+  const canAccessMenu = hasModuleAccess('MENU');
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#f8fafc] font-sans text-slate-900">
@@ -65,15 +72,15 @@ export default function POSEntryScreen() {
             <button className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-50">
               <HelpCircle size={20} />
             </button>
-            <button onClick={() => void logout()} className="flex h-10 w-10 items-center justify-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50">
+            <button onClick={() => navigate(getPosExitRoute(user?.role))} className="flex h-10 w-10 items-center justify-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50">
               <LogOut size={20} />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-12 pt-24">
-        <div className="mx-auto max-w-[1400px]">
+      <main className="flex-1 overflow-y-auto p-10 pt-20">
+        <div className="mx-auto max-w-[1100px]">
           {canAccessBilling ? (
             <>
               <div className="mb-12 flex items-center justify-between">
@@ -157,7 +164,7 @@ export default function POSEntryScreen() {
                   <p className="mt-2 text-sm text-slate-500">Create a dine-in bill to start the POS flow.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {openBills.map((bill) => {
                     const isKotSent = bill.status === 'KOT_SENT';
                     const timeLabel = bill.kotSentAt
@@ -245,7 +252,15 @@ export default function POSEntryScreen() {
         </div>
       </footer>
 
-      {showNewBillModal ? <NewBillModal onClose={() => setShowNewBillModal(false)} /> : null}
+      {showNewBillModal && canAccessBilling ? (
+        <ServiceModeModal 
+          onClose={() => {
+            setShowNewBillModal(false);
+            // If they cancel a forced modal, take them back to home/welcome
+            navigate('/welcome');
+          }} 
+        />
+      ) : null}
     </div>
   );
 }

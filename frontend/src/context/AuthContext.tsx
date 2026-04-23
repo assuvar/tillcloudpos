@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import api, { configureApiAuthHandlers } from '../services/api';
 import {
+  canAccess as canAccessPermission,
   hasPermissionCode,
   isGroupEnabled,
+  getLandingPage,
+  buildPermissionMap,
   type PermissionGroup,
   type PermissionMap,
 } from '../permissions';
@@ -16,6 +20,7 @@ interface User {
   role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
   restaurantId: string;
   onboardingCompleted: boolean;
+  permissions?: string[] | PermissionMap;
 }
 
 export type AuthMode = 'dashboard' | 'pos' | 'kitchen';
@@ -32,13 +37,16 @@ interface AuthContextType {
     user: User,
     mode?: AuthMode,
     posSessionToken?: string,
-  ) => Promise<void>;
+  ) => Promise<PermissionMap | null>;
   logout: (skipApiLogout?: boolean) => Promise<void>;
   isLoading: boolean;
   updateOnboardingStatus: (status: boolean) => void;
   refreshAccessToken: () => Promise<string | null>;
+  refreshPermissions: () => Promise<void>;
   hasPermission: (code: string) => boolean;
+  canAccess: (module: string, action: string) => boolean;
   hasModuleAccess: (group: PermissionGroup) => boolean;
+  getLandingRoute: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,6 +75,22 @@ const isTokenExpired = (token: string): boolean => {
   }
 };
 
+const normalizePermissionPayload = (payload: unknown): PermissionMap | null => {
+  if (!payload) {
+    return null;
+  }
+
+  if (Array.isArray(payload)) {
+    return buildPermissionMap(payload as string[]);
+  }
+
+  if (typeof payload === 'object') {
+    return payload as PermissionMap;
+  }
+
+  return null;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -74,53 +98,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [permissions, setPermissions] = useState<PermissionMap | null>(null);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
   const hasHydratedRef = useRef(false);
+  const accessTokenRef = useRef<string | null>(null);
+  const lastRefreshRef = useRef<number>(0);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    accessTokenRef.current = accessToken;
+  }, [accessToken]);
 
   const isNetworkError = (error: unknown): boolean => {
-    const axiosLikeError = error as { response?: unknown; code?: string } | undefined;
+    const axiosLikeError = error as { response?: unknown } | undefined;
     return !axiosLikeError?.response;
   };
 
-  const fetchRolePermissions = async (
-    role: User['role'],
-    tokenOverride?: string,
-  ): Promise<PermissionMap | null> => {
-    if (role === 'ADMIN') {
-      try {
-        const response = await api.get(`/permissions/${role}`, {
-          headers: tokenOverride
-            ? { Authorization: `Bearer ${tokenOverride}` }
-            : undefined,
-        });
-        return response.data?.permissions || null;
-      } catch {
-        return null;
-      }
+  const savePermissions = (nextPermissions: PermissionMap | null) => {
+    setPermissions(nextPermissions);
+    if (nextPermissions) {
+      localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(nextPermissions));
+    } else {
+      localStorage.removeItem(PERMISSIONS_KEY);
     }
+  };
 
+  const fetchCurrentUser = async (
+    tokenOverride?: string,
+  ): Promise<{ user: User } | null> => {
     try {
-      const response = await api.get(`/permissions/${role}`, {
+      const response = await api.get('/auth/me', {
         headers: tokenOverride
           ? { Authorization: `Bearer ${tokenOverride}` }
           : undefined,
       });
-      return response.data?.permissions || null;
+      return response.data as { user: User };
     } catch {
       return null;
     }
   };
 
-  const fetchOnboardingStatus = async (
+  const fetchUserPermissions = async (
     tokenOverride?: string,
-  ): Promise<boolean | null> => {
+  ): Promise<PermissionMap | null> => {
     try {
-      const response = await api.get('/onboarding/status', {
+      const response = await api.get('/permissions/me', {
         headers: tokenOverride
           ? { Authorization: `Bearer ${tokenOverride}` }
           : undefined,
       });
 
-      return Boolean(response.data?.onboardingCompleted);
+      return normalizePermissionPayload(response.data?.permissions);
     } catch {
       return null;
     }
@@ -131,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         await api.post('/auth/logout');
       } catch {
-        // Ignore network/logout endpoint errors and continue local cleanup.
+        // Ignore logout endpoint failures and still clear local state.
       }
     }
 
@@ -158,36 +186,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await api.post('/auth/refresh', {
         posSessionToken: currentMode === 'pos' ? posSessionToken : undefined,
       });
-      const nextToken = response.data.access_token as string;
-      const nextUser = response.data.user as User;
-      const onboardingCompleted = await fetchOnboardingStatus(nextToken);
-      const resolvedUser =
-        onboardingCompleted === null
-          ? nextUser
-          : { ...nextUser, onboardingCompleted };
 
+      const nextToken = response.data.access_token as string;
       setAccessToken(nextToken);
-      setUser(resolvedUser);
+
+      const sessionData = await fetchCurrentUser(nextToken);
+      if (!sessionData?.user) {
+        throw new Error('Could not refresh session user');
+      }
+
+      const refreshedUser = sessionData.user;
+      const fetchedPermissions = await fetchUserPermissions(nextToken);
+      const fallbackPermissions = normalizePermissionPayload(refreshedUser.permissions);
+
+      setUser(refreshedUser);
       setMode(currentMode || 'dashboard');
-      localStorage.setItem(USER_KEY, JSON.stringify(resolvedUser));
+      savePermissions(fetchedPermissions || fallbackPermissions);
+
+      localStorage.setItem(USER_KEY, JSON.stringify(refreshedUser));
       if (currentMode) {
         localStorage.setItem(MODE_KEY, currentMode);
       }
 
-      setPermissionsLoading(true);
-      const loadedPermissions = await fetchRolePermissions(resolvedUser.role, nextToken);
-      setPermissions(loadedPermissions);
-      if (loadedPermissions) {
-        localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(loadedPermissions));
-      } else {
-        localStorage.removeItem(PERMISSIONS_KEY);
-      }
-      setPermissionsLoading(false);
-
       return nextToken;
     } catch (error: unknown) {
       if (isNetworkError(error)) {
-        // Backend is unreachable (for example not started yet). Avoid clearing local auth state.
         return null;
       }
       await logout(true);
@@ -197,13 +220,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     configureApiAuthHandlers({
-      getAccessToken: () => accessToken,
+      getAccessToken: () => accessTokenRef.current,
       refreshAccessToken,
       onLogout: () => {
         void logout(true);
       },
     });
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => {
     if (hasHydratedRef.current) {
@@ -226,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (storedPermissions) {
         try {
-          setPermissions(JSON.parse(storedPermissions) as PermissionMap);
+          setPermissions(normalizePermissionPayload(JSON.parse(storedPermissions)));
         } catch {
           localStorage.removeItem(PERMISSIONS_KEY);
         }
@@ -239,18 +262,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void hydrateAuth();
   }, []);
 
+  useEffect(() => {
+    if (!user || !accessToken) {
+      return;
+    }
+
+    if (Date.now() - lastRefreshRef.current <= 10000) {
+      return;
+    }
+
+    lastRefreshRef.current = Date.now();
+
+    void (async () => {
+      setPermissionsLoading(true);
+      try {
+        const [sessionData, fetchedPermissions] = await Promise.all([
+          fetchCurrentUser(accessToken),
+          fetchUserPermissions(accessToken),
+        ]);
+
+        if (sessionData?.user) {
+          setUser(sessionData.user);
+          localStorage.setItem(USER_KEY, JSON.stringify(sessionData.user));
+
+          const fallbackPermissions = normalizePermissionPayload(sessionData.user.permissions);
+          savePermissions(fetchedPermissions || fallbackPermissions);
+        }
+      } finally {
+        setPermissionsLoading(false);
+      }
+    })();
+  }, [location.pathname, user?.id, accessToken]);
+
   const login = async (
     token: string,
     userData: User,
     loginMode: AuthMode = 'dashboard',
     posSessionToken?: string,
-  ) => {
+  ): Promise<PermissionMap | null> => {
     setAccessToken(token);
-    const onboardingCompleted = await fetchOnboardingStatus(token);
-    const resolvedUser =
-      onboardingCompleted === null
-        ? userData
-        : { ...userData, onboardingCompleted };
+
+    const sessionData = await fetchCurrentUser(token);
+    const resolvedUser = sessionData?.user || userData;
 
     setUser(resolvedUser);
     setMode(loginMode);
@@ -263,38 +316,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem(POS_SESSION_KEY);
     }
 
-    setPermissionsLoading(true);
-    const loadedPermissions = await fetchRolePermissions(resolvedUser.role, token);
-    setPermissions(loadedPermissions);
-    if (loadedPermissions) {
-      localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(loadedPermissions));
-    } else {
-      localStorage.removeItem(PERMISSIONS_KEY);
-    }
-    setPermissionsLoading(false);
+    const fetchedPermissions = await fetchUserPermissions(token);
+    const fallbackPermissions = normalizePermissionPayload(resolvedUser.permissions);
+    const finalPermissions = fetchedPermissions || fallbackPermissions;
+
+    savePermissions(finalPermissions);
+    return finalPermissions;
   };
 
   const updateOnboardingStatus = (status: boolean) => {
-    if (user) {
-      const updatedUser = { ...user, onboardingCompleted: status };
-      setUser(updatedUser);
-      localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    if (!user) {
+      return;
     }
+
+    const updatedUser = { ...user, onboardingCompleted: status };
+    setUser(updatedUser);
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
   };
 
-  const hasPermission = (code: string) => {
-    if (user?.role === 'ADMIN') {
-      return true;
-    }
-    return hasPermissionCode(permissions, code);
-  };
+  const hasPermission = (code: string) => hasPermissionCode(permissions, code);
 
-  const hasModuleAccess = (group: PermissionGroup) => {
-    if (user?.role === 'ADMIN') {
-      return true;
-    }
-    return isGroupEnabled(permissions, group);
-  };
+  const canAccess = (module: string, action: string) =>
+    canAccessPermission(permissions, module, action);
+
+  const hasModuleAccess = (group: PermissionGroup) =>
+    isGroupEnabled(permissions, group);
 
   return (
     <AuthContext.Provider
@@ -310,8 +356,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         updateOnboardingStatus,
         refreshAccessToken,
+        refreshPermissions: async () => {
+          if (!accessToken) {
+            return;
+          }
+
+          setPermissionsLoading(true);
+          try {
+            const fetchedPermissions = await fetchUserPermissions(accessToken);
+            savePermissions(fetchedPermissions);
+          } finally {
+            setPermissionsLoading(false);
+          }
+        },
         hasPermission,
+        canAccess,
         hasModuleAccess,
+        getLandingRoute: () => {
+          if (user && !user.onboardingCompleted) {
+            return '/onboarding';
+          }
+          return getLandingPage(permissions, user?.role);
+        },
       }}
     >
       {children}

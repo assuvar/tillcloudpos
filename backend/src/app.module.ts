@@ -22,6 +22,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { ReportsModule } from './reports/reports.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ReportsModule } from './reports/reports.module';
     KitchenModule,
     PaymentsModule,
     OrdersModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [

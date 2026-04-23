@@ -19,10 +19,8 @@ import {
   CheckCircle2,
   ChevronDown,
   TrendingUp,
-   Bell,
-   UserCog
+   Bell
 } from 'lucide-react';
-import PermissionsPage from './PermissionsPage';
 import { useAuth } from './context/AuthContext';
 import { FRONTEND_PERMISSIONS } from './permissions';
 import api from './services/api';
@@ -793,7 +791,6 @@ const SMSCredits = () => (
 
 type SettingType =
    | 'profile'
-   | 'permissions'
    | 'tax'
    | 'payment'
    | 'loyalty'
@@ -813,7 +810,6 @@ export default function SettingsPage() {
 
   const navItems = [
     { id: 'profile', label: 'Restaurant profile', icon: Building2 },
-      { id: 'permissions', label: 'Permissions', icon: UserCog },
     { id: 'tax', label: 'Tax Configuration', icon: Receipt },
     { id: 'payment', label: 'Payment methods', icon: Wallet },
     { id: 'loyalty', label: 'Loyalty Program', icon: Star },
@@ -835,9 +831,6 @@ export default function SettingsPage() {
 
       if (item.id === 'profile') {
          return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_EDIT_PROFILE);
-      }
-      if (item.id === 'permissions') {
-         return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_CONFIGURE_PERMISSIONS);
       }
       if (item.id === 'tax') {
          return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_EDIT_TAX);
@@ -894,7 +887,6 @@ export default function SettingsPage() {
        <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-5 sm:p-8 lg:p-12">
           <div className="mx-auto max-w-[1200px]">
              {activeSetting === 'profile' && <RestaurantProfile />}
-             {activeSetting === 'permissions' && <PermissionsPage />}
              {activeSetting === 'terminals' && <TerminalManagement />}
              {activeSetting === 'tax' && <TaxConfiguration />}
              {activeSetting === 'payment' && <PaymentMethods />}

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -36,22 +37,24 @@ type AssignPinBody = {
 };
 
 type SendOtpBody = {
-  channel?: 'email' | 'mobile';
-  destination?: string;
+  email?: string;
 };
 
 type VerifyOtpBody = {
-  channel?: 'email' | 'mobile';
-  destination?: string;
-  code?: string;
+  email?: string;
+  otp?: string;
 };
 
 type CheckEmailBody = {
   email?: string;
 };
 
+type StaffPinLoginBody = {
+  email?: string;
+  pin?: string;
+};
+
 const REFRESH_COOKIE_NAME = 'refresh_token';
-const TEMP_STATIC_OTP = '526252';
 
 @Controller('auth')
 export class AuthController {
@@ -114,15 +117,22 @@ export class AuthController {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const user = await this.authService.validateDashboardUser(
-      loginDto.email,
-      loginDto.password,
-    );
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+    const { email, password: passwordOrPin } = loginDto;
+    let user;
+
+    if (/^\d{4}$/.test(passwordOrPin)) {
+      user = await this.authService.validateStaffByEmailPin(
+        email,
+        passwordOrPin,
+      );
+    } else {
+      user = await this.authService.validateDashboardUser(email, passwordOrPin);
+      if (!user) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
     }
 
-    const session = this.authService.login(user);
+    const session = await this.authService.login(user);
     this.setRefreshCookie(res, session.refreshToken);
 
     return {
@@ -135,78 +145,43 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('pos-login')
-  async posLogin(
-    @Body()
-    posLoginDto: {
-      role?: 'MANAGER' | 'CASHIER';
-      identifier?: string;
-      pin?: string;
-    },
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    if (!posLoginDto?.role || !posLoginDto?.identifier || !posLoginDto?.pin) {
-      throw new UnauthorizedException('Invalid POS credentials');
-    }
-
-    const user = await this.authService.validatePosUser(
-      posLoginDto.identifier,
-      posLoginDto.pin,
-      posLoginDto.role,
+  async posLogin() {
+    throw new BadRequestException(
+      'Legacy POS login is disabled. Use /auth/login with email and Password/PIN.',
     );
-
-    const session = this.authService.loginPos(user);
-    this.setRefreshCookie(res, session.refreshToken);
-
-    return {
-      access_token: session.accessToken,
-      accessTokenExpiresIn: session.accessTokenExpiresIn,
-      pos_session_token: session.posSessionToken,
-      posSessionTokenExpiresIn: session.posSessionTokenExpiresIn,
-      user: session.user,
-    };
   }
 
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('pin-login')
-  async pinLogin(
-    @Body()
-    pinLoginDto: {
-      role?: 'MANAGER' | 'CASHIER' | 'KITCHEN';
-      identifier?: string;
-      pin?: string;
-    },
+  async pinLogin() {
+    throw new BadRequestException(
+      'Legacy PIN login is disabled. Use /auth/login with email and Password/PIN.',
+    );
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('staff-login')
+  async staffLogin(
+    @Body() body: StaffPinLoginBody,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (!pinLoginDto?.role || !pinLoginDto?.identifier || !pinLoginDto?.pin) {
+    if (!body?.email || !body?.pin) {
       throw new UnauthorizedException('Invalid PIN credentials');
     }
 
-    const user = await this.authService.validatePosUser(
-      pinLoginDto.identifier,
-      pinLoginDto.pin,
-      pinLoginDto.role,
+    const user = await this.authService.validateStaffByEmailPin(
+      body.email,
+      body.pin,
     );
 
-    if (pinLoginDto.role === 'KITCHEN') {
-      const session = this.authService.login(user);
-      this.setRefreshCookie(res, session.refreshToken);
-
-      return {
-        access_token: session.accessToken,
-        accessTokenExpiresIn: session.accessTokenExpiresIn,
-        user: session.user,
-      };
-    }
-
-    const session = this.authService.loginPos(user);
+    const session = await this.authService.login(user);
     this.setRefreshCookie(res, session.refreshToken);
 
     return {
       access_token: session.accessToken,
       accessTokenExpiresIn: session.accessTokenExpiresIn,
-      pos_session_token: session.posSessionToken,
-      posSessionTokenExpiresIn: session.posSessionTokenExpiresIn,
       user: session.user,
     };
   }
@@ -236,17 +211,48 @@ export class AuthController {
     };
   }
 
+  @HttpCode(HttpStatus.OK)
+  @Get('me')
+  async me(@Req() req: AuthenticatedRequest) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+
+    const user = await this.authService.usersService.findOne(userId);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User account unavailable');
+    }
+
+    const resolvedUser =
+      await this.authService.resolveUserWithPermissions(user);
+    console.log(
+      `[Auth] GET /me for ${userId}. Resolved permissions:`,
+      resolvedUser.permissions.length,
+    );
+
+    return {
+      user: resolvedUser,
+    };
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('send-otp')
+  async sendOtpNew(@Body() body: SendOtpBody) {
+    return this.sendOtp(body);
+  }
+
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('otp/send')
   async sendOtp(@Body() body: SendOtpBody) {
-    if (!body?.channel || !body?.destination) {
-      throw new BadRequestException('channel and destination are required');
+    if (!body?.email) {
+      throw new BadRequestException('email is required');
     }
 
-    // Optional: Check if user exists before sending OTP if desired,
-    // or just send it and check during verification.
-    return this.authService.sendOtp(body.channel, body.destination);
+    await this.authService.sendOtp('email', body.email);
+    return { success: true };
   }
 
   @Public()
@@ -256,40 +262,33 @@ export class AuthController {
     @Body() body: VerifyOtpBody,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (!body?.channel || !body?.destination || !body?.code) {
-      throw new BadRequestException(
-        'channel, destination and code are required',
-      );
+    if (!body?.email || !body?.otp) {
+      throw new BadRequestException('email and otp are required');
     }
 
-    const normalizedCode = String(body.code).replace(/\D/g, '').trim();
-    if (normalizedCode !== TEMP_STATIC_OTP) {
-      throw new UnauthorizedException('Invalid OTP');
-    }
+    const normalizedEmail = body.email.trim().toLowerCase();
+    const normalizedOtp = String(body.otp).replace(/\D/g, '').trim();
 
-    await this.authService.verifyOtp(
-      body.channel,
-      body.destination,
-      TEMP_STATIC_OTP,
-    );
+    await this.authService.verifyOtp('email', normalizedEmail, normalizedOtp);
 
-    // After internal verification, find the user to log them in
-    const user = await this.authService.usersService.findByEmail(
-      body.destination.trim().toLowerCase(),
-    );
+    const user =
+      await this.authService.usersService.findByEmail(normalizedEmail);
 
     if (!user) {
-      // For registration, the user doesn't exist yet. We return success so they can complete the flow.
       return {
         success: true,
-        message: 'OTP verified (Registration Flow)',
+        token: this.authService.createOtpVerificationToken(normalizedEmail),
       };
     }
 
-    const session = this.authService.login(this.authService.mapUser(user));
+    const session = await this.authService.login(
+      await this.authService.resolveUserWithPermissions(user),
+    );
     this.setRefreshCookie(res, session.refreshToken);
 
     return {
+      success: true,
+      token: session.accessToken,
       access_token: session.accessToken,
       accessTokenExpiresIn: session.accessTokenExpiresIn,
       user: session.user,

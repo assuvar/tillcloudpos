@@ -7,233 +7,246 @@ export const PERMISSION_ROLES: UserRole[] = [
   'KITCHEN',
 ];
 
-export const EDITABLE_PERMISSION_ROLES: UserRole[] = ['MANAGER', 'CASHIER'];
+export const EDITABLE_PERMISSION_ROLES: UserRole[] = [
+  'MANAGER',
+  'CASHIER',
+  'KITCHEN',
+];
 
-export const PERMISSION_CATALOG = {
-  BILLING: {
-    label: 'Billing',
-    description: 'Bill creation and billing controls.',
+export const PERMISSION_MODULES = [
+  'dashboard',
+  'pos',
+  'kitchen',
+  'menu',
+  'inventory',
+  'customers',
+  'reports',
+  'staff',
+  'settings',
+] as const;
+
+export const PERMISSION_ACTIONS = [
+  'view',
+  'create',
+  'edit',
+  'delete',
+  'full_access',
+] as const;
+
+export type PermissionModule = (typeof PERMISSION_MODULES)[number];
+export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
+export type PermissionCode = `${PermissionModule}:${PermissionAction}`;
+
+export type PermissionMap = Partial<
+  Record<PermissionModule, PermissionAction[]>
+>;
+
+const toCode = (
+  module: PermissionModule,
+  action: PermissionAction,
+): PermissionCode => `${module}:${action}`;
+
+export const PERMISSION_CATALOG: Record<
+  PermissionModule,
+  {
+    label: string;
+    description: string;
+    actions: Array<{ key: PermissionAction; label: string }>;
+  }
+> = {
+  dashboard: {
+    label: 'Dashboard',
+    description: 'Main dashboard and overview widgets.',
     actions: [
-      { key: 'CREATE_BILL', label: 'Create bill' },
-      { key: 'VOID_BILL', label: 'Void bill' },
-      { key: 'APPLY_MANUAL_DISCOUNT', label: 'Apply manual discount' },
-      { key: 'VIEW_ALL_OPEN_BILLS', label: 'View all open bills' },
+      { key: 'view', label: 'View' },
+      { key: 'full_access', label: 'Full access' },
     ],
   },
-  PAYMENTS: {
-    label: 'Payments',
-    description: 'Payment method and settlement controls.',
+  pos: {
+    label: 'POS',
+    description: 'Billing and checkout terminal operations.',
     actions: [
-      { key: 'CASH', label: 'Cash' },
-      { key: 'CARD', label: 'Card' },
-      { key: 'SPLIT', label: 'Split' },
-      { key: 'MARK_DELIVERY_AS_PAID', label: 'Mark delivery as paid' },
+      { key: 'view', label: 'View' },
+      { key: 'create', label: 'Create' },
+      { key: 'edit', label: 'Edit' },
+      { key: 'delete', label: 'Delete' },
+      { key: 'full_access', label: 'Full access' },
     ],
   },
-  RECEIPTS: {
-    label: 'Receipts',
-    description: 'Receipt and reprint controls.',
-    actions: [
-      { key: 'PRINT_RECEIPT', label: 'Print receipt' },
-      { key: 'SEND_SMS_RECEIPT', label: 'Send SMS receipt' },
-    ],
-  },
-  KITCHEN: {
+  kitchen: {
     label: 'Kitchen',
-    description: 'Kitchen workflow and dashboard controls.',
+    description: 'Kitchen display and order workflow actions.',
     actions: [
-      { key: 'SAVE_AND_SEND_TO_KITCHEN', label: 'Save & send to kitchen' },
-      { key: 'VIEW_KITCHEN_DASHBOARD', label: 'View kitchen dashboard' },
-      { key: 'MARK_READY', label: 'Mark ready' },
-      { key: 'BUMP', label: 'Bump' },
-      { key: 'RECALL', label: 'Recall' },
+      { key: 'view', label: 'View' },
+      { key: 'edit', label: 'Edit' },
+      { key: 'full_access', label: 'Full access' },
     ],
   },
-  CUSTOMERS: {
-    label: 'Customers',
-    description: 'Customer lookup and loyalty controls.',
-    actions: [
-      { key: 'LOOK_UP_CUSTOMER', label: 'Look up customer' },
-      { key: 'VIEW_CUSTOMER_PROFILES', label: 'View customer profiles' },
-      { key: 'VIEW_PURCHASE_HISTORY', label: 'View purchase history' },
-      {
-        key: 'ADJUST_LOYALTY_POINTS_MANUALLY',
-        label: 'Adjust loyalty points manually',
-      },
-    ],
-  },
-  MENU: {
+  menu: {
     label: 'Menu',
-    description: 'Menu and category management controls.',
+    description: 'Menu categories, items, and visibility.',
     actions: [
-      { key: 'ADD_EDIT_ITEMS', label: 'Add/edit items' },
-      { key: 'DELETE_ITEMS', label: 'Delete items' },
-      { key: 'ADD_EDIT_CATEGORIES', label: 'Add/edit categories' },
-      { key: 'DELETE_CATEGORIES', label: 'Delete categories' },
-      { key: 'HIDE_SHOW_ITEMS', label: 'Hide/show items' },
+      { key: 'view', label: 'View' },
+      { key: 'create', label: 'Create' },
+      { key: 'edit', label: 'Edit' },
+      { key: 'delete', label: 'Delete' },
+      { key: 'full_access', label: 'Full access' },
     ],
   },
-  INVENTORY: {
+  inventory: {
     label: 'Inventory',
-    description: 'Stock visibility and adjustments.',
+    description: 'Stock, movements, and low-stock visibility.',
     actions: [
-      { key: 'VIEW_STOCK', label: 'View stock' },
-      { key: 'MANUALLY_ADJUST_STOCK', label: 'Manually adjust stock' },
-      { key: 'VIEW_LOW_STOCK_ALERTS', label: 'View low stock alerts' },
+      { key: 'view', label: 'View' },
+      { key: 'create', label: 'Create' },
+      { key: 'edit', label: 'Edit' },
+      { key: 'delete', label: 'Delete' },
+      { key: 'full_access', label: 'Full access' },
     ],
   },
-  REPORTS: {
+  customers: {
+    label: 'Customers',
+    description: 'Customer records and loyalty operations.',
+    actions: [
+      { key: 'view', label: 'View' },
+      { key: 'create', label: 'Create' },
+      { key: 'edit', label: 'Edit' },
+      { key: 'delete', label: 'Delete' },
+      { key: 'full_access', label: 'Full access' },
+    ],
+  },
+  reports: {
     label: 'Reports',
-    description: 'Reporting and exports.',
+    description: 'Sales and analytics reports.',
     actions: [
-      { key: 'VIEW_REPORTS', label: 'View reports' },
-      { key: 'EXPORT_REPORTS', label: 'Export reports' },
+      { key: 'view', label: 'View' },
+      { key: 'create', label: 'Create' },
+      { key: 'full_access', label: 'Full access' },
     ],
   },
-  STAFF: {
+  staff: {
     label: 'Staff',
-    description: 'Staff lifecycle management.',
+    description: 'Staff directory and permission administration.',
     actions: [
-      { key: 'INVITE_STAFF', label: 'Invite staff' },
-      { key: 'EDIT_STAFF', label: 'Edit staff' },
-      { key: 'DEACTIVATE_STAFF', label: 'Deactivate staff' },
-      { key: 'DELETE_STAFF', label: 'Delete staff' },
+      { key: 'view', label: 'View' },
+      { key: 'create', label: 'Create' },
+      { key: 'edit', label: 'Edit' },
+      { key: 'delete', label: 'Delete' },
+      { key: 'full_access', label: 'Full access' },
     ],
   },
-  SETTINGS: {
+  settings: {
     label: 'Settings',
-    description: 'Restaurant and platform configuration.',
+    description: 'Restaurant and system configuration.',
     actions: [
-      { key: 'VIEW_SETTINGS', label: 'View settings' },
-      { key: 'EDIT_RESTAURANT_PROFILE', label: 'Edit restaurant profile' },
-      { key: 'EDIT_TAX', label: 'Edit tax' },
-      { key: 'EDIT_LOYALTY', label: 'Edit loyalty' },
-      { key: 'SET_UP_TYRO', label: 'Set up Tyro' },
-      { key: 'PURCHASE_SMS_CREDITS', label: 'Purchase SMS credits' },
-      { key: 'MANAGE_TERMINALS', label: 'Manage terminals' },
-      {
-        key: 'CONFIGURE_ROLE_PERMISSIONS',
-        label: 'Configure role permissions',
-      },
+      { key: 'view', label: 'View' },
+      { key: 'edit', label: 'Edit' },
+      { key: 'full_access', label: 'Full access' },
     ],
   },
-} as const;
+};
 
-export type PermissionGroup = keyof typeof PERMISSION_CATALOG;
-
-type GroupActionKey<T extends PermissionGroup> =
-  (typeof PERMISSION_CATALOG)[T]['actions'][number]['key'];
-
-export type PermissionCode = {
-  [G in PermissionGroup]: `${G}:${GroupActionKey<G>}`;
-}[PermissionGroup];
-
-export type PermissionMap = Partial<Record<PermissionGroup, string[]>>;
-
-const toCode = (group: PermissionGroup, action: string): PermissionCode =>
-  `${group}:${action}` as PermissionCode;
-
-const allPermissionCodes: PermissionCode[] = Object.entries(
-  PERMISSION_CATALOG,
-).flatMap(([group, config]) =>
-  config.actions.map((action) => toCode(group as PermissionGroup, action.key)),
+const allPermissionCodes: PermissionCode[] = PERMISSION_MODULES.flatMap(
+  (module) =>
+    PERMISSION_CATALOG[module].actions.map((action) =>
+      toCode(module, action.key),
+    ),
 );
 
-const managerDefaultCodes: PermissionCode[] = [...allPermissionCodes].filter(
-  (code) => code !== toCode('SETTINGS', 'CONFIGURE_ROLE_PERMISSIONS'),
-);
+const managerDefaultCodes: PermissionCode[] = [
+  toCode('dashboard', 'view'),
+  toCode('pos', 'view'),
+  toCode('pos', 'create'),
+  toCode('pos', 'edit'),
+  toCode('kitchen', 'view'),
+  toCode('menu', 'view'),
+  toCode('menu', 'create'),
+  toCode('menu', 'edit'),
+  toCode('inventory', 'view'),
+  toCode('inventory', 'edit'),
+  toCode('customers', 'view'),
+  toCode('customers', 'edit'),
+  toCode('reports', 'view'),
+  toCode('staff', 'view'),
+  toCode('staff', 'edit'),
+  toCode('settings', 'view'),
+];
 
 const cashierDefaultCodes: PermissionCode[] = [
-  toCode('BILLING', 'CREATE_BILL'),
-  toCode('BILLING', 'VIEW_ALL_OPEN_BILLS'),
-  toCode('PAYMENTS', 'CASH'),
-  toCode('PAYMENTS', 'CARD'),
-  toCode('PAYMENTS', 'SPLIT'),
-  toCode('KITCHEN', 'SAVE_AND_SEND_TO_KITCHEN'),
-  toCode('RECEIPTS', 'PRINT_RECEIPT'),
-  toCode('RECEIPTS', 'SEND_SMS_RECEIPT'),
-  toCode('CUSTOMERS', 'LOOK_UP_CUSTOMER'),
-  toCode('CUSTOMERS', 'VIEW_PURCHASE_HISTORY'),
+  toCode('pos', 'view'),
+  toCode('pos', 'create'),
+  toCode('customers', 'view'),
 ];
 
 const kitchenDefaultCodes: PermissionCode[] = [
-  toCode('KITCHEN', 'SAVE_AND_SEND_TO_KITCHEN'),
-  toCode('KITCHEN', 'VIEW_KITCHEN_DASHBOARD'),
-  toCode('KITCHEN', 'MARK_READY'),
-  toCode('KITCHEN', 'BUMP'),
-  toCode('KITCHEN', 'RECALL'),
+  toCode('kitchen', 'view'),
+  toCode('kitchen', 'edit'),
 ];
 
 export const ROLE_DEFAULT_CODES: Record<UserRole, PermissionCode[]> = {
-  ADMIN: allPermissionCodes,
+  ADMIN: PERMISSION_MODULES.map((module) => toCode(module, 'full_access')),
   MANAGER: managerDefaultCodes,
   CASHIER: cashierDefaultCodes,
   KITCHEN: kitchenDefaultCodes,
 };
 
 export const PERMISSIONS = {
-  BILLING_CREATE: toCode('BILLING', 'CREATE_BILL'),
-  BILLING_VOID: toCode('BILLING', 'VOID_BILL'),
-  BILLING_DISCOUNT: toCode('BILLING', 'APPLY_MANUAL_DISCOUNT'),
-  BILLING_VIEW_OPEN: toCode('BILLING', 'VIEW_ALL_OPEN_BILLS'),
-  BILLING_MANAGE: toCode('BILLING', 'APPLY_MANUAL_DISCOUNT'),
+  BILLING_CREATE: toCode('pos', 'create'),
+  BILLING_VOID: toCode('pos', 'delete'),
+  BILLING_DISCOUNT: toCode('pos', 'edit'),
+  BILLING_VIEW_OPEN: toCode('pos', 'view'),
+  BILLING_MANAGE: toCode('pos', 'full_access'),
 
-  PAYMENTS_CASH: toCode('PAYMENTS', 'CASH'),
-  PAYMENTS_CARD: toCode('PAYMENTS', 'CARD'),
-  PAYMENTS_SPLIT: toCode('PAYMENTS', 'SPLIT'),
-  PAYMENTS_MARK_DELIVERY_PAID: toCode('PAYMENTS', 'MARK_DELIVERY_AS_PAID'),
+  PAYMENTS_CASH: toCode('pos', 'edit'),
+  PAYMENTS_CARD: toCode('pos', 'edit'),
+  PAYMENTS_SPLIT: toCode('pos', 'edit'),
+  PAYMENTS_MARK_DELIVERY_PAID: toCode('pos', 'edit'),
 
-  RECEIPTS_PRINT: toCode('RECEIPTS', 'PRINT_RECEIPT'),
-  RECEIPTS_SMS: toCode('RECEIPTS', 'SEND_SMS_RECEIPT'),
+  RECEIPTS_PRINT: toCode('pos', 'view'),
+  RECEIPTS_SMS: toCode('pos', 'edit'),
 
-  KITCHEN_SEND: toCode('KITCHEN', 'SAVE_AND_SEND_TO_KITCHEN'),
-  KITCHEN_VIEW: toCode('KITCHEN', 'VIEW_KITCHEN_DASHBOARD'),
-  KITCHEN_MARK_READY: toCode('KITCHEN', 'MARK_READY'),
-  KITCHEN_BUMP: toCode('KITCHEN', 'BUMP'),
-  KITCHEN_RECALL: toCode('KITCHEN', 'RECALL'),
+  KITCHEN_SEND: toCode('kitchen', 'edit'),
+  KITCHEN_VIEW: toCode('kitchen', 'view'),
+  KITCHEN_MARK_READY: toCode('kitchen', 'edit'),
+  KITCHEN_BUMP: toCode('kitchen', 'edit'),
+  KITCHEN_RECALL: toCode('kitchen', 'edit'),
 
-  CUSTOMERS_LOOKUP: toCode('CUSTOMERS', 'LOOK_UP_CUSTOMER'),
-  CUSTOMERS_VIEW_PROFILES: toCode('CUSTOMERS', 'VIEW_CUSTOMER_PROFILES'),
-  CUSTOMERS_VIEW_HISTORY: toCode('CUSTOMERS', 'VIEW_PURCHASE_HISTORY'),
-  CUSTOMERS_ADJUST_LOYALTY: toCode(
-    'CUSTOMERS',
-    'ADJUST_LOYALTY_POINTS_MANUALLY',
-  ),
+  CUSTOMERS_LOOKUP: toCode('customers', 'view'),
+  CUSTOMERS_VIEW_PROFILES: toCode('customers', 'view'),
+  CUSTOMERS_VIEW_HISTORY: toCode('customers', 'view'),
+  CUSTOMERS_ADJUST_LOYALTY: toCode('customers', 'edit'),
 
-  MENU_VIEW: toCode('MENU', 'HIDE_SHOW_ITEMS'),
-  MENU_EDIT_ITEMS: toCode('MENU', 'ADD_EDIT_ITEMS'),
-  MENU_DELETE_ITEMS: toCode('MENU', 'DELETE_ITEMS'),
-  MENU_EDIT_CATEGORIES: toCode('MENU', 'ADD_EDIT_CATEGORIES'),
-  MENU_DELETE_CATEGORIES: toCode('MENU', 'DELETE_CATEGORIES'),
-  MENU_MANAGE: toCode('MENU', 'ADD_EDIT_ITEMS'),
+  MENU_VIEW: toCode('menu', 'view'),
+  MENU_EDIT_ITEMS: toCode('menu', 'edit'),
+  MENU_DELETE_ITEMS: toCode('menu', 'delete'),
+  MENU_EDIT_CATEGORIES: toCode('menu', 'edit'),
+  MENU_DELETE_CATEGORIES: toCode('menu', 'delete'),
+  MENU_MANAGE: toCode('menu', 'full_access'),
 
-  INVENTORY_VIEW: toCode('INVENTORY', 'VIEW_STOCK'),
-  INVENTORY_MANAGE: toCode('INVENTORY', 'MANUALLY_ADJUST_STOCK'),
-  INVENTORY_VIEW_LOW_STOCK: toCode('INVENTORY', 'VIEW_LOW_STOCK_ALERTS'),
+  INVENTORY_VIEW: toCode('inventory', 'view'),
+  INVENTORY_MANAGE: toCode('inventory', 'edit'),
+  INVENTORY_VIEW_LOW_STOCK: toCode('inventory', 'view'),
 
-  REPORTS_VIEW: toCode('REPORTS', 'VIEW_REPORTS'),
-  REPORTS_EXPORT: toCode('REPORTS', 'EXPORT_REPORTS'),
-  REPORTS_MANAGE: toCode('REPORTS', 'EXPORT_REPORTS'),
+  REPORTS_VIEW: toCode('reports', 'view'),
+  REPORTS_EXPORT: toCode('reports', 'create'),
+  REPORTS_MANAGE: toCode('reports', 'full_access'),
 
-  STAFF_INVITE: toCode('STAFF', 'INVITE_STAFF'),
-  STAFF_EDIT: toCode('STAFF', 'EDIT_STAFF'),
-  STAFF_DEACTIVATE: toCode('STAFF', 'DEACTIVATE_STAFF'),
-  STAFF_DELETE: toCode('STAFF', 'DELETE_STAFF'),
-  STAFF_VIEW: toCode('STAFF', 'EDIT_STAFF'),
-  STAFF_MANAGE: toCode('STAFF', 'EDIT_STAFF'),
+  STAFF_INVITE: toCode('staff', 'create'),
+  STAFF_EDIT: toCode('staff', 'edit'),
+  STAFF_DEACTIVATE: toCode('staff', 'edit'),
+  STAFF_DELETE: toCode('staff', 'delete'),
+  STAFF_VIEW: toCode('staff', 'view'),
+  STAFF_MANAGE: toCode('staff', 'full_access'),
 
-  SETTINGS_VIEW: toCode('SETTINGS', 'VIEW_SETTINGS'),
-  SETTINGS_EDIT_PROFILE: toCode('SETTINGS', 'EDIT_RESTAURANT_PROFILE'),
-  SETTINGS_EDIT_TAX: toCode('SETTINGS', 'EDIT_TAX'),
-  SETTINGS_EDIT_LOYALTY: toCode('SETTINGS', 'EDIT_LOYALTY'),
-  SETTINGS_SETUP_TYRO: toCode('SETTINGS', 'SET_UP_TYRO'),
-  SETTINGS_PURCHASE_SMS: toCode('SETTINGS', 'PURCHASE_SMS_CREDITS'),
-  SETTINGS_MANAGE_TERMINALS: toCode('SETTINGS', 'MANAGE_TERMINALS'),
-  SETTINGS_CONFIGURE_PERMISSIONS: toCode(
-    'SETTINGS',
-    'CONFIGURE_ROLE_PERMISSIONS',
-  ),
-  SETTINGS_MANAGE: toCode('SETTINGS', 'CONFIGURE_ROLE_PERMISSIONS'),
+  SETTINGS_VIEW: toCode('settings', 'view'),
+  SETTINGS_EDIT_PROFILE: toCode('settings', 'edit'),
+  SETTINGS_EDIT_TAX: toCode('settings', 'edit'),
+  SETTINGS_EDIT_LOYALTY: toCode('settings', 'edit'),
+  SETTINGS_SETUP_TYRO: toCode('settings', 'edit'),
+  SETTINGS_PURCHASE_SMS: toCode('settings', 'edit'),
+  SETTINGS_MANAGE_TERMINALS: toCode('settings', 'edit'),
+  SETTINGS_CONFIGURE_PERMISSIONS: toCode('staff', 'full_access'),
+  SETTINGS_MANAGE: toCode('settings', 'full_access'),
 } as const;
 
 export const isPermissionCode = (value: string): value is PermissionCode =>
@@ -248,13 +261,16 @@ export const flattenPermissionMap = (
 
   const output: PermissionCode[] = [];
 
-  for (const [group, actions] of Object.entries(map)) {
-    if (!(group in PERMISSION_CATALOG) || !Array.isArray(actions)) {
+  for (const [module, actions] of Object.entries(map)) {
+    if (
+      !PERMISSION_MODULES.includes(module as PermissionModule) ||
+      !Array.isArray(actions)
+    ) {
       continue;
     }
 
     for (const action of actions) {
-      const code = `${group}:${action}`;
+      const code = `${module}:${action}`;
       if (isPermissionCode(code)) {
         output.push(code);
       }
@@ -272,10 +288,13 @@ export const buildPermissionMap = (codes: string[]): PermissionMap => {
       continue;
     }
 
-    const [group, action] = code.split(':') as [PermissionGroup, string];
-    grouped[group] = grouped[group] || [];
-    if (!grouped[group].includes(action)) {
-      grouped[group].push(action);
+    const [module, action] = code.split(':') as [
+      PermissionModule,
+      PermissionAction,
+    ];
+    grouped[module] = grouped[module] || [];
+    if (!grouped[module]?.includes(action)) {
+      grouped[module]?.push(action);
     }
   }
 
@@ -289,24 +308,29 @@ export const sanitizePermissionMap = (map: unknown): PermissionMap => {
 
   const result: PermissionMap = {};
 
-  for (const [group, actions] of Object.entries(
+  for (const [module, actions] of Object.entries(
     map as Record<string, unknown>,
   )) {
-    if (!(group in PERMISSION_CATALOG) || !Array.isArray(actions)) {
+    if (
+      !PERMISSION_MODULES.includes(module as PermissionModule) ||
+      !Array.isArray(actions)
+    ) {
       continue;
     }
 
     const allowedActions = new Set(
-      PERMISSION_CATALOG[group as PermissionGroup].actions.map(
+      PERMISSION_CATALOG[module as PermissionModule].actions.map(
         (action) => action.key,
       ),
     );
 
     const filtered = actions
       .filter((value): value is string => typeof value === 'string')
-      .filter((value) => allowedActions.has(value as any));
+      .filter((value): value is PermissionAction =>
+        allowedActions.has(value as PermissionAction),
+      );
 
-    result[group as PermissionGroup] = Array.from(new Set(filtered));
+    result[module as PermissionModule] = Array.from(new Set(filtered));
   }
 
   return result;
@@ -323,10 +347,25 @@ export const resolveRolePermissionCodes = (
     return ROLE_DEFAULT_CODES.ADMIN;
   }
 
-  const base = storedMap
-    ? flattenPermissionMap(storedMap)
-    : ROLE_DEFAULT_CODES[role];
-  return Array.from(new Set(base));
+  const base = flattenPermissionMap(storedMap);
+  const result = base.length > 0 ? base : ROLE_DEFAULT_CODES[role];
+  return Array.from(new Set(result));
+};
+
+export const hasPermissionCode = (
+  granted: PermissionCode[],
+  required: PermissionCode,
+): boolean => {
+  if (granted.includes(required)) {
+    return true;
+  }
+
+  const [requiredModule] = required.split(':') as [
+    PermissionModule,
+    PermissionAction,
+  ];
+  const wildcard = `${requiredModule}:full_access` as PermissionCode;
+  return granted.includes(wildcard);
 };
 
 export const getAllPermissionCodes = () => allPermissionCodes;

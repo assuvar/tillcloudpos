@@ -12,6 +12,7 @@ import {
   LockKeyhole,
 } from 'lucide-react';
 import InviteStaffModal from './InviteStaffModal';
+import AccessControlModal from './AccessControlModal';
 import { useAuth } from './context/AuthContext';
 import api from './services/api';
 
@@ -105,6 +106,8 @@ export default function StaffManagementPage() {
   const [pinAuditLogs, setPinAuditLogs] = useState<PinAuditLog[]>([]);
   const [pinAuditLoading, setPinAuditLoading] = useState(false);
   const [pinAuditError, setPinAuditError] = useState<string | null>(null);
+  const [isAccessControlModalOpen, setIsAccessControlModalOpen] = useState(false);
+  const [accessControlStaff, setAccessControlStaff] = useState<StaffRecord | null>(null);
 
   const fetchStaffData = async () => {
     if (!user?.restaurantId || !user?.id) {
@@ -658,6 +661,17 @@ export default function StaffManagementPage() {
                       >
                         <LockKeyhole size={16} />
                       </button>
+                      <button
+                        onClick={() => {
+                          setAccessControlStaff(staff);
+                          setIsAccessControlModalOpen(true);
+                        }}
+                        disabled={actionLoadingId === staff.id || user?.role !== 'ADMIN'}
+                        className="h-10 w-10 rounded-xl text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center disabled:opacity-40"
+                        title="Access Control"
+                      >
+                        <ShieldCheck size={16} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -760,6 +774,19 @@ export default function StaffManagementPage() {
         submitError={submitError}
         isSubmitting={isSubmitting}
       />
+
+      {accessControlStaff && (
+        <AccessControlModal
+          isOpen={isAccessControlModalOpen}
+          onClose={() => {
+            setIsAccessControlModalOpen(false);
+            setAccessControlStaff(null);
+          }}
+          staffId={accessControlStaff.id}
+          staffName={accessControlStaff.name}
+          staffRole={accessControlStaff.role}
+        />
+      )}
     </div>
   );
 }

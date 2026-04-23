@@ -1,35 +1,37 @@
 import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import PosLayout from './components/PosLayout';
 
-type ReceiptLocationState = {
-  bill?: {
-    id: string;
-    orderNumber: number;
-    orderType?: string;
-    tableNumber?: string | null;
-    subtotalAmount?: number;
-    taxAmount?: number;
-    totalAmount?: number;
-    paidAt?: string | null;
-    createdAt?: string;
-    items?: Array<{
-      id: string;
-      name: string;
-      quantity: number;
-      price: number;
-      lineTotal?: number;
-    }>;
-  };
-  payment?: {
-    id?: string;
-    method?: string;
-    amount?: number;
-    cashReceived?: number;
-    change?: number;
-  };
-  customer?: { name: string } | null;
+type ReceiptItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+  lineTotal?: number;
+};
+
+type ReceiptBill = {
+  id?: string;
+  orderNumber?: number;
+  tableNumber?: string;
+  orderType?: string;
+  totalAmount?: number;
+  taxAmount?: number;
+  items?: ReceiptItem[];
+  createdAt?: string;
+};
+
+type ReceiptPayment = {
+  method?: string;
+  paidAmount?: number;
+  amount?: number;
+  changeAmount?: number;
+};
+
+type ReceiptState = {
+  bill?: ReceiptBill;
+  payment?: ReceiptPayment;
   cashierName?: string;
-  discountAmount?: number;
 };
 
 const formatCurrency = (value: number) =>
@@ -38,45 +40,46 @@ const formatCurrency = (value: number) =>
     currency: 'AUD',
   }).format(Number(value || 0));
 
-const formatOrderType = (orderType?: string) => {
-  if (!orderType) return 'Dine-in';
-
-  const normalized = orderType.replace(/_/g, ' ').toLowerCase();
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+const formatOrderType = (value?: string) => {
+  if (!value) return 'DINE IN';
+  return value
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 export default function ThermalReceiptScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = (location.state || {}) as ReceiptLocationState;
+  const state = (location.state || {}) as ReceiptState;
 
   const bill = state.bill;
   const payment = state.payment;
+  const hasBill = Boolean(bill && Array.isArray(bill.items));
 
-  const subtotal = Number(bill?.subtotalAmount ?? bill?.totalAmount ?? 0);
-  const tax = Number(bill?.taxAmount ?? 0);
-  const discount = Number(state.discountAmount ?? 0);
-  const total = Number(bill?.totalAmount ?? subtotal + tax - discount);
+  const receiptDate = useMemo(
+    () => (bill?.createdAt ? new Date(bill.createdAt) : new Date()),
+    [bill?.createdAt],
+  );
 
-  const taxRate = useMemo(() => {
-    if (subtotal <= 0 || tax <= 0) return 0;
-    return Number(((tax / subtotal) * 100).toFixed(2));
-  }, [subtotal, tax]);
+  const subtotal = useMemo(() => {
+    if (!bill?.items || bill.items.length === 0) {
+      return 0;
+    }
 
-  const paidAmount = Number(payment?.cashReceived ?? payment?.amount ?? total);
-  const changeAmount = Number(payment?.change ?? Math.max(paidAmount - total, 0));
+    return bill.items.reduce((acc, item) => {
+      const line = Number(item.lineTotal ?? item.price * item.quantity);
+      return acc + line;
+    }, 0);
+  }, [bill?.items]);
 
-  const receiptDate = useMemo(() => {
-    const source = bill?.paidAt || bill?.createdAt;
-    return source ? new Date(source) : new Date();
-  }, [bill?.createdAt, bill?.paidAt]);
-
-  const hasBill = Boolean(bill?.id);
-  const restaurantName = import.meta.env.VITE_RESTAURANT_NAME || 'TILLCLOUD RESTAURANT';
-  const restaurantAddress = import.meta.env.VITE_RESTAURANT_ADDRESS || '';
+  const tax = Number(bill?.taxAmount || 0);
+  const total = Number(bill?.totalAmount || subtotal + tax);
+  const paidAmount = Number(payment?.paidAmount ?? payment?.amount ?? total);
+  const changeAmount = Number(payment?.changeAmount ?? Math.max(paidAmount - total, 0));
 
   return (
-    <>
+    <PosLayout>
       <style>{`
         @media print {
           @page {
@@ -90,12 +93,14 @@ export default function ThermalReceiptScreen() {
 
           body {
             margin: 0;
-            background: #fff;
+            background: #fff !important;
           }
 
           .receipt-page {
             padding: 0 !important;
             background: #fff !important;
+            height: auto !important;
+            overflow: visible !important;
           }
 
           .receipt-shell,
@@ -115,7 +120,8 @@ export default function ThermalReceiptScreen() {
             padding: 2mm !important;
           }
 
-          .no-print {
+          .no-print,
+          footer {
             display: none !important;
           }
         }
@@ -123,133 +129,124 @@ export default function ThermalReceiptScreen() {
 
       <div className="receipt-page min-h-screen bg-slate-100 px-4 py-8 text-black print:bg-white print:p-0">
         <div className="mx-auto w-full max-w-5xl">
-          <div className="no-print mb-4 flex flex-wrap items-center justify-center gap-3">
+          <div className="no-print mb-8 flex flex-wrap items-center justify-center gap-4">
             <button
               onClick={() => window.print()}
-              className="rounded-md bg-black px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white"
+              className="flex h-12 items-center gap-2 rounded-2xl bg-[#0c1424] px-8 text-[11px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/10 transition-all hover:bg-black"
             >
               Print Receipt
             </button>
             <button
               onClick={() => navigate('/pos')}
-              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-800"
+              className="flex h-12 items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-8 text-[11px] font-black uppercase tracking-widest text-slate-600 transition-all hover:bg-slate-50"
             >
-              Back to POS Home
+              Order List
             </button>
             <button
               onClick={() => navigate('/pos/order-entry', { replace: true })}
-              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-800"
+              className="flex h-12 items-center gap-2 rounded-2xl bg-[#5dc7ec] px-8 text-[11px] font-black uppercase tracking-widest text-[#0c1424] shadow-xl shadow-[#5dc7ec]/20 transition-all hover:bg-white"
             >
-              New Bill
+              New Transaction
             </button>
           </div>
 
-          <div className="receipt-shell mx-auto w-[300px] border border-slate-300 bg-white p-4 text-[12px] leading-[1.35] shadow-sm">
+          <div className="receipt-shell mx-auto w-[320px] rounded-[32px] border border-slate-200 bg-white p-8 font-mono text-[11px] leading-[1.5] shadow-2xl shadow-black/5 print:rounded-none print:border-0 print:shadow-none">
             {!hasBill ? (
-              <div className="py-6 text-center text-xs font-semibold uppercase tracking-wide text-slate-600">
+              <div className="py-12 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
                 Receipt data not available
               </div>
             ) : (
-              <div className="font-mono">
+              <div>
                 <div className="text-center">
-                  <div className="text-sm font-bold uppercase tracking-wide">{restaurantName}</div>
-                  {restaurantAddress ? <div className="mt-1 text-[11px]">{restaurantAddress}</div> : null}
-                  <div className="mt-1 text-[11px]">{receiptDate.toLocaleString('en-AU')}</div>
+                  <div className="text-lg font-[950] uppercase tracking-tighter text-[#0c1424]">TillCloud</div>
+                  <div className="mt-1 text-[10px] font-medium text-slate-500">{receiptDate.toLocaleString('en-AU')}</div>
                 </div>
 
-                <div className="my-2 border-t border-dashed border-black" />
+                <div className="my-6 border-t border-dashed border-slate-200" />
 
-                <div className="space-y-1 text-[11px]">
+                <div className="space-y-1.5">
                   <div className="flex justify-between">
-                    <span>Order No</span>
-                    <span className="font-bold">#{String(bill?.orderNumber ?? 0).padStart(4, '0')}</span>
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Order No</span>
+                    <span className="font-black text-[#0c1424]">#{String(bill?.orderNumber ?? 0).padStart(4, '0')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Table</span>
-                    <span>{bill?.tableNumber || '-'}</span>
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Table</span>
+                    <span className="font-black text-[#0c1424]">{bill?.tableNumber || '-'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Order Type</span>
-                    <span>{formatOrderType(bill?.orderType)}</span>
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Type</span>
+                    <span className="font-black text-[#0c1424]">{formatOrderType(bill?.orderType)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Cashier</span>
-                    <span>{state.cashierName || 'Cashier'}</span>
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Cashier</span>
+                    <span className="font-black text-[#0c1424]">{state.cashierName || 'Cashier'}</span>
                   </div>
                 </div>
 
-                <div className="my-2 border-t border-dashed border-black" />
+                <div className="my-6 border-t border-dashed border-slate-200" />
 
-                <div className="space-y-2">
+                <div className="space-y-4">
                   {(bill?.items || []).map((item) => {
                     const unitPrice = Number(item.price ?? 0);
                     const lineTotal = Number(item.lineTotal ?? unitPrice * Number(item.quantity ?? 0));
 
                     return (
-                      <div key={item.id} className="text-[11px]">
-                        <div className="font-semibold">{item.name}</div>
-                        <div className="mt-0.5 flex justify-between">
+                      <div key={item.id}>
+                        <div className="font-black text-[#0c1424] uppercase tracking-wide">{item.name}</div>
+                        <div className="mt-1 flex justify-between text-slate-500 font-bold">
                           <span>
                             {item.quantity} x {formatCurrency(unitPrice)}
                           </span>
-                          <span>{formatCurrency(lineTotal)}</span>
+                          <span className="text-[#0c1424]">{formatCurrency(lineTotal)}</span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                <div className="my-2 border-t border-dashed border-black" />
+                <div className="my-6 border-t border-dashed border-slate-200" />
 
-                <div className="space-y-1 text-[11px]">
-                  <div className="flex justify-between">
+                <div className="space-y-2">
+                  <div className="flex justify-between font-bold text-slate-500">
                     <span>Subtotal</span>
                     <span>{formatCurrency(subtotal)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Tax{taxRate > 0 ? ` (${taxRate}%)` : ''}</span>
+                  <div className="flex justify-between font-bold text-slate-500">
+                    <span>Tax</span>
                     <span>{formatCurrency(tax)}</span>
                   </div>
-                  {discount > 0 ? (
-                    <div className="flex justify-between">
-                      <span>Discount</span>
-                      <span>-{formatCurrency(discount)}</span>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between text-sm font-bold">
-                    <span>Total</span>
+                  <div className="flex justify-between pt-2 text-base font-[950] text-[#0c1424]">
+                    <span>TOTAL</span>
                     <span>{formatCurrency(total)}</span>
                   </div>
                 </div>
 
-                <div className="my-2 border-t border-dashed border-black" />
+                <div className="my-6 border-t border-dashed border-slate-200" />
 
-                <div className="space-y-1 text-[11px]">
-                  <div className="flex justify-between">
-                    <span>Payment</span>
-                    <span>{payment?.method === 'CARD' ? 'Card' : 'Cash'}</span>
+                <div className="space-y-2">
+                  <div className="flex justify-between font-bold text-slate-500">
+                    <span>Method</span>
+                    <span className="uppercase">{payment?.method === 'CARD' ? 'Card' : 'Cash'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Paid</span>
-                    <span>{formatCurrency(paidAmount)}</span>
+                  <div className="flex justify-between font-bold text-slate-500">
+                    <span>Amount Paid</span>
+                    <span className="text-[#0c1424]">{formatCurrency(paidAmount)}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between font-bold text-slate-500">
                     <span>Change</span>
-                    <span>{formatCurrency(changeAmount)}</span>
+                    <span className="text-[#0c1424]">{formatCurrency(changeAmount)}</span>
                   </div>
                 </div>
 
-                <div className="my-2 border-t border-dashed border-black" />
-
-                <div className="pt-1 text-center text-[11px]">
-                  <div>Thank you for dining with us</div>
-                  <div className="mt-1">Please visit again</div>
+                <div className="my-8 text-center">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0c1424]">Thank You</div>
+                  <div className="mt-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Please Visit Again</div>
                 </div>
               </div>
             )}
           </div>
         </div>
       </div>
-    </>
+    </PosLayout>
   );
 }

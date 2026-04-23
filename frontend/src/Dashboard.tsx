@@ -46,7 +46,12 @@ import StockListPage from "./StockListPage";
 import CustomersPage from "./CustomersPage";
 import ReportsPage from "./ReportsPage";
 import SettingsPage from "./SettingsPage";
-import { getAccessibleDashboardViews } from "./dashboardNavigation";
+import AccessDenied from "./components/AccessDenied";
+import {
+  DASHBOARD_VIEWS,
+  type DashboardViewId,
+  type DashboardView as DashboardNavView,
+} from "./dashboardNavigation";
 
 interface StatCardProps {
   title: string;
@@ -153,8 +158,6 @@ type DashboardTrendPoint = {
   active?: boolean;
 };
 
-type DashboardView = 'home' | 'menu' | 'staff' | 'orders' | 'inventory' | 'customers' | 'analytics' | 'settings' | 'reports';
-
 type QuickAction = {
   label: string;
   sub: string;
@@ -188,13 +191,13 @@ type RecentOrderView = Order & {
 };
 
 export default function Dashboard() {
-  const { user, logout, hasModuleAccess, hasPermission, permissionsLoading } = useAuth();
+  const { user, logout, hasModuleAccess, hasPermission, permissionsLoading, refreshPermissions } = useAuth();
   const navigate = useNavigate();
   const [terminalLaunched, setTerminalLaunched] = useState<boolean>(() => {
     return localStorage.getItem("terminalLaunched") === "true";
   });
   const [isLaunching, setIsLaunching] = useState(false);
-  const [currentView, setCurrentView] = useState<DashboardView>('home');
+  const [currentView, setCurrentView] = useState<DashboardViewId>('home');
   const [realStaff, setRealStaff] = useState<StaffRow[]>([]);
   const [salesData, setSalesData] = useState<DashboardTrendPoint[]>([]);
   const [peakHourLabel, setPeakHourLabel] = useState('N/A');
@@ -214,10 +217,7 @@ export default function Dashboard() {
 
   const isAdmin = user?.role === 'ADMIN';
   const canViewHomeDashboard = user?.role === 'ADMIN' || user?.role === 'MANAGER';
-  const accessibleViews = getAccessibleDashboardViews(
-    user?.role,
-    hasModuleAccess,
-  ).map((item) => ({
+  const accessibleViews = DASHBOARD_VIEWS.map((item) => ({
     ...item,
     icon:
       item.id === 'home'
@@ -236,6 +236,37 @@ export default function Dashboard() {
                     ? BarChart3
                     : Settings,
   }));
+
+  const hasViewAccess = (viewId: DashboardViewId) => {
+    const targetView = accessibleViews.find((item) => item.id === viewId);
+    if (!targetView) {
+      return false;
+    }
+
+    if (!targetView.module) {
+      return user?.role === 'ADMIN' || user?.role === 'MANAGER';
+    }
+
+    return hasModuleAccess(targetView.module);
+  };
+
+  const handleViewSelection = (viewId: DashboardViewId) => {
+    if (viewId === 'orders') {
+      if (!hasModuleAccess('BILLING')) {
+        setCurrentView('orders');
+        return;
+      }
+      navigate('/pos');
+      return;
+    }
+
+    if (!hasViewAccess(viewId)) {
+      setCurrentView(viewId);
+      return;
+    }
+
+    setCurrentView(viewId);
+  };
 
   useEffect(() => {
     if (!permissionsLoading && !accessibleViews.some((item) => item.id === currentView)) {
@@ -372,6 +403,8 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    void refreshPermissions();
+
     if (canUseReports) {
       void loadDashboardData();
     }
@@ -503,15 +536,21 @@ export default function Dashboard() {
             <Cloud size={24} strokeWidth={2.5} />
           </div>
 
-          <nav className="flex flex-row gap-2 lg:flex-col lg:gap-6">
-            <SidebarIcon icon={Home} active />
-            <SidebarIcon icon={LayoutGrid} />
-            <SidebarIcon icon={Utensils} />
-            <SidebarIcon icon={Users} />
-            <SidebarIcon icon={Package} />
-            <SidebarIcon icon={User} />
-            <SidebarIcon icon={BarChart3} />
-            <SidebarIcon icon={Settings} />
+          <nav className="flex flex-row flex-wrap justify-center gap-2 lg:flex-col lg:gap-6">
+            {DASHBOARD_VIEWS.map((view: DashboardNavView) => {
+              const hasAccess = hasModuleAccess(view.module || 'BILLING');
+              if (!hasAccess) return null;
+
+              return (
+                <SidebarIcon
+                  key={view.id}
+                  icon={view.icon}
+                  active={currentView === view.id}
+                  onClick={() => handleViewSelection(view.id)}
+                  label={view.label}
+                />
+              );
+            })}
           </nav>
 
           <div className="mt-auto hidden flex-col items-center gap-6 lg:flex">
@@ -721,7 +760,23 @@ export default function Dashboard() {
                   key={idx} 
                   onClick={() => {
                     if (action.path === '/pos') {
-                      navigate(action.path);
+                      if (!hasPermission(FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN)) {
+                        setCurrentView('orders');
+                        return;
+                      }
+                      navigate('/pos');
+                      return;
+                    }
+
+                    const permissionGroup =
+                      action.path === 'menu'
+                        ? 'MENU'
+                        : action.path === 'staff'
+                          ? 'STAFF'
+                          : undefined;
+
+                    if (permissionGroup && !hasModuleAccess(permissionGroup)) {
+                      setCurrentView(action.path as DashboardViewId);
                       return;
                     }
 
@@ -771,7 +826,7 @@ export default function Dashboard() {
                 icon={item.icon}
                 active={currentView === item.id}
                 label={item.label}
-                onClick={() => setCurrentView(item.id)}
+                onClick={() => handleViewSelection(item.id)}
               />
             ))}
           </nav>
@@ -1142,27 +1197,50 @@ export default function Dashboard() {
           </>
         )}
 
-        {currentView === 'menu' && (
+        {currentView === 'orders' && !hasModuleAccess('BILLING') && (
+           <AccessDenied moduleName="POS" onBack={() => setCurrentView('home')} />
+        )}
+
+        {currentView === 'menu' && hasModuleAccess('MENU') && (
           <MenuManagement />
         )}
+        {currentView === 'menu' && !hasModuleAccess('MENU') && (
+          <AccessDenied moduleName="Menu" onBack={() => setCurrentView('home')} />
+        )}
 
-        {currentView === 'staff' && (
+        {currentView === 'staff' && hasModuleAccess('STAFF') && (
           <StaffManagementPage />
         )}
+        {currentView === 'staff' && !hasModuleAccess('STAFF') && (
+          <AccessDenied moduleName="Staff" onBack={() => setCurrentView('home')} />
+        )}
 
-        {currentView === 'inventory' && (
+        {currentView === 'inventory' && hasModuleAccess('INVENTORY') && (
           <StockListPage />
         )}
+        {currentView === 'inventory' && !hasModuleAccess('INVENTORY') && (
+          <AccessDenied moduleName="Inventory" onBack={() => setCurrentView('home')} />
+        )}
 
-        {currentView === 'customers' && (
+        {currentView === 'customers' && hasModuleAccess('CUSTOMERS') && (
           <CustomersPage />
         )}
+        {currentView === 'customers' && !hasModuleAccess('CUSTOMERS') && (
+          <AccessDenied moduleName="Customers" onBack={() => setCurrentView('home')} />
+        )}
 
-        {currentView === 'reports' && (
+        {currentView === 'reports' && hasModuleAccess('REPORTS') && (
           <ReportsPage />
         )}
-        {currentView === 'settings' && (
+        {currentView === 'reports' && !hasModuleAccess('REPORTS') && (
+          <AccessDenied moduleName="Reports" onBack={() => setCurrentView('home')} />
+        )}
+
+        {currentView === 'settings' && hasModuleAccess('SETTINGS') && (
           <SettingsPage />
+        )}
+        {currentView === 'settings' && !hasModuleAccess('SETTINGS') && (
+          <AccessDenied moduleName="Settings" onBack={() => setCurrentView('home')} />
         )}
 
         {!permissionsLoading && !isAdmin && accessibleViews.length === 0 && (

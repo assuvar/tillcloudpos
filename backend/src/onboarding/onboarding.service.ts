@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
 
-type MissingStep = 'business' | 'serviceModel';
+type MissingStep = 'business' | 'serviceModel' | 'emailVerification';
 
 @Injectable()
 export class OnboardingService {
@@ -18,6 +18,7 @@ export class OnboardingService {
       },
       select: {
         id: true,
+        emailVerified: true,
         onboardingCompleted: true,
       },
     });
@@ -75,16 +76,21 @@ export class OnboardingService {
     );
   }
 
-  private getMissingSteps(restaurant: {
-    onboardingCompleted: boolean;
-    name: string;
-    streetAddress: string;
-    suburb: string;
-    state: string;
-    postcode: string;
-    phone: string | null;
-    serviceModels: string[];
-  }): MissingStep[] {
+  private getMissingSteps(
+    restaurant: {
+      onboardingCompleted: boolean;
+      name: string;
+      streetAddress: string;
+      suburb: string;
+      state: string;
+      postcode: string;
+      phone: string | null;
+      serviceModels: string[];
+    },
+    user: {
+      emailVerified: boolean;
+    },
+  ): MissingStep[] {
     const missingSteps: MissingStep[] = [];
     const hasBusinessFields =
       !!restaurant.name?.trim() &&
@@ -107,6 +113,10 @@ export class OnboardingService {
       missingSteps.push('serviceModel');
     }
 
+    if (!user.emailVerified) {
+      missingSteps.push('emailVerification');
+    }
+
     return missingSteps;
   }
 
@@ -119,7 +129,7 @@ export class OnboardingService {
       userId,
       restaurantId,
     );
-    const missingSteps = this.getMissingSteps(restaurant);
+    const missingSteps = this.getMissingSteps(restaurant, user);
     const onboardingCompleted =
       restaurant.onboardingCompleted && missingSteps.length === 0;
 
@@ -155,15 +165,25 @@ export class OnboardingService {
     this.normalizeAndValidateServiceModels(restaurant.serviceModels || [], {
       throwOnInvalid: true,
     });
-    const missingSteps = this.getMissingSteps(restaurant);
+    const missingSteps = this.getMissingSteps(restaurant, user);
 
     if (missingSteps.length > 0) {
+      const details = {
+        business:
+          !restaurant.name || !restaurant.streetAddress || !restaurant.phone,
+        serviceModel: (restaurant.serviceModels || []).length === 0,
+        emailVerification: !user.emailVerified,
+      };
+
       this.logger.warn(
-        `Onboarding completion validation failed for user=${userId} restaurant=${restaurantId} missingSteps=${missingSteps.join(',')}`,
+        `Onboarding COMPLETION BLOCKED for user=${userId} restaurant=${restaurantId}. Missing Steps: [${missingSteps.join(', ')}]. ` +
+          `Details: ${JSON.stringify(details)}`,
       );
+
       throw new BadRequestException({
         message: 'Mandatory onboarding steps are incomplete',
         missingSteps,
+        details,
       });
     }
 

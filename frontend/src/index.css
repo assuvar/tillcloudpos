@@ -24,6 +24,7 @@
     @apply bg-gray-50 text-gray-900 overflow-x-hidden;
     font-family: "Plus Jakarta Sans", sans-serif;
     margin: 0;
+    scrollbar-gutter: stable;
   }
 
   img,

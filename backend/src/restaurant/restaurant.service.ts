@@ -88,23 +88,9 @@ export class RestaurantService {
     const nextPostcode = dto.postcode?.trim();
     const nextPhone = dto.phone?.trim();
 
-    if (
-      (nextStreetAddress !== undefined ||
-        nextSuburb !== undefined ||
-        nextState !== undefined ||
-        nextPostcode !== undefined ||
-        nextPhone !== undefined) &&
-      (!nextName ||
-        !nextStreetAddress ||
-        !nextSuburb ||
-        !nextState ||
-        !nextPostcode ||
-        !nextPhone)
-    ) {
-      throw new BadRequestException(
-        'name, streetAddress, suburb, state, postcode and phone are required for business setup',
-      );
-    }
+    // Note: We remove the strict multi-field check here.
+    // Data completeness is validated by OnboardingService.getMissingSteps()
+    // before allowing the onboarding to be marked as 'complete'.
 
     if (dto.taxMode && !ALLOWED_TAX_MODES.includes(dto.taxMode as any)) {
       throw new BadRequestException(
