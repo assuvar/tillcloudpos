@@ -98,7 +98,9 @@ export class PermissionsService {
     }
 
     // Convert StaffPermission relation to PermissionMap format
-    const staffPermissionCodes = staff.staffPermissions.map((sp: any) => sp.code);
+    const staffPermissionCodes = staff.staffPermissions.map(
+      (sp: any) => sp.code,
+    );
     const relationalMap = buildPermissionMap(staffPermissionCodes);
 
     // Fallback to legacy JSON for migration safety (if relational is empty)

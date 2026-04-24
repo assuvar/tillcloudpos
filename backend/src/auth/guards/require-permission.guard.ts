@@ -82,7 +82,9 @@ export class RequirePermissionGuard implements CanActivate {
       );
     }
 
-    const staffPermissionCodes = dbUser.staffPermissions.map((sp: any) => sp.code);
+    const staffPermissionCodes = dbUser.staffPermissions.map(
+      (sp: any) => sp.code,
+    );
     const sanitizedUserPermissions = sanitizePermissionMap(dbUser.permissions);
 
     let granted: PermissionCode[] = [];

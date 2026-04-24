@@ -357,7 +357,9 @@ export class BillsService {
     const displayOrderCount = await this.prisma.bill.count({
       where: {
         restaurantId,
-        createdAt: { gte: latestClosure ? latestClosure.createdAt : new Date(0) },
+        createdAt: {
+          gte: latestClosure ? latestClosure.createdAt : new Date(0),
+        },
       },
     });
 

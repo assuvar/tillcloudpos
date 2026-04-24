@@ -266,7 +266,14 @@ export class ReportsService {
         where: {
           restaurantId,
           createdAt: { gte: start, lt: end },
-          status: { in: [BillStatus.PAID, BillStatus.OPEN, BillStatus.KOT_SENT, BillStatus.AWAITING_PAYMENT] },
+          status: {
+            in: [
+              BillStatus.PAID,
+              BillStatus.OPEN,
+              BillStatus.KOT_SENT,
+              BillStatus.AWAITING_PAYMENT,
+            ],
+          },
         },
         data: {
           status: BillStatus.CLOSED,

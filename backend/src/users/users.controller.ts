@@ -87,18 +87,25 @@ export class UsersController {
     @Body() body: Record<string, string[]>,
   ) {
     const restaurantId = getRestaurantId(req);
-    console.log(`[Permissions] Updating user ${id} in restaurant ${restaurantId}`);
+    console.log(
+      `[Permissions] Updating user ${id} in restaurant ${restaurantId}`,
+    );
     console.log(`[Permissions] Payload:`, body);
 
     // Handle both direct and wrapped { permissions: Map } payloads
-    const permissionsData = (body as any).permissions && typeof (body as any).permissions === 'object' && !Array.isArray((body as any).permissions)
-      ? (body as any).permissions
-      : body;
+    const permissionsData =
+      (body as any).permissions &&
+      typeof (body as any).permissions === 'object' &&
+      !Array.isArray((body as any).permissions)
+        ? (body as any).permissions
+        : body;
 
     // Convert object format { module: ["action"] } to flat array ["module:action"]
     const flattenedPermissions = Object.entries(permissionsData).flatMap(
       ([module, actions]) =>
-        Array.isArray(actions) ? actions.map((action) => `${module}:${action}`) : [],
+        Array.isArray(actions)
+          ? actions.map((action) => `${module}:${action}`)
+          : [],
     );
 
     // Convert flat array ["module:action"] to Map { module: ["action"] }
