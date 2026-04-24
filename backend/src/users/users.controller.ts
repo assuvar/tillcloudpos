@@ -84,21 +84,42 @@ export class UsersController {
   async updateUserPermissions(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body() body: { permissions: string[] },
+    @Body() body: Record<string, string[]>,
   ) {
     const restaurantId = getRestaurantId(req);
     console.log(
       `[Permissions] Updating user ${id} in restaurant ${restaurantId}`,
     );
-    console.log(`[Permissions] Payload:`, body.permissions);
+    console.log(`[Permissions] Payload:`, body);
+
+    // Handle both direct and wrapped { permissions: Map } payloads
+    const permissionsData =
+      (body as any).permissions &&
+      typeof (body as any).permissions === 'object' &&
+      !Array.isArray((body as any).permissions)
+        ? (body as any).permissions
+        : body;
+
+    // Convert object format { module: ["action"] } to flat array ["module:action"]
+    const flattenedPermissions = Object.entries(permissionsData).flatMap(
+      ([module, actions]) =>
+        Array.isArray(actions)
+          ? actions.map((action) => `${module}:${action}`)
+          : [],
+    );
 
     // Convert flat array ["module:action"] to Map { module: ["action"] }
-    const permissionMap = buildPermissionMap(body.permissions || []);
+    const permissionMap = buildPermissionMap(flattenedPermissions);
 
     const result = await this.permissionsService.updateStaffPermissions(
       restaurantId,
       id,
       permissionMap,
+    );
+
+    console.log(
+      `[Permissions] UPDATE COMPLETED for user ${id}. New codes:`,
+      flattenPermissionMap(result.permissions),
     );
 
     console.log(

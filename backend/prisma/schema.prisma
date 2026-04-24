@@ -77,12 +77,13 @@ model User {
   pinLockedUntil      DateTime?
   onboardingCompleted Boolean       @default(false)
   lastLoginAt         DateTime?
-  permissions  Json?         // Staff-specific permissions
+  permissions  Json?         // Staff-specific permissions (Deprecated, use staffPermissions)
   createdAt           DateTime      @default(now())
   emailVerified       Boolean       @default(false)
   updatedAt           DateTime      @updatedAt
   bills        Bill[]        @relation("CashierBills")
   invitesSent  InviteToken[] @relation("InvitedBy")
+  staffPermissions StaffPermission[]
   restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([restaurantId, email])
@@ -100,6 +101,17 @@ model RolePermission {
 
   @@unique([restaurantId, role])
   @@map("role_permissions")
+}
+
+model StaffPermission {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String   // Format: "module:action"
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code])
+  @@map("staff_permissions")
 }
 
 model InviteToken {
@@ -297,6 +309,7 @@ model Bill {
   id                    String                 @id @default(cuid())
   restaurantId          String
   orderNumber           Int
+  displayOrderNumber    Int?                   @default(1)
   orderType             OrderType
   status                BillStatus             @default(OPEN)
   cashierId             String
@@ -466,6 +479,7 @@ enum BillStatus {
   AWAITING_PAYMENT
   PAID
   VOIDED
+  CLOSED
 }
 
 enum KotStatus {

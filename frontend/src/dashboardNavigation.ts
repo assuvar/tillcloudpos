@@ -1,6 +1,6 @@
 import {
   LayoutDashboard,
-  ShoppingCart,
+  LayoutGrid,
   Menu as MenuIcon,
   Users,
   Package,
@@ -30,7 +30,7 @@ export type DashboardView = {
 
 export const DASHBOARD_VIEWS: DashboardView[] = [
   { id: 'home', label: 'Home', icon: LayoutDashboard },
-  { id: 'orders', label: 'POS', module: 'BILLING', icon: ShoppingCart },
+  { id: 'orders', label: 'POS Entry', module: 'BILLING', icon: LayoutGrid },
   { id: 'menu', label: 'Menu', module: 'MENU', icon: MenuIcon },
   { id: 'staff', label: 'Staff', module: 'STAFF', icon: Users },
   { id: 'inventory', label: 'Inventory', module: 'INVENTORY', icon: Package },
@@ -40,21 +40,10 @@ export const DASHBOARD_VIEWS: DashboardView[] = [
 ];
 
 export const getAccessibleDashboardViews = (
-  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN' | undefined,
-  hasModuleAccess: (group: PermissionGroup) => boolean,
+  _role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN' | undefined,
+  _hasModuleAccess: (group: PermissionGroup) => boolean,
 ): DashboardView[] => {
-  const isAdmin = role === 'ADMIN';
-  const isManager = role === 'MANAGER';
-
-  return DASHBOARD_VIEWS.filter((item) => {
-    if (isAdmin) {
-      return true;
-    }
-
-    if (item.id === 'home') {
-      return isManager && hasModuleAccess('REPORTS');
-    }
-
-    return item.module ? hasModuleAccess(item.module) : false;
-  });
+  // Requirement: All modules visible in navbar for all roles.
+  // Access control is handled by the UI (disable/toast).
+  return DASHBOARD_VIEWS;
 };

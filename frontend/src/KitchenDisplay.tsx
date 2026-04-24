@@ -25,8 +25,10 @@ interface KitchenOrder {
   items: KitchenOrderItem[];
 }
 
+import UnifiedLayout from './components/UnifiedLayout';
+
 export default function KitchenDisplay() {
-  const { user, logout, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export default function KitchenDisplay() {
 
   if (!canViewKitchen) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#141414] px-4 text-white">
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#141414] px-4 text-white rounded-[40px]">
         <div className="max-w-lg rounded-3xl border border-rose-500/20 bg-rose-500/10 p-8 text-center">
           <div className="text-lg font-black">Kitchen access is disabled for this role.</div>
           <p className="mt-2 text-sm text-rose-100/80">Enable kitchen:view in role permissions to use the kitchen display.</p>
@@ -68,31 +70,24 @@ export default function KitchenDisplay() {
   }
 
   return (
-    <div className="min-h-screen bg-[#141414] p-5 text-white sm:p-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-black">Kitchen Display</h1>
-            <p className="mt-1 text-slate-300">Terminal: {user?.fullName || 'Kitchen'}</p>
+    <UnifiedLayout currentView="kitchen">
+      <div className="min-h-[80vh] bg-[#141414] p-5 text-white sm:p-8 rounded-[40px] shadow-2xl">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-[1000] tracking-tighter">Kitchen Display</h1>
+              <p className="mt-1 text-slate-400 font-medium uppercase text-[10px] tracking-widest">Active Orders Overview</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => void loadOrders()}
+                className="inline-flex h-12 items-center gap-2 rounded-full border border-slate-700 px-6 text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-colors"
+              >
+                <RefreshCw size={14} />
+                Refresh
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => void loadOrders()}
-              className="inline-flex h-12 items-center gap-2 rounded-full border border-slate-700 px-5 text-sm font-bold hover:bg-slate-800"
-            >
-              <RefreshCw size={16} />
-              Refresh
-            </button>
-            <button
-              onClick={() => {
-                void logout();
-              }}
-              className="rounded-full border border-slate-700 px-5 py-2 text-sm font-bold hover:bg-slate-800"
-            >
-              Unpair
-            </button>
-          </div>
-        </div>
 
         {isLoading ? (
           <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">Loading kitchen orders...</div>
@@ -152,5 +147,6 @@ export default function KitchenDisplay() {
         )}
       </div>
     </div>
+  </UnifiedLayout>
   );
 }

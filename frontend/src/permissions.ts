@@ -17,7 +17,63 @@ export const buildPermissionMap = (codes: string[] | null | undefined): Permissi
   return grouped;
 };
 
-export type PermissionRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
+
+export const ROLE_DEFAULT_CODES: Record<UserRole, string[]> = {
+  ADMIN: [], // Handled by backend as full_access
+  MANAGER: [
+    'dashboard:view',
+    'pos:view',
+    'pos:create',
+    'pos:edit',
+    'kitchen:view',
+    'menu:view',
+    'menu:create',
+    'menu:edit',
+    'inventory:view',
+    'inventory:edit',
+    'customers:view',
+    'customers:edit',
+    'reports:view',
+    'staff:view',
+    'staff:edit',
+    'settings:view',
+  ],
+  CASHIER: ['pos:view', 'pos:create', 'customers:view'],
+  KITCHEN: ['kitchen:view', 'kitchen:edit'],
+};
+
+export const flattenPermissionMap = (
+  map: PermissionMap | null | undefined,
+): string[] => {
+  if (!map) return [];
+  const output: string[] = [];
+  for (const [module, actions] of Object.entries(map)) {
+    if (Array.isArray(actions)) {
+      for (const action of actions) {
+        output.push(`${module}:${action}`);
+      }
+    }
+  }
+  return Array.from(new Set(output));
+};
+
+export const resolveRolePermissionCodes = (
+  role: UserRole,
+  storedMap?: PermissionMap | null,
+): string[] => {
+  if (role === 'ADMIN') {
+    return []; // Admin typically gets full_access codes from backend
+  }
+
+  const base = flattenPermissionMap(storedMap);
+
+  if (!base || base.length === 0) {
+    return ROLE_DEFAULT_CODES[role] || [];
+  }
+
+  return base;
+};
 
 export type PermissionGroup =
   | 'BILLING'
@@ -91,10 +147,6 @@ export const getLandingPage = (
   _permissions: PermissionMap | string[] | null,
   role?: string,
 ): string => {
-  if (role === 'CASHIER') {
-    return '/welcome';
-  }
-
   if (role === 'KITCHEN') {
     return '/kitchen';
   }
@@ -179,5 +231,5 @@ export const isGroupEnabled = (
 };
 
 export const getPosExitRoute = (role?: string): string => {
-  return role === 'CASHIER' ? '/welcome' : '/dashboard';
+  return role === 'KITCHEN' ? '/kitchen' : '/dashboard';
 };

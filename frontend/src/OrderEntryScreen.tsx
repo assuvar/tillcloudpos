@@ -1,13 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Bell,
   CheckCircle2,
   CreditCard,
-  HelpCircle,
-  LayoutGrid,
   Loader2,
-  LogOut,
   Plus,
   Send,
   ShoppingBag,
@@ -18,7 +14,7 @@ import CustomerModal from './components/CustomerModal';
 import LoyaltyModal from './components/LoyaltyModal';
 import { useAuth } from './context/AuthContext';
 import { usePosCart } from './context/PosCartContext';
-import { FRONTEND_PERMISSIONS, getPosExitRoute } from './permissions';
+import { FRONTEND_PERMISSIONS } from './permissions';
 import api from './services/api';
 import { ALLOWED_SERVICE_MODELS, type ServiceModel } from './serviceModels';
 import PosLayout from './components/PosLayout';
@@ -234,42 +230,7 @@ export default function OrderEntryScreen() {
 
   return (
     <PosLayout>
-      <header className="sticky top-0 z-40 flex h-20 w-full shrink-0 items-center justify-between border-b border-slate-100 bg-white/80 px-8 backdrop-blur-xl">
-        <div className="flex items-center gap-4">
-          <div className="text-xl font-black tracking-tighter text-[#0b1b3d]">TILLCLOUD</div>
-          <div className="h-6 w-px bg-slate-100" />
-          <div className="text-sm font-bold text-slate-400">Order Entry</div>
-          <div className="h-6 w-px bg-slate-100" />
-          <div className="rounded-full border border-slate-100 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-500">
-            Station 01 — Main Terminal
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0c1424] text-white">
-              <LayoutGrid size={18} />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase leading-none text-slate-400">Cashier</span>
-              <span className="text-sm font-black text-[#0c1424]">{user?.fullName || 'Cashier'}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-50">
-              <Bell size={20} />
-            </button>
-            <button className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-50">
-              <HelpCircle size={20} />
-            </button>
-            <button onClick={() => navigate(getPosExitRoute(user?.role))} className="flex h-10 w-10 items-center justify-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50">
-              <LogOut size={20} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex min-h-0 flex-1 gap-6 overflow-hidden px-6 pb-24 pt-24">
+      <main className="flex min-h-0 flex-1 gap-6 overflow-hidden pt-2">
         <section className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
           <div className="flex items-center justify-between gap-4">
             <div>

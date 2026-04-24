@@ -9,6 +9,7 @@ import {
   resolveRolePermissionCodes,
   sanitizePermissionMap,
   UserRole,
+  buildPermissionMap,
 } from '../permissions/permissions.constants';
 
 type RequestUser = {
@@ -40,7 +41,7 @@ export class PermissionsGuard implements CanActivate {
       return false;
     }
 
-    const dbUser = await this.prisma.user.findUnique({
+    const dbUser = (await this.prisma.user.findUnique({
       where: { id: user.userId },
       select: {
         id: true,
@@ -48,17 +49,36 @@ export class PermissionsGuard implements CanActivate {
         restaurantId: true,
         isActive: true,
         permissions: true,
+        staffPermissions: {
+          select: {
+            code: true,
+          },
+        },
       },
-    });
+    })) as any;
 
     if (!dbUser?.isActive || dbUser.restaurantId !== user.restaurantId) {
       return false;
     }
 
+    const staffPermissionCodes = dbUser.staffPermissions.map(
+      (sp: any) => sp.code,
+    );
     const sanitizedUserPermissions = sanitizePermissionMap(dbUser.permissions);
 
-    let stored = sanitizedUserPermissions;
-    if (Object.keys(stored).length === 0) {
+    let granted: PermissionCode[] = [];
+
+    if (staffPermissionCodes.length > 0) {
+      granted = resolveRolePermissionCodes(
+        dbUser.role as UserRole,
+        buildPermissionMap(staffPermissionCodes),
+      );
+    } else if (Object.keys(sanitizedUserPermissions).length > 0) {
+      granted = resolveRolePermissionCodes(
+        dbUser.role as UserRole,
+        sanitizedUserPermissions,
+      );
+    } else {
       const rolePermission = await this.prisma.rolePermission.findUnique({
         where: {
           restaurantId_role: {
@@ -71,19 +91,17 @@ export class PermissionsGuard implements CanActivate {
         },
       });
 
-      const sanitizedStored = sanitizePermissionMap(
-        rolePermission?.permissions,
-      );
-      stored =
-        Object.keys(sanitizedStored).length > 0
-          ? sanitizedStored
+      const sanitizedRole = sanitizePermissionMap(rolePermission?.permissions);
+      const effectiveRoleMap =
+        Object.keys(sanitizedRole).length > 0
+          ? sanitizedRole
           : getDefaultPermissionMapForRole(dbUser.role as UserRole);
-    }
 
-    const granted = resolveRolePermissionCodes(
-      dbUser.role as UserRole,
-      sanitizePermissionMap(stored),
-    );
+      granted = resolveRolePermissionCodes(
+        dbUser.role as UserRole,
+        effectiveRoleMap,
+      );
+    }
 
     return requiredPermissions.every((permission) =>
       hasPermissionCode(granted, permission as PermissionCode),
