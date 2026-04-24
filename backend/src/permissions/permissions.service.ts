@@ -201,13 +201,13 @@ export class PermissionsService {
 
     const result = await this.prisma.$transaction(async (tx) => {
       // 1. DELETE existing permissions for that user (STRICT SYNC)
-      await (tx as any).staffPermission.deleteMany({
+      await tx.staffPermission.deleteMany({
         where: { userId: staffId },
       });
 
       // 2. INSERT new permission records
       if (codes.length > 0) {
-        await (tx as any).staffPermission.createMany({
+        await tx.staffPermission.createMany({
           data: codes.map((code: string) => ({
             userId: staffId,
             code,
