@@ -15,6 +15,7 @@ import {
   type InventoryItem,
   type TrendPoint,
   type SummaryResponse,
+  type Order,
 } from "./services/reportsService";
 import MenuManagement from "./MenuManagement";
 import StaffManagementPage from "./StaffManagementPage";
@@ -94,15 +95,6 @@ function StatCard({
   );
 }
 
-type StaffRow = {
-  id: string;
-  fullName?: string | null;
-  name?: string | null;
-  email?: string | null;
-  role: string;
-  createdAt: string;
-  isActive: boolean;
-};
 
 type DashboardTrendPoint = {
   day: string;
@@ -127,7 +119,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export default function Dashboard({ defaultView = 'home' }: { defaultView?: DashboardViewId }) {
-  const { user, logout, hasModuleAccess, hasPermission, permissionsLoading, refreshPermissions } = useAuth();
+  const { user, hasModuleAccess, hasPermission, permissionsLoading, refreshPermissions } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [currentView, setCurrentView] = useState<DashboardViewId>(
