@@ -70,6 +70,23 @@ api.interceptors.response.use(
       authState.onLogout();
     }
 
+    if (error.response?.status === 403) {
+      const data = (error.response.data || {}) as { message?: unknown };
+      const rawMessage =
+        typeof data.message === 'string'
+          ? data.message
+          : Array.isArray(data.message)
+            ? data.message.join(', ')
+            : '';
+
+      if (!rawMessage || /forbidden|denied|permission/i.test(rawMessage)) {
+        error.response.data = {
+          ...error.response.data,
+          message: 'Access denied. You do not have permission to perform this action.',
+        };
+      }
+    }
+
     return Promise.reject(error);
   }
 );

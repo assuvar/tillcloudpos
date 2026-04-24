@@ -259,23 +259,39 @@ export class ReportsService {
 
     const totalRevenue = this.toAmount(paidAgg._sum.totalCents);
 
-    const closure = await this.prisma.dayClosure.upsert({
-      where: {
-        restaurantId_closedDate: {
+    const closure = await this.prisma.$transaction(async (tx) => {
+      // 1. Mark all today's bills for this restaurant as CLOSED
+      // We only close PAID or OPEN/AWAITING bills. VOIDED remains VOIDED.
+      await tx.bill.updateMany({
+        where: {
+          restaurantId,
+          createdAt: { gte: start, lt: end },
+          status: { in: [BillStatus.PAID, BillStatus.OPEN, BillStatus.KOT_SENT, BillStatus.AWAITING_PAYMENT] },
+        },
+        data: {
+          status: BillStatus.CLOSED,
+        },
+      });
+
+      // 2. Create or update the closure record
+      return tx.dayClosure.upsert({
+        where: {
+          restaurantId_closedDate: {
+            restaurantId,
+            closedDate,
+          },
+        },
+        create: {
           restaurantId,
           closedDate,
+          totalRevenue,
+          totalOrders: billsCount,
         },
-      },
-      create: {
-        restaurantId,
-        closedDate,
-        totalRevenue,
-        totalOrders: billsCount,
-      },
-      update: {
-        totalRevenue,
-        totalOrders: billsCount,
-      },
+        update: {
+          totalRevenue,
+          totalOrders: billsCount,
+        },
+      });
     });
 
     return {

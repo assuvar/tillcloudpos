@@ -14,6 +14,7 @@ import {
 import InviteStaffModal from './InviteStaffModal';
 import AccessControlModal from './AccessControlModal';
 import { useAuth } from './context/AuthContext';
+import { useCan } from './hooks/useCan';
 import api from './services/api';
 
 interface StatCardProps {
@@ -84,6 +85,7 @@ const formatLastLogin = (value?: string | null) => {
 
 export default function StaffManagementPage() {
   const { user } = useAuth();
+  const can = useCan();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [staffData, setStaffData] = useState<StaffRecord[]>([]);
@@ -389,15 +391,17 @@ export default function StaffManagementPage() {
           <p className="mt-3 font-medium text-slate-500">Manage your team, roles, and access to the system.</p>
         </div>
         
-        <button 
-          onClick={() => setIsInviteModalOpen(true)}
-          className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-full bg-[#0c1424] px-8 text-[14px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black md:w-auto"
-        >
-          <div className="bg-white/20 rounded-lg p-1">
-            <Plus size={16} />
-          </div>
-          Invite Staff
-        </button>
+        {can('staff:create') && (
+          <button 
+            onClick={() => setIsInviteModalOpen(true)}
+            className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-full bg-[#0c1424] px-8 text-[14px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black md:w-auto"
+          >
+            <div className="bg-white/20 rounded-lg p-1">
+              <Plus size={16} />
+            </div>
+            Invite Staff
+          </button>
+        )}
       </div>
 
       {user?.role === 'ADMIN' && (

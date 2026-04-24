@@ -273,7 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     lastRefreshRef.current = Date.now();
 
-    void (async () => {
+    const fetchLatest = async () => {
       setPermissionsLoading(true);
       try {
         const [sessionData, fetchedPermissions] = await Promise.all([
@@ -291,7 +291,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } finally {
         setPermissionsLoading(false);
       }
-    })();
+    };
+
+    void fetchLatest();
+
+    // Add polling interval for live updates
+    const pollId = setInterval(fetchLatest, 30000);
+    return () => clearInterval(pollId);
   }, [location.pathname, user?.id, accessToken]);
 
   const login = async (
@@ -363,8 +369,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setPermissionsLoading(true);
           try {
-            const fetchedPermissions = await fetchUserPermissions(accessToken);
-            savePermissions(fetchedPermissions);
+            const [sessionData, fetchedPermissions] = await Promise.all([
+              fetchCurrentUser(accessToken),
+              fetchUserPermissions(accessToken),
+            ]);
+
+            if (sessionData?.user) {
+              setUser(sessionData.user);
+              localStorage.setItem(USER_KEY, JSON.stringify(sessionData.user));
+
+              const fallbackPermissions = normalizePermissionPayload(sessionData.user.permissions);
+              const finalPermissions = fetchedPermissions || fallbackPermissions;
+              savePermissions(finalPermissions);
+
+              console.log(
+                `[Auth] Permissions refreshed at ${new Date().toLocaleTimeString()}. Codes: ${Object.values(finalPermissions || {}).flat().length}`,
+              );
+            }
+          } catch (err) {
+            console.error('[Auth] Failed to refresh permissions:', err);
           } finally {
             setPermissionsLoading(false);
           }

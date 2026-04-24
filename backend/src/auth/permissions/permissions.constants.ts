@@ -348,8 +348,13 @@ export const resolveRolePermissionCodes = (
   }
 
   const base = flattenPermissionMap(storedMap);
-  const result = base.length > 0 ? base : ROLE_DEFAULT_CODES[role];
-  return Array.from(new Set(result));
+
+  // Fallback only if EMPTY
+  if (!base || base.length === 0) {
+    return ROLE_DEFAULT_CODES[role];
+  }
+
+  return Array.from(new Set(base));
 };
 
 export const hasPermissionCode = (

@@ -85,29 +85,7 @@ export default function Checkout() {
 
   return (
     <PosLayout>
-      <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-100 bg-white/80 px-8 backdrop-blur-xl">
-        <div className="flex items-center gap-4">
-          <div className="text-xl font-black tracking-tighter text-[#0b1b3d]">TILLCLOUD</div>
-          <div className="h-6 w-px bg-slate-100" />
-          <div className="text-sm font-bold text-slate-400">Checkout</div>
-          <div className="h-6 w-px bg-slate-100" />
-          <div className="rounded-full border border-slate-100 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-500">
-            Station 01 — Terminal
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6 text-[#0c1424]">
-           <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cashier</span>
-              <span className="text-sm font-black">{user?.fullName || 'Cashier'}</span>
-           </div>
-           <div className="h-10 w-10 rounded-full border border-slate-200 overflow-hidden">
-              <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || "Staff")}&background=f3f4f6&color=0c1424`} alt="Avatar" />
-           </div>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-y-auto px-8 pb-24 pt-8">
+      <main className="flex-1 overflow-y-auto px-8 pb-24 pt-2">
         <div className="mx-auto max-w-[1200px]">
           <div className="mb-10 flex items-center justify-between">
             <div>

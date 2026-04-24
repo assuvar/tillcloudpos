@@ -14,8 +14,9 @@ import {
   ShieldCheck,
   Loader2,
 } from 'lucide-react';
-import api from './services/api';
 import { useAuth } from './context/AuthContext';
+import { usePermissions } from './context/PermissionProvider';
+import api from './services/api';
 
 type CatalogAction = {
   key: string;
@@ -83,7 +84,8 @@ export default function AccessControlModal({
   staffName,
   staffRole,
 }: AccessControlModalProps) {
-  const { refreshPermissions } = useAuth();
+  const { refreshPermissions: refreshAuthPermissions } = useAuth();
+  const { refreshPermissions: refreshLivePermissions } = usePermissions();
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
   const [savedPermissions, setSavedPermissions] = useState<Record<string, string[]>>({});
   const [draftPermissions, setDraftPermissions] = useState<Record<string, string[]>>({});
@@ -131,15 +133,18 @@ export default function AccessControlModal({
     setError(null);
     setSuccess(null);
     try {
-      await api.patch(`/users/${staffId}/permissions`, { 
-        permissions: draftPermissions 
-      });
+      console.log(`[Permissions] Saving draft permissions for staff ${staffId}:`, draftPermissions);
+      await api.patch(`/users/${staffId}/permissions`, draftPermissions);
+      console.log(`[Permissions] Save successful for staff ${staffId}`);
 
       setSavedPermissions(draftPermissions);
       
       // Always refresh permissions to ensure local state is synced
       // If the admin edited their own permissions, this is critical
-      await refreshPermissions();
+      await Promise.all([
+        refreshAuthPermissions(),
+        refreshLivePermissions(),
+      ]);
       
       setSuccess('Permissions updated successfully');
       setTimeout(() => setSuccess(null), 3000);

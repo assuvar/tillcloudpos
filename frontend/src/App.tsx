@@ -10,8 +10,9 @@ import Checkout from "./Checkout.tsx";
 import ThermalReceiptScreen from './ThermalReceiptScreen';
 import KitchenDisplay from "./KitchenDisplay.tsx";
 import Landing from "./Landing";
-import { FRONTEND_PERMISSIONS, getLandingPage } from "./permissions";
+import { FRONTEND_PERMISSIONS, getLandingPage, hasPermissionCode } from "./permissions";
 import { useAuth } from "./context/AuthContext";
+import { usePermissions } from "./context/PermissionProvider";
 import AccessDenied from "./components/AccessDenied";
 
 function ProtectedRoute({
@@ -27,11 +28,12 @@ function ProtectedRoute({
   allowedPermissions?: string[];
   redirectTo?: string;
 }) {
-  const { isAuthenticated, user, isLoading, mode, hasPermission, permissionsLoading } = useAuth();
+  const { isAuthenticated, user, isLoading, mode } = useAuth();
+  const { permissions: livePermissions, isLoading: livePermissionsLoading } = usePermissions();
   const location = useLocation();
 
   // Wait until auth state (and permission state for authenticated users) is stable.
-  if (isLoading || (isAuthenticated && permissionsLoading)) {
+  if (isLoading || (isAuthenticated && livePermissionsLoading)) {
     return <div className="flex h-screen items-center justify-center font-bold text-[#0b1b3d]">LOADING...</div>;
   }
 
@@ -48,7 +50,7 @@ function ProtectedRoute({
   }
 
   if (allowedPermissions && allowedPermissions.length > 0) {
-    const granted = allowedPermissions.some((permission) => hasPermission(permission));
+    const granted = allowedPermissions.some((permission) => hasPermissionCode(livePermissions, permission));
     if (!granted) {
       return <AccessDenied />;
     }
@@ -136,30 +138,17 @@ export default function App() {
         element={
           <ProtectedRoute
             allowedModes={["dashboard"]}
-            allowedRoles={["ADMIN", "MANAGER"]}
-            allowedPermissions={[FRONTEND_PERMISSIONS.REPORTS_VIEW]}
+            allowedRoles={["ADMIN", "MANAGER", "CASHIER"]}
           >
             <Dashboard />
           </ProtectedRoute>
         } 
       />
       <Route
-        path="/welcome"
-        element={
-          <ProtectedRoute
-            allowedRoles={["CASHIER"]}
-            allowedModes={["dashboard", "pos"]}
-            allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN]}
-          >
-            <Welcome />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/pos"
         element={
           <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN]} redirectTo="/pos/login">
-            <POSEntryScreen />
+            <Dashboard defaultView="orders" />
           </ProtectedRoute>
         }
       />
@@ -167,7 +156,7 @@ export default function App() {
         path="/pos/order-entry"
         element={
           <ProtectedRoute allowedModes={["pos", "dashboard"]} allowedPermissions={[FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN]} redirectTo="/pos/login">
-            <OrderEntryScreen />
+            <Dashboard defaultView="orders" />
           </ProtectedRoute>
         }
       />

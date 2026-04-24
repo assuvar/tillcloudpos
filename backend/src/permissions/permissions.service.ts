@@ -9,6 +9,8 @@ import {
   PermissionMap,
   sanitizePermissionMap,
   UserRole,
+  buildPermissionMap,
+  flattenPermissionMap,
 } from '../auth/permissions/permissions.constants';
 
 @Injectable()
@@ -74,7 +76,7 @@ export class PermissionsService {
   }
 
   async getStaffPermissions(restaurantId: string, staffId: string) {
-    const staff = await this.prisma.user.findFirst({
+    const staff = (await this.prisma.user.findFirst({
       where: {
         id: staffId,
         restaurantId,
@@ -83,21 +85,35 @@ export class PermissionsService {
         id: true,
         role: true,
         permissions: true,
+        staffPermissions: {
+          select: {
+            code: true,
+          },
+        },
       },
-    });
+    })) as any;
 
     if (!staff) {
       throw new BadRequestException('Staff member not found');
     }
 
+    // Convert StaffPermission relation to PermissionMap format
+    const staffPermissionCodes = staff.staffPermissions.map((sp: any) => sp.code);
+    const relationalMap = buildPermissionMap(staffPermissionCodes);
+
+    // Fallback to legacy JSON for migration safety (if relational is empty)
     const sanitizedUserPermissions = sanitizePermissionMap(
       staff.permissions as PermissionMap | undefined,
     );
 
-    const hasUserOverride = Object.keys(sanitizedUserPermissions).length > 0;
+    const hasUserOverride =
+      staffPermissionCodes.length > 0 ||
+      Object.keys(sanitizedUserPermissions).length > 0;
 
     let effectivePermissions: PermissionMap;
-    if (hasUserOverride) {
+    if (staffPermissionCodes.length > 0) {
+      effectivePermissions = relationalMap;
+    } else if (Object.keys(sanitizedUserPermissions).length > 0) {
       effectivePermissions = sanitizedUserPermissions;
     } else {
       const rolePermission = await this.prisma.rolePermission.findUnique({
@@ -127,6 +143,10 @@ export class PermissionsService {
       delete effectivePermissions['dashboard'];
     }
 
+    console.log(
+      `[Permissions] Resolved permissions for ${staffId} (${staff.role}). Override: ${hasUserOverride}. Codes: ${flattenPermissionMap(effectivePermissions).length}`,
+    );
+
     return {
       staffId,
       role: staff.role,
@@ -144,7 +164,7 @@ export class PermissionsService {
     staffId: string,
     payload: Record<string, string[]>,
   ) {
-    const staff = await this.prisma.user.findFirst({
+    const staff = (await this.prisma.user.findFirst({
       where: {
         id: staffId,
         restaurantId,
@@ -153,7 +173,7 @@ export class PermissionsService {
         id: true,
         role: true,
       },
-    });
+    })) as any;
 
     if (!staff) {
       throw new BadRequestException('Staff member not found');
@@ -166,31 +186,47 @@ export class PermissionsService {
       delete sanitized['dashboard'];
     }
 
-    const hasCustomPermissions = Object.keys(sanitized).length > 0;
-
-    const updatedUser = await this.prisma.user.update({
-      where: {
-        id: staff.id,
-      },
-      data: {
-        permissions: hasCustomPermissions ? sanitized : Prisma.DbNull,
-      },
-      select: {
-        id: true,
-        role: true,
-        permissions: true,
-      },
-    });
-
-    const sanitizedUpdated = sanitizePermissionMap(
-      updatedUser.permissions as PermissionMap | undefined,
+    const codes = flattenPermissionMap(sanitized);
+    console.log(
+      `[Permissions] Updating permissions for user ${staffId}. Codes count: ${codes.length}`,
     );
 
+    if (codes.length === 0) {
+      console.warn(
+        `[Permissions] WARNING: Resulting permission list for user ${staffId} is EMPTY. This will remove ALL access if no role fallback exists.`,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. DELETE existing permissions for that user (STRICT SYNC)
+      await (tx as any).staffPermission.deleteMany({
+        where: { userId: staffId },
+      });
+
+      // 2. INSERT new permission records
+      if (codes.length > 0) {
+        await (tx as any).staffPermission.createMany({
+          data: codes.map((code: string) => ({
+            userId: staffId,
+            code,
+          })),
+        });
+      }
+
+      // 3. Clear legacy JSON permissions to fully migrate
+      await tx.user.update({
+        where: { id: staffId },
+        data: { permissions: Prisma.DbNull },
+      });
+
+      return codes;
+    });
+
     return {
-      staffId: updatedUser.id,
-      role: updatedUser.role,
-      inheritedFromRole: Object.keys(sanitizedUpdated).length === 0,
-      permissions: sanitizedUpdated,
+      staffId: staff.id,
+      role: staff.role,
+      inheritedFromRole: result.length === 0,
+      permissions: buildPermissionMap(result),
     };
   }
 

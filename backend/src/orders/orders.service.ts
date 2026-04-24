@@ -81,15 +81,30 @@ export class OrdersService {
       };
     });
 
-    const orderNumber = await this.prisma.bill.count({
+    // Calculate order numbers
+    const totalOrderCount = await this.prisma.bill.count({
       where: { restaurantId },
+    });
+
+    // Find the latest day closure to reset displayOrderNumber
+    const latestClosure = await this.prisma.dayClosure.findFirst({
+      where: { restaurantId },
+      orderBy: { closedDate: 'desc' },
+    });
+
+    const displayOrderCount = await this.prisma.bill.count({
+      where: {
+        restaurantId,
+        createdAt: { gte: latestClosure ? latestClosure.createdAt : new Date(0) },
+      },
     });
 
     return this.prisma.bill.create({
       data: {
         restaurantId,
         cashierId,
-        orderNumber: orderNumber + 1,
+        orderNumber: totalOrderCount + 1,
+        displayOrderNumber: displayOrderCount + 1,
         orderType: (createOrderDto.orderType as OrderType) || OrderType.DINE_IN,
         status: BillStatus.KOT_SENT,
         tableNumber: createOrderDto.tableNumber || null,

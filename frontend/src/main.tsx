@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { AuthProvider } from './context/AuthContext';
+import { PermissionProvider } from './context/PermissionProvider';
 import { PosCartProvider } from './context/PosCartContext';
 
 const rootElement = document.getElementById('root');
@@ -12,9 +13,11 @@ if (rootElement) {
     <React.StrictMode>
       <BrowserRouter>
         <AuthProvider>
-          <PosCartProvider>
-            <App />
-          </PosCartProvider>
+          <PermissionProvider>
+            <PosCartProvider>
+              <App />
+            </PosCartProvider>
+          </PermissionProvider>
         </AuthProvider>
       </BrowserRouter>
     </React.StrictMode>

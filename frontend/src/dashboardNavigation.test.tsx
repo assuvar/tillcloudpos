@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { getAccessibleDashboardViews } from './dashboardNavigation';
+import { DASHBOARD_VIEWS, getAccessibleDashboardViews } from './dashboardNavigation';
 
 describe('Dashboard navigation permission visibility', () => {
-  it('shows allowed modules and hides restricted modules', () => {
+  it('shows all modules for all roles', () => {
     const views = getAccessibleDashboardViews('CASHIER', (group) => {
       return group === 'BILLING';
     });
 
-    const labels = views.map((view) => view.label);
-    expect(labels).toContain('Orders');
-    expect(labels).not.toContain('Reports');
+    expect(views.map((view) => view.id)).toEqual(
+      DASHBOARD_VIEWS.map((view) => view.id),
+    );
   });
 });

@@ -245,9 +245,14 @@ export class AuthService {
       user.id,
     );
 
+    const codes = flattenPermissionMap(permissions);
+    console.log(
+      `[Auth] Resolved ${codes.length} permissions for user ${user.email} (${user.role})`,
+    );
+
     return {
       ...mapped,
-      permissions: flattenPermissionMap(permissions),
+      permissions: codes,
     };
   }
 
@@ -621,6 +626,16 @@ export class AuthService {
       throw new BadRequestException('A user with this email already exists');
     }
 
+    // Check if OTP was already verified for this email before the user was created
+    const verifiedOtp = await this.prisma.otp.findFirst({
+      where: {
+        identifier: normalizedEmail,
+        used: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const emailVerified = !!verifiedOtp;
+
     const user = await this.prisma.$transaction(async (tx) => {
       const restaurant = await tx.restaurant.create({
         data: {
@@ -646,6 +661,7 @@ export class AuthService {
           phone: registrationData.mobile?.trim() || null,
           role: 'ADMIN',
           passwordHash,
+          emailVerified,
           restaurantId: restaurant.id,
         },
       });
