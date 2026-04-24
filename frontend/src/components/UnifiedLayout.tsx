@@ -11,8 +11,6 @@ import {
   Search,
   Bell,
   HelpCircle,
-  ShoppingBag,
-  ShoppingCart,
   LayoutGrid,
   LucideIcon,
   ShieldAlert,

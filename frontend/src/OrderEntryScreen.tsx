@@ -14,7 +14,7 @@ import CustomerModal from './components/CustomerModal';
 import LoyaltyModal from './components/LoyaltyModal';
 import { useAuth } from './context/AuthContext';
 import { usePosCart } from './context/PosCartContext';
-import { FRONTEND_PERMISSIONS, getPosExitRoute } from './permissions';
+import { FRONTEND_PERMISSIONS } from './permissions';
 import api from './services/api';
 import { ALLOWED_SERVICE_MODELS, type ServiceModel } from './serviceModels';
 import PosLayout from './components/PosLayout';

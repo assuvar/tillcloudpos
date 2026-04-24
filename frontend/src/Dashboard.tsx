@@ -1,42 +1,18 @@
 import {
-  BarChart3,
-  Bell,
-  CheckCircle2,
-  ChevronDown,
   ClipboardList,
   Cloud,
-  Copy,
-  ExternalLink,
   FileText,
-  HelpCircle,
-  Home,
-  LayoutGrid,
-  Loader2,
-  LogOut,
-  MoreVertical,
-  Package,
-  Plus,
   RefreshCw,
-  Search,
-  Settings,
   ShoppingBag,
-  Store,
-  Trash2,
-  User,
-  Users,
-  Utensils,
   Wallet,
 } from "lucide-react";
-import type { LucideIcon } from 'lucide-react';
 import { useAuth } from "./context/AuthContext";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ReactNode, useState, useEffect } from "react";
-import api from "./services/api";
 import { FRONTEND_PERMISSIONS } from "./permissions";
 import {
   reportsService,
   type InventoryItem,
-  type Order,
   type TrendPoint,
   type SummaryResponse,
 } from "./services/reportsService";
@@ -51,9 +27,7 @@ import UnifiedLayout from "./components/UnifiedLayout";
 import OrderEntryScreen from "./OrderEntryScreen";
 import POSEntryScreen from "./POSEntryScreen";
 import {
-  DASHBOARD_VIEWS,
   type DashboardViewId,
-  type DashboardView as DashboardNavView,
   getAccessibleDashboardViews,
 } from "./dashboardNavigation";
 
@@ -156,16 +130,14 @@ export default function Dashboard({ defaultView = 'home' }: { defaultView?: Dash
   const { user, logout, hasModuleAccess, hasPermission, permissionsLoading, refreshPermissions } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const [currentView, setCurrentView] = useState<DashboardViewId>(
     (location.state as any)?.currentView || defaultView
   );
-  const [realStaff, setRealStaff] = useState<StaffRow[]>([]);
-  const [salesData, setSalesData] = useState<DashboardTrendPoint[]>([]);
+  const [, setSalesData] = useState<DashboardTrendPoint[]>([]);
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [recentOrders, setRecentOrders] = useState<RecentOrderView[]>([]);
   const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
-  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+  const [, setIsDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isClosingDay, setIsClosingDay] = useState(false);
@@ -350,7 +322,7 @@ export default function Dashboard({ defaultView = 'home' }: { defaultView?: Dash
   const accessibleViews = getAccessibleDashboardViews(user?.role, hasModuleAccess);
 
   return (
-    <UnifiedLayout currentView={currentView} onViewChange={setCurrentView}>
+    <UnifiedLayout currentView={currentView} onViewChange={(view) => setCurrentView(view as DashboardViewId)}>
       {currentView === 'home' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           {isCashier ? (

@@ -13,11 +13,11 @@ import {
 import ServiceModeModal from './components/ServiceModeModal';
 import { useAuth } from './context/AuthContext';
 import { usePosCart } from './context/PosCartContext';
-import { FRONTEND_PERMISSIONS, getPosExitRoute } from './permissions';
+import { FRONTEND_PERMISSIONS } from './permissions';
 
 export default function POSEntryScreen() {
   const navigate = useNavigate();
-  const { user, hasModuleAccess, hasPermission } = useAuth();
+  const { hasModuleAccess, hasPermission } = useAuth();
   const { openBills, activeBill, loadOpenBills, isLoading, error } = usePosCart();
   const [showNewBillModal, setShowNewBillModal] = useState(false);
 
@@ -34,7 +34,6 @@ export default function POSEntryScreen() {
 
   const canAccessBilling = hasModuleAccess('BILLING');
   const canCreateBill = hasPermission(FRONTEND_PERMISSIONS.BILLING_CREATE);
-  const canAccessMenu = hasModuleAccess('MENU');
 
   return (
     <div className="mx-auto max-w-[1100px] pt-4">

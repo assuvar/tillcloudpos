@@ -1,7 +1,6 @@
 import {
   LayoutDashboard,
   LayoutGrid,
-  ShoppingCart,
   Menu as MenuIcon,
   Users,
   Package,

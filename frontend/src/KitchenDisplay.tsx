@@ -28,7 +28,7 @@ interface KitchenOrder {
 import UnifiedLayout from './components/UnifiedLayout';
 
 export default function KitchenDisplay() {
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
