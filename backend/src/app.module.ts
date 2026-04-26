@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, Logger } from '@nestjs/common';
+import { Request, Response, NextFunction } from 'express';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -62,4 +63,13 @@ import { MailModule } from './mail/mail.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply((req: Request, res: Response, next: NextFunction) => {
+        Logger.log(`[Request] ${req.method} ${req.originalUrl}`, 'AppModule');
+        next();
+      })
+      .forRoutes('*');
+  }
+}

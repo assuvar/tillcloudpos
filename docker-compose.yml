@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: sql123
+      POSTGRES_DB: tillcloud_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "3100:3100"
+    environment:
+      DATABASE_URL: "postgresql://postgres:sql123@db:5432/tillcloud_db"
+      JWT_SECRET: "super-secret-key-12345"
+      JWT_REFRESH_SECRET: "super-secret-key-refresh-12345"
+      JWT_POS_SECRET: "super-secret-key-pos-12345"
+      FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
+      PORT: 3100
+      NODE_ENV: "${NODE_ENV:-development}"
+      PIN_ENCRYPTION_KEY: "${PIN_ENCRYPTION_KEY}"
+      STAFF_PIN_ENCRYPTION_KEY: "${STAFF_PIN_ENCRYPTION_KEY}"
+      EMAIL_USER: "${EMAIL_USER}"
+      EMAIL_PASS: "${EMAIL_PASS}"
+      SMTP_HOST: "${SMTP_HOST}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER}"
+      SMTP_PASS: "${SMTP_PASS}"
+      SMTP_FROM: "${SMTP_FROM}"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: "${VITE_API_URL:-http://localhost:3100}"
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

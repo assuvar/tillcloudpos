@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 
 async function checkDatabase() {
-  const connectionString = "postgresql://postgres:Root%401234@localhost:5432/tillcloud_db";
+  const connectionString = "postgresql://postgres:sql123@localhost:5432/tillcloud_db";
   const client = new Client({
     connectionString: connectionString,
   });

@@ -101,7 +101,7 @@ const MenuManagementContext = createContext<MenuManagementContextType | undefine
 
 export function MenuManagementProvider({ children }: { children: React.ReactNode }) {
   const { user, accessToken } = useAuth();
-  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3100';
+  const apiBaseUrl = import.meta.env.VITE_API_URL;
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [ingredientOptions, setIngredientOptions] = useState<IngredientOption[]>([]);
