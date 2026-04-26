@@ -123,7 +123,14 @@ export class AuthService {
     });
 
     // Send email
-    await this.mailService.sendOtpEmail(email, otp);
+    try {
+      this.logger.log(`Attempting to send OTP email to ${email}`);
+      await this.mailService.sendOtpEmail(email, otp);
+      this.logger.log(`OTP email sent successfully to ${email}`);
+    } catch (mailError) {
+      this.logger.error(`FAILED TO SEND OTP EMAIL to ${email}: ${mailError.message}`, mailError.stack);
+      throw mailError;
+    }
 
     return {
       success: true,
