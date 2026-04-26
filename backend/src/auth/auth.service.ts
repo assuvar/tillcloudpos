@@ -72,6 +72,7 @@ const OTP_EXPIRY_MINS = 5;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     public usersService: UsersService,
     private jwtService: JwtService,
