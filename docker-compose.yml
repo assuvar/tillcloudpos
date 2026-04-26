@@ -43,7 +43,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: "${VITE_API_URL:-http://localhost:3100}"
+        VITE_API_URL: "${VITE_API_URL}"
+    environment:
+      VITE_API_URL: "${VITE_API_URL}"
     restart: always
     ports:
       - "${FRONTEND_PORT:-5173}:80"
