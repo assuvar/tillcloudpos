@@ -116,27 +116,38 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINS * 60 * 1000);
 
     // Save to database
-    await this.prisma.otp.create({
-      data: {
-        identifier: email,
-        codeHash,
-        expiresAt,
-      },
-    });
+    try {
+      this.logger.log(`[OTP] Saving new OTP to database for ${email}`);
+      await this.prisma.otp.create({
+        data: {
+          identifier: email,
+          codeHash,
+          expiresAt,
+        },
+      });
+      this.logger.log(`[OTP] Database save successful for ${email}`);
+    } catch (dbError) {
+      this.logger.error(`[OTP] DATABASE SAVE FAILED for ${email}: ${dbError.message}`, dbError.stack);
+      throw new BadRequestException('Failed to generate security code. Please try again later.');
+    }
 
     // Send email
     try {
-      this.logger.log(`Attempting to send OTP email to ${email}`);
+      this.logger.log(`[OTP] DEBUG: Your code for ${email} is: ${otp}`); // Log for dev bypass
+      this.logger.log(`[OTP] Attempting to send email via SMTP to ${email}`);
       await this.mailService.sendOtpEmail(email, otp);
-      this.logger.log(`OTP email sent successfully to ${email}`);
+      this.logger.log(`[OTP] Email sent successfully to ${email}`);
     } catch (mailError) {
-      this.logger.error(`FAILED TO SEND OTP EMAIL to ${email}: ${mailError.message}`, mailError.stack);
-      throw mailError;
+      this.logger.error(`[OTP] EMAIL SEND FAILED to ${email}: ${mailError.message}`, mailError.stack);
+      // We still return success: true if we want the user to be able to use the devOtp from logs
+      // or we can throw if we want strict mode. Given the current issue, let's throw but with details.
+      throw new BadRequestException(`Email service error: ${mailError.message}`);
     }
 
     return {
       success: true,
       expiresIn: OTP_EXPIRY_MINS * 60,
+      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
     };
   }
 
