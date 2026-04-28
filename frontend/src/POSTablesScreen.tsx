@@ -3,18 +3,14 @@ import {
   Users, 
   Clock, 
   Plus, 
-  CreditCard, 
   Calendar, 
   CheckCircle2, 
   ChevronRight, 
   FileText, 
   ArrowUpFromLine, 
   Eraser, 
-  ShoppingCart,
   PlusCircle,
-  RefreshCw,
   Search,
-  Bell,
   X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -58,7 +54,7 @@ export default function POSTablesScreen() {
   const [showAddTableModal, setShowAddTableModal] = useState(false);
   const [showAddResModal, setShowAddResModal] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
 
   const loadData = async () => {
     try {
@@ -70,8 +66,6 @@ export default function POSTablesScreen() {
       setReservations(resRes.data);
     } catch (err) {
       console.error('Failed to load table data:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 

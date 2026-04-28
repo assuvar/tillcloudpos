@@ -3,7 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AddOrderItemDto, CompleteOrderDto, CreateOrderDto } from './dto/create-order.dto';
+import {
+  AddOrderItemDto,
+  CompleteOrderDto,
+  CreateOrderDto,
+} from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -39,7 +43,9 @@ export class OrdersService {
       // 1. Validate serviceType
       const validTypes = ['DINE_IN', 'PICKUP', 'DELIVERY', 'IN_STORE'];
       if (!validTypes.includes(createOrderDto.serviceType)) {
-        throw new BadRequestException(`Invalid serviceType: ${createOrderDto.serviceType}`);
+        throw new BadRequestException(
+          `Invalid serviceType: ${createOrderDto.serviceType}`,
+        );
       }
 
       // 2. Resume existing session if tableId provided (Requirement 2 & 3)
@@ -49,13 +55,13 @@ export class OrdersService {
             tableId: createOrderDto.tableId,
             status: { in: ['OPEN', 'KOT_SENT', 'AWAITING_PAYMENT'] as any },
             restaurantId,
-          }
+          },
         });
 
         if (activeBill) {
           return {
             id: activeBill.id,
-            status: 'ACTIVE'
+            status: 'ACTIVE',
           };
         }
       }
@@ -80,12 +86,18 @@ export class OrdersService {
 
       return {
         id: bill.id,
-        status: 'ACTIVE'
+        status: 'ACTIVE',
       };
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) throw error;
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      )
+        throw error;
       console.error('[OrdersService] Error in createOrder:', error);
-      throw new BadRequestException(error.message || 'Failed to initialize POS session');
+      throw new BadRequestException(
+        error.message || 'Failed to initialize POS session',
+      );
     }
   }
 

@@ -1,4 +1,11 @@
-import { IsString, IsInt, IsOptional, IsEnum, Min, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsEnum,
+  Min,
+  IsArray,
+} from 'class-validator';
 import { TableStatus, Floor } from '../../../generated/prisma';
 
 export class CreateTableGroupDto {

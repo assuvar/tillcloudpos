@@ -7,8 +7,7 @@ import {
   Store, 
   Bike, 
   ArrowRight,
-  CheckCircle2,
-  Plus
+  CheckCircle2
 } from 'lucide-react';
 import api from '../services/api';
 import { usePosCart } from '../context/PosCartContext';

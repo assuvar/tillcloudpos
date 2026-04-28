@@ -241,7 +241,7 @@ export class BillsService {
     return orders.map((order) => {
       const bill = order.bill;
       // In a real system, the KOT itself should store the items it contains.
-      // Since our schema doesn't have a KotItem, we'll assume for now that 
+      // Since our schema doesn't have a KotItem, we'll assume for now that
       // the kitchen display wants to see all items but maybe we should only show the ones relevant to THIS KOT?
       // For now, let's keep it consistent with what createKotForBill does.
       return {
@@ -271,11 +271,13 @@ export class BillsService {
 
   private async createKotForBill(tx: Prisma.TransactionClient, bill: any) {
     const itemsToSend = bill.items.filter(
-      (item: any) => item.quantity > (item.lastSentQuantity || 0)
+      (item: any) => item.quantity > (item.lastSentQuantity || 0),
     );
 
     if (itemsToSend.length === 0) {
-      throw new BadRequestException('All items have already been sent to the kitchen');
+      throw new BadRequestException(
+        'All items have already been sent to the kitchen',
+      );
     }
 
     if (bill.status === BillStatus.PAID || bill.status === BillStatus.VOIDED) {
@@ -385,7 +387,9 @@ export class BillsService {
     // Auto-resolve table name if tableId is provided but tableNumber is not
     let resolvedTableNumber = dto.tableNumber?.trim() || null;
     if (dto.tableId && !resolvedTableNumber) {
-      const table = await this.prisma.table.findUnique({ where: { id: dto.tableId } });
+      const table = await this.prisma.table.findUnique({
+        where: { id: dto.tableId },
+      });
       if (table) resolvedTableNumber = table.name;
     }
 
@@ -399,7 +403,7 @@ export class BillsService {
         status: BillStatus.OPEN,
         tableId: dto.tableId || null,
         tableNumber: resolvedTableNumber,
-        
+
         // New Pickup/Delivery fields
         pickupName: dto.pickupName || null,
         deliveryName: dto.deliveryName || null,
@@ -426,7 +430,7 @@ export class BillsService {
     if (dto.tableId) {
       await this.prisma.table.update({
         where: { id: dto.tableId, restaurantId },
-        data: { 
+        data: {
           status: TableStatus.OCCUPIED,
           activeBillId: bill.id,
           currentOrderId: bill.id,
@@ -703,7 +707,7 @@ export class BillsService {
       if (updatedBill.tableId) {
         await tx.table.update({
           where: { id: updatedBill.tableId, restaurantId },
-          data: { 
+          data: {
             status: TableStatus.BILLING,
           },
         });
@@ -843,7 +847,7 @@ export class BillsService {
       if (updatedBill.tableId) {
         await tx.table.update({
           where: { id: updatedBill.tableId, restaurantId },
-          data: { 
+          data: {
             status: TableStatus.AVAILABLE,
             activeBillId: null,
             currentOrderId: null,

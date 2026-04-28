@@ -4,12 +4,12 @@ export class CreateBillDto {
   orderType?: OrderTypeValue;
   tableNumber?: string;
   tableId?: string;
-  
+
   // Pickup Details
   pickupName?: string;
   pickupPhone?: string;
   pickupTime?: string;
-  
+
   // Delivery Details
   deliveryName?: string;
   deliveryPhone?: string;

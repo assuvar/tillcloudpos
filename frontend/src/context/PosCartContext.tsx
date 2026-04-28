@@ -98,7 +98,7 @@ interface PosCartContextType {
   sendToKitchen: () => Promise<SendToKitchenResult>;
   processCashPayment: (
     amount: number,
-    cashReceived: number,
+    _cashReceived: number,
   ) => Promise<CashPaymentResult>;
   loadMenuItems: () => Promise<void>;
 }
@@ -456,7 +456,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const processCashPayment = async (
     amount: number,
-    cashReceived: number,
+    _cashReceived: number,
   ): Promise<CashPaymentResult> => {
     if (!activeBill) {
       return { success: false, error: "No active bill" };

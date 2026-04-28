@@ -8,7 +8,11 @@ import { PaymentMethod, BillStatus } from '../../generated/prisma';
 export class PaymentsService {
   constructor(private readonly billsService: BillsService) {}
 
-  async processPayment(restaurantId: string, dto: ProcessPaymentDto, userId: string) {
+  async processPayment(
+    restaurantId: string,
+    dto: ProcessPaymentDto,
+    userId: string,
+  ) {
     // For now, we can adapt the cash payment logic or expand for other methods
     // If method is CASH, we use the existing BillsService logic
     if (dto.method === 'CASH') {
@@ -21,9 +25,9 @@ export class PaymentsService {
 
     // Generic fallback for other methods (simulated)
     return this.billsService.processCashPayment(restaurantId, {
-        billId: dto.orderId,
-        amount: dto.amount,
-        cashReceived: dto.amount,
+      billId: dto.orderId,
+      amount: dto.amount,
+      cashReceived: dto.amount,
     });
   }
 

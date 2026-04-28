@@ -10,7 +10,14 @@ import {
   Query,
 } from '@nestjs/common';
 import { TablesService } from './tables.service';
-import { CreateTableDto, UpdateTableDto, CreateTableGroupDto, UpdateTableGroupDto, ShiftTableDto, MergeTablesDto } from './dto/tables.dto';
+import {
+  CreateTableDto,
+  UpdateTableDto,
+  CreateTableGroupDto,
+  UpdateTableGroupDto,
+  ShiftTableDto,
+  MergeTablesDto,
+} from './dto/tables.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import type { User } from '../../generated/prisma';
@@ -82,7 +89,12 @@ export class TablesController {
     @Body('status') status: TableStatus,
     @Body('currentOrderId') currentOrderId?: string,
   ) {
-    return this.tablesService.updateTableStatus(user.restaurantId, id, status, currentOrderId);
+    return this.tablesService.updateTableStatus(
+      user.restaurantId,
+      id,
+      status,
+      currentOrderId,
+    );
   }
 
   @Post(':id/shift')
@@ -91,22 +103,20 @@ export class TablesController {
     @Param('id') id: string,
     @Body() dto: ShiftTableDto,
   ) {
-    return this.tablesService.shiftTable(user.restaurantId, id, dto.targetTableId);
+    return this.tablesService.shiftTable(
+      user.restaurantId,
+      id,
+      dto.targetTableId,
+    );
   }
 
   @Post('merge')
-  merge(
-    @GetUser() user: User,
-    @Body() dto: MergeTablesDto,
-  ) {
+  merge(@GetUser() user: User, @Body() dto: MergeTablesDto) {
     return this.tablesService.mergeTables(user.restaurantId, dto);
   }
 
   @Post(':id/clear')
-  clear(
-    @GetUser() user: User,
-    @Param('id') id: string,
-  ) {
+  clear(@GetUser() user: User, @Param('id') id: string) {
     return this.tablesService.clearTable(user.restaurantId, id);
   }
 

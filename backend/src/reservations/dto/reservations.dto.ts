@@ -1,4 +1,12 @@
-import { IsString, IsInt, IsOptional, IsEnum, IsDateString, Min, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsEnum,
+  IsDateString,
+  Min,
+  IsBoolean,
+} from 'class-validator';
 import { ReservationStatus, Floor } from '../../../generated/prisma';
 
 export class CreateReservationDto {

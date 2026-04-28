@@ -10,7 +10,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
-import { CreateReservationDto, UpdateReservationDto } from './dto/reservations.dto';
+import {
+  CreateReservationDto,
+  UpdateReservationDto,
+} from './dto/reservations.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import type { User } from '../../generated/prisma';
@@ -27,10 +30,7 @@ export class ReservationsController {
   }
 
   @Get()
-  findAll(
-    @GetUser() user: User,
-    @Query('status') status?: ReservationStatus,
-  ) {
+  findAll(@GetUser() user: User, @Query('status') status?: ReservationStatus) {
     return this.reservationsService.findAll(user.restaurantId, status);
   }
 

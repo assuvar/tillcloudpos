@@ -130,7 +130,10 @@ export class AuthService {
       await this.mailService.sendOtpEmail(email, otp);
       this.logger.log(`OTP email sent successfully to ${email}`);
     } catch (mailError) {
-      this.logger.error(`FAILED TO SEND OTP EMAIL to ${email}: ${mailError.message}`, mailError.stack);
+      this.logger.error(
+        `FAILED TO SEND OTP EMAIL to ${email}: ${mailError.message}`,
+        mailError.stack,
+      );
       throw mailError;
     }
 

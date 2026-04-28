@@ -27,6 +27,10 @@ export class PaymentsController {
   @Post()
   @RequirePermissions(PERMISSIONS.PAYMENTS_CASH)
   process(@Body() dto: ProcessPaymentDto, @Req() req: any) {
-    return this.paymentsService.processPayment(getRestaurantId(req), dto, req.user?.userId);
+    return this.paymentsService.processPayment(
+      getRestaurantId(req),
+      dto,
+      req.user?.userId,
+    );
   }
 }

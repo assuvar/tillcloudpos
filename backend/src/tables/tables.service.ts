@@ -1,6 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateTableDto, UpdateTableDto, CreateTableGroupDto, UpdateTableGroupDto, MergeTablesDto } from './dto/tables.dto';
+import {
+  CreateTableDto,
+  UpdateTableDto,
+  CreateTableGroupDto,
+  UpdateTableGroupDto,
+  MergeTablesDto,
+} from './dto/tables.dto';
 import { TableStatus, Floor } from '../../generated/prisma';
 
 @Injectable()
@@ -25,7 +35,9 @@ export class TablesService {
           where: { status: { not: TableStatus.MERGED } },
           include: {
             bills: {
-              where: { status: { in: ['OPEN', 'KOT_SENT', 'AWAITING_PAYMENT'] as any } },
+              where: {
+                status: { in: ['OPEN', 'KOT_SENT', 'AWAITING_PAYMENT'] as any },
+              },
               take: 1,
               orderBy: { createdAt: 'desc' },
             },
@@ -42,9 +54,9 @@ export class TablesService {
     });
 
     // Post-process to simplify bill data for the frontend
-    return groups.map(group => ({
+    return groups.map((group) => ({
       ...group,
-      tables: group.tables.map(table => {
+      tables: group.tables.map((table) => {
         const activeBill = table.bills[0];
         const activeRes = table.reservations[0];
         return {
@@ -52,8 +64,13 @@ export class TablesService {
           activeBillId: activeBill?.id || null,
           currentOrderId: activeBill?.id || null,
           startedAt: table.startedAt || activeBill?.createdAt || null,
-          currentTotal: activeBill ? Number(activeBill.totalCents || 0) / 100 : 0,
-          isKotSent: activeBill ? (activeBill.status === 'KOT_SENT' || activeBill.status === 'AWAITING_PAYMENT') : false,
+          currentTotal: activeBill
+            ? Number(activeBill.totalCents || 0) / 100
+            : 0,
+          isKotSent: activeBill
+            ? activeBill.status === 'KOT_SENT' ||
+              activeBill.status === 'AWAITING_PAYMENT'
+            : false,
           customerName: activeRes?.customerName || null,
           bills: undefined,
           reservations: undefined,
@@ -62,7 +79,11 @@ export class TablesService {
     }));
   }
 
-  async updateGroup(restaurantId: string, id: string, dto: UpdateTableGroupDto) {
+  async updateGroup(
+    restaurantId: string,
+    id: string,
+    dto: UpdateTableGroupDto,
+  ) {
     return this.prisma.tableGroup.update({
       where: { id, restaurantId },
       data: dto,
@@ -113,9 +134,13 @@ export class TablesService {
     });
   }
 
-  async findAllTables(restaurantId: string, floor?: Floor, status?: TableStatus) {
+  async findAllTables(
+    restaurantId: string,
+    floor?: Floor,
+    status?: TableStatus,
+  ) {
     const tables = await this.prisma.table.findMany({
-      where: { 
+      where: {
         restaurantId,
         status: { not: TableStatus.MERGED },
         ...(floor ? { floor } : {}),
@@ -123,7 +148,9 @@ export class TablesService {
       },
       include: {
         bills: {
-          where: { status: { in: ['OPEN', 'KOT_SENT', 'AWAITING_PAYMENT'] as any } },
+          where: {
+            status: { in: ['OPEN', 'KOT_SENT', 'AWAITING_PAYMENT'] as any },
+          },
           take: 1,
           orderBy: { createdAt: 'desc' },
         },
@@ -136,7 +163,7 @@ export class TablesService {
       orderBy: { sortOrder: 'asc' },
     });
 
-    return tables.map(table => {
+    return tables.map((table) => {
       const activeBill = table.bills[0];
       const activeRes = table.reservations[0];
       return {
@@ -145,7 +172,10 @@ export class TablesService {
         currentOrderId: activeBill?.id || null,
         startedAt: table.startedAt || activeBill?.createdAt || null,
         currentTotal: activeBill ? Number(activeBill.totalCents || 0) / 100 : 0,
-        isKotSent: activeBill ? (activeBill.status === 'KOT_SENT' || activeBill.status === 'AWAITING_PAYMENT') : false,
+        isKotSent: activeBill
+          ? activeBill.status === 'KOT_SENT' ||
+            activeBill.status === 'AWAITING_PAYMENT'
+          : false,
         customerName: activeRes?.customerName || null,
         bills: undefined,
         reservations: undefined,
@@ -179,10 +209,15 @@ export class TablesService {
     });
   }
 
-  async updateTableStatus(restaurantId: string, id: string, status: TableStatus, currentOrderId?: string) {
+  async updateTableStatus(
+    restaurantId: string,
+    id: string,
+    status: TableStatus,
+    currentOrderId?: string,
+  ) {
     return this.prisma.table.update({
       where: { id, restaurantId },
-      data: { 
+      data: {
         status,
         currentOrderId: currentOrderId || null,
         activeBillId: currentOrderId || null,
@@ -193,8 +228,12 @@ export class TablesService {
 
   async shiftTable(restaurantId: string, sourceId: string, targetId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const source = await tx.table.findFirst({ where: { id: sourceId, restaurantId } });
-      const target = await tx.table.findFirst({ where: { id: targetId, restaurantId } });
+      const source = await tx.table.findFirst({
+        where: { id: sourceId, restaurantId },
+      });
+      const target = await tx.table.findFirst({
+        where: { id: targetId, restaurantId },
+      });
 
       if (!source || !target) throw new NotFoundException('Table not found');
       if (target.status !== TableStatus.AVAILABLE) {
@@ -237,23 +276,29 @@ export class TablesService {
 
   async mergeTables(restaurantId: string, dto: MergeTablesDto) {
     const { tableIds } = dto;
-    
+
     return this.prisma.$transaction(async (tx) => {
       const tables = await tx.table.findMany({
-        where: { id: { in: tableIds }, restaurantId, status: TableStatus.AVAILABLE },
+        where: {
+          id: { in: tableIds },
+          restaurantId,
+          status: TableStatus.AVAILABLE,
+        },
       });
 
       if (tables.length !== tableIds.length) {
-        throw new BadRequestException('Some tables are not available for merging');
+        throw new BadRequestException(
+          'Some tables are not available for merging',
+        );
       }
 
       const floor = tables[0].floor;
-      if (tables.some(t => t.floor !== floor)) {
+      if (tables.some((t) => t.floor !== floor)) {
         throw new BadRequestException('Tables must be on the same floor');
       }
 
       const totalSeats = tables.reduce((sum, t) => sum + t.seats, 0);
-      const mergedName = tables.map(t => t.name).join('+');
+      const mergedName = tables.map((t) => t.name).join('+');
 
       // Create a virtual table
       const virtualTable = await tx.table.create({

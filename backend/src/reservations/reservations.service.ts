@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateReservationDto, UpdateReservationDto } from './dto/reservations.dto';
+import {
+  CreateReservationDto,
+  UpdateReservationDto,
+} from './dto/reservations.dto';
 import { ReservationStatus, TableStatus } from '../../generated/prisma';
 
 @Injectable()
@@ -9,7 +12,7 @@ export class ReservationsService {
 
   async create(restaurantId: string, dto: CreateReservationDto) {
     const { tableId, ...data } = dto;
-    
+
     return this.prisma.$transaction(async (tx) => {
       const reservation = await tx.reservation.create({
         data: {
@@ -37,7 +40,7 @@ export class ReservationsService {
 
   async findAll(restaurantId: string, status?: ReservationStatus) {
     return this.prisma.reservation.findMany({
-      where: { 
+      where: {
         restaurantId,
         ...(status ? { status } : {}),
       },
@@ -86,7 +89,7 @@ export class ReservationsService {
 
   async update(restaurantId: string, id: string, dto: UpdateReservationDto) {
     const { tableId, ...data } = dto;
-    
+
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.reservation.findFirst({
         where: { id, restaurantId },
@@ -122,7 +125,10 @@ export class ReservationsService {
         }
       }
 
-      if (data.status === ReservationStatus.CANCELLED || data.status === ReservationStatus.NOSHOW) {
+      if (
+        data.status === ReservationStatus.CANCELLED ||
+        data.status === ReservationStatus.NOSHOW
+      ) {
         if (updated.tableId) {
           await tx.table.update({
             where: { id: updated.tableId },

@@ -132,12 +132,6 @@ export default function OrderEntryScreen() {
       const startSession = async () => {
         setIsCreatingSession(true);
         try {
-          const details = orderType === 'PICKUP' 
-            ? { pickupName: orderDetail } 
-            : orderType === 'DELIVERY' 
-              ? { deliveryName: orderDetail } 
-              : {};
-
           await createBillSession(
             orderType, 
             tableId || null,

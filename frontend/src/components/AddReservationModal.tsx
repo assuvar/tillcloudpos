@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Check, Calendar, Users, Phone, User } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import api from '../services/api';
 
 interface Table {
