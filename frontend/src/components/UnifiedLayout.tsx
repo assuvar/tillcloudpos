@@ -20,6 +20,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DASHBOARD_VIEWS } from '../dashboardNavigation';
 import { FRONTEND_PERMISSIONS } from '../permissions';
+import POSTopBar from './POSTopBar';
+import POSBottomNav from './POSBottomNav';
 
 function SidebarIcon({
   icon: Icon,
@@ -83,9 +85,15 @@ interface UnifiedLayoutProps {
   children: React.ReactNode;
   currentView?: string;
   onViewChange?: (view: string) => void;
+  fullScreen?: boolean;
 }
 
-const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({ children, currentView = 'home', onViewChange }) => {
+const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({ 
+  children, 
+  currentView = 'home', 
+  onViewChange,
+  fullScreen = false 
+}) => {
   const navigate = useNavigate();
   const { user, logout, hasPermission } = useAuth();
   const [accessDeniedLabel, setAccessDeniedLabel] = useState<string | null>(null);
@@ -106,6 +114,12 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({ children, currentView = '
       return;
     }
 
+    if (viewId === 'home') {
+      if (onViewChange) onViewChange('home');
+      navigate('/dashboard');
+      return;
+    }
+
     if (viewId === 'orders') {
       if (onViewChange) onViewChange('orders');
       navigate('/pos');
@@ -118,6 +132,23 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({ children, currentView = '
       navigate('/dashboard', { state: { currentView: viewId } });
     }
   };
+
+  if (fullScreen) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] font-sans text-[14px] text-slate-900 flex flex-col h-screen overflow-hidden">
+        <POSTopBar />
+        <main className="flex-1 min-h-0 overflow-hidden">
+          {children}
+        </main>
+        <POSBottomNav 
+          activeView={(currentView === 'orders' || currentView === 'tables' || currentView === 'menu') ? currentView as 'orders' | 'tables' | 'menu' : 'orders'} 
+          onViewChange={(view) => {
+            if (onViewChange) onViewChange(view);
+          }} 
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-[14px] text-slate-900">

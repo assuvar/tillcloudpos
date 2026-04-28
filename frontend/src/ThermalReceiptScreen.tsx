@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import PosLayout from './components/PosLayout';
+import UnifiedLayout from './components/UnifiedLayout';
 
 type ReceiptItem = {
   id: string;
@@ -18,6 +18,8 @@ type ReceiptBill = {
   totalAmount?: number;
   taxAmount?: number;
   items?: ReceiptItem[];
+  pickupName?: string | null;
+  deliveryName?: string | null;
   createdAt?: string;
 };
 
@@ -79,7 +81,7 @@ export default function ThermalReceiptScreen() {
   const changeAmount = Number(payment?.changeAmount ?? Math.max(paidAmount - total, 0));
 
   return (
-    <PosLayout>
+    <UnifiedLayout fullScreen={true} currentView="orders">
       <style>{`
         @media print {
           @page {
@@ -170,8 +172,8 @@ export default function ThermalReceiptScreen() {
                     <span className="font-black text-[#0c1424]">#{String(bill?.orderNumber ?? 0).padStart(4, '0')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Table</span>
-                    <span className="font-black text-[#0c1424]">{bill?.tableNumber || '-'}</span>
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Ref / Name</span>
+                    <span className="font-black text-[#0c1424]">{bill?.tableNumber || bill?.pickupName || bill?.deliveryName || '-'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Type</span>
@@ -247,6 +249,6 @@ export default function ThermalReceiptScreen() {
           </div>
         </div>
       </div>
-    </PosLayout>
+    </UnifiedLayout>
   );
 }

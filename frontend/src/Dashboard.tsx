@@ -27,6 +27,7 @@ import AccessDenied from "./components/AccessDenied";
 import UnifiedLayout from "./components/UnifiedLayout";
 import OrderEntryScreen from "./OrderEntryScreen";
 import POSEntryScreen from "./POSEntryScreen";
+import POSTablesScreen from "./POSTablesScreen";
 import {
   type DashboardViewId,
   getAccessibleDashboardViews,
@@ -314,7 +315,11 @@ export default function Dashboard({ defaultView = 'home' }: { defaultView?: Dash
   const accessibleViews = getAccessibleDashboardViews(user?.role, hasModuleAccess);
 
   return (
-    <UnifiedLayout currentView={currentView} onViewChange={(view) => setCurrentView(view as DashboardViewId)}>
+    <UnifiedLayout 
+      currentView={currentView} 
+      onViewChange={(view) => setCurrentView(view as DashboardViewId)}
+      fullScreen={currentView === 'orders' || currentView === 'tables'}
+    >
       {currentView === 'home' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           {isCashier ? (
@@ -488,6 +493,10 @@ export default function Dashboard({ defaultView = 'home' }: { defaultView?: Dash
             <POSEntryScreen />
           )}
         </>
+      )}
+
+      {currentView === 'tables' && (
+        <POSTablesScreen />
       )}
 
       {currentView === 'menu' && hasModuleAccess('MENU') && (

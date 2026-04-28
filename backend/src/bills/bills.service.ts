@@ -12,6 +12,7 @@ import {
   PaymentStatus,
   Prisma,
   TaxMode,
+  TableStatus,
 } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -239,6 +240,10 @@ export class BillsService {
   private normalizeKitchenOrders(orders: any[]): KitchenOrderView[] {
     return orders.map((order) => {
       const bill = order.bill;
+      // In a real system, the KOT itself should store the items it contains.
+      // Since our schema doesn't have a KotItem, we'll assume for now that 
+      // the kitchen display wants to see all items but maybe we should only show the ones relevant to THIS KOT?
+      // For now, let's keep it consistent with what createKotForBill does.
       return {
         id: order.id,
         billId: order.billId,
@@ -247,7 +252,7 @@ export class BillsService {
         status: order.status,
         isUpdate: order.isUpdate,
         sentAt: order.sentAt.toISOString(),
-        tableNumber: bill.tableNumber || null,
+        tableNumber: bill.tableNumber || bill.table?.name || null,
         orderNumber: bill.orderNumber,
         createdAt: bill.createdAt.toISOString(),
         items: bill.items.map((item: any) => ({
@@ -265,8 +270,12 @@ export class BillsService {
   }
 
   private async createKotForBill(tx: Prisma.TransactionClient, bill: any) {
-    if (bill.items.length === 0) {
-      throw new BadRequestException('Add items before sending to kitchen');
+    const itemsToSend = bill.items.filter(
+      (item: any) => item.quantity > (item.lastSentQuantity || 0)
+    );
+
+    if (itemsToSend.length === 0) {
+      throw new BadRequestException('All items have already been sent to the kitchen');
     }
 
     if (bill.status === BillStatus.PAID || bill.status === BillStatus.VOIDED) {
@@ -299,6 +308,16 @@ export class BillsService {
         kitchenOrders: true,
       },
     });
+
+    // Update lastSentQuantity for all items
+    for (const item of updatedBill.items) {
+      if (item.quantity > item.lastSentQuantity) {
+        await tx.billItem.update({
+          where: { id: item.id },
+          data: { lastSentQuantity: item.quantity },
+        });
+      }
+    }
 
     return {
       bill: updatedBill,
@@ -363,6 +382,13 @@ export class BillsService {
       },
     });
 
+    // Auto-resolve table name if tableId is provided but tableNumber is not
+    let resolvedTableNumber = dto.tableNumber?.trim() || null;
+    if (dto.tableId && !resolvedTableNumber) {
+      const table = await this.prisma.table.findUnique({ where: { id: dto.tableId } });
+      if (table) resolvedTableNumber = table.name;
+    }
+
     const bill = await this.prisma.bill.create({
       data: {
         restaurantId,
@@ -371,18 +397,43 @@ export class BillsService {
         displayOrderNumber: displayOrderCount + 1,
         orderType: (dto.orderType as OrderType) || OrderType.DINE_IN,
         status: BillStatus.OPEN,
-        tableNumber: dto.tableNumber?.trim() || null,
+        tableId: dto.tableId || null,
+        tableNumber: resolvedTableNumber,
+        
+        // New Pickup/Delivery fields
+        pickupName: dto.pickupName || null,
+        deliveryName: dto.deliveryName || null,
+        deliveryAddress: dto.deliveryAddress || null,
+        deliverySuburb: dto.deliverySuburb || null,
+        deliveryState: dto.deliveryState || null,
+        deliveryPostcode: dto.deliveryPostcode || null,
+        deliveryPhone: dto.deliveryPhone || null,
+        deliveryNotes: dto.deliveryNotes || null,
+
         subtotalCents: 0,
         taxAmountCents: 0,
         totalCents: 0,
         taxMode: TaxMode.INCLUSIVE,
-        taxRate: 0,
+        taxRate: new Prisma.Decimal(0),
       },
       include: {
         items: true,
         kitchenOrders: true,
       },
     });
+
+    // If a table is associated, update its status to OCCUPIED
+    if (dto.tableId) {
+      await this.prisma.table.update({
+        where: { id: dto.tableId, restaurantId },
+        data: { 
+          status: TableStatus.OCCUPIED,
+          activeBillId: bill.id,
+          currentOrderId: bill.id,
+          startedAt: new Date(),
+        },
+      });
+    }
 
     return this.normalizeBill(bill);
   }
@@ -648,6 +699,16 @@ export class BillsService {
         bill,
       );
 
+      // If a table is associated, update its status to BILLING
+      if (updatedBill.tableId) {
+        await tx.table.update({
+          where: { id: updatedBill.tableId, restaurantId },
+          data: { 
+            status: TableStatus.BILLING,
+          },
+        });
+      }
+
       return {
         bill: this.normalizeBill(updatedBill),
         kitchenOrder: {
@@ -673,6 +734,7 @@ export class BillsService {
         bill: {
           include: {
             items: true,
+            table: true,
           },
         },
       },
@@ -776,6 +838,19 @@ export class BillsService {
           payments: true,
         },
       });
+
+      // If a table is associated, update its status back to AVAILABLE
+      if (updatedBill.tableId) {
+        await tx.table.update({
+          where: { id: updatedBill.tableId, restaurantId },
+          data: { 
+            status: TableStatus.AVAILABLE,
+            activeBillId: null,
+            currentOrderId: null,
+            startedAt: null,
+          },
+        });
+      }
 
       return {
         bill: this.normalizeBill(updatedBill),

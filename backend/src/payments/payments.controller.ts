@@ -18,13 +18,15 @@ const getRestaurantId = (req: any): string => {
   throw new ForbiddenException('Restaurant context is required');
 };
 
+import { ProcessPaymentDto } from './dto/process-payment.dto';
+
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @Post('cash')
+  @Post()
   @RequirePermissions(PERMISSIONS.PAYMENTS_CASH)
-  cash(@Body() dto: CashPaymentDto, @Req() req: any) {
-    return this.paymentsService.cashPayment(getRestaurantId(req), dto);
+  process(@Body() dto: ProcessPaymentDto, @Req() req: any) {
+    return this.paymentsService.processPayment(getRestaurantId(req), dto, req.user?.userId);
   }
 }

@@ -5,6 +5,7 @@ import {
   CreditCard,
   Loader2,
   Plus,
+  RefreshCw,
   Send,
   ShoppingBag,
   Trash2,
@@ -17,7 +18,6 @@ import { usePosCart } from './context/PosCartContext';
 import { FRONTEND_PERMISSIONS } from './permissions';
 import api from './services/api';
 import { ALLOWED_SERVICE_MODELS, type ServiceModel } from './serviceModels';
-import PosLayout from './components/PosLayout';
 
 interface CustomerData {
   name: string;
@@ -49,6 +49,10 @@ export default function OrderEntryScreen() {
     ? (orderTypeParam as PosOrderType)
     : 'DINE_IN';
   const orderDetail = searchParams.get('detail') || '';
+  const tableId = searchParams.get('tableId') || '';
+  const tableNumberParam = searchParams.get('tableNumber') || '';
+
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const {
     categories,
@@ -64,6 +68,8 @@ export default function OrderEntryScreen() {
     loadMenuItems,
     loadBill,
     activeBill,
+    createBillSession,
+    clearBill,
   } = usePosCart();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
@@ -116,17 +122,42 @@ export default function OrderEntryScreen() {
 
   useEffect(() => {
     if (billId) {
-      void loadBill(billId);
+      if (activeBill?.id !== billId) {
+        void loadBill(billId);
+      }
       return;
     }
-  }, [billId]);
 
-  // If no bill is active and no session is being created, redirect to terminal entry
+    if (!activeBill && !isLoading && !isCreatingSession && (tableId || orderTypeParam)) {
+      const startSession = async () => {
+        setIsCreatingSession(true);
+        try {
+          const details = orderType === 'PICKUP' 
+            ? { pickupName: orderDetail } 
+            : orderType === 'DELIVERY' 
+              ? { deliveryName: orderDetail } 
+              : {};
+
+          await createBillSession(
+            orderType, 
+            tableId || null,
+            orderDetail || tableNumberParam || null
+          );
+        } catch (err) {
+          console.error("Failed to start session:", err);
+        } finally {
+          setIsCreatingSession(false);
+        }
+      };
+      void startSession();
+    }
+  }, [billId, tableId, tableNumberParam, orderType, orderDetail, activeBill?.id, isLoading, isCreatingSession]);
+
   useEffect(() => {
-    if (!activeBill && !isLoading && !billId) {
+    if (!activeBill && !isLoading && !billId && !tableId && !orderTypeParam && !isCreatingSession) {
       navigate('/pos');
     }
-  }, [activeBill, isLoading, billId, navigate]);
+  }, [activeBill, isLoading, billId, tableId, orderTypeParam, isCreatingSession, navigate]);
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
   const visibleItems = useMemo(
@@ -188,7 +219,7 @@ export default function OrderEntryScreen() {
     showToast(`${item.name} added`);
   };
 
-  const handleSendToKitchen = async () => {
+  const handleSendToKitchen = async (shouldNavigateToCheckout = true) => {
     if (billItems.length === 0 || isSendingToKitchen) {
       return;
     }
@@ -198,7 +229,12 @@ export default function OrderEntryScreen() {
       const result = await sendToKitchen();
       if (result.success) {
         showToast('Order saved and sent to kitchen');
-        navigate(`/checkout?billId=${result.billId || activeBill?.id || ''}`);
+        if (shouldNavigateToCheckout) {
+          navigate(`/checkout?billId=${result.billId || activeBill?.id || ''}`);
+        } else {
+          clearBill();
+          navigate('/pos/tables');
+        }
       } else {
         showToast(result.error || 'Failed to send to kitchen');
       }
@@ -224,18 +260,42 @@ export default function OrderEntryScreen() {
     });
   };
 
-  const detailLabel = effectiveOrderType === 'DINE_IN' ? 'Table' : effectiveOrderType === 'PICKUP' ? 'Pickup' : 'Reference';
-  const detailValue = orderDetail || activeBill?.tableNumber || '';
+  const detailLabel = useMemo(() => {
+    const type = activeBill?.orderType || effectiveOrderType;
+    if (type === 'DINE_IN') return 'Table';
+    if (type === 'PICKUP') return 'Pickup';
+    if (type === 'DELIVERY') return 'Delivery';
+    return 'Ref';
+  }, [activeBill?.orderType, effectiveOrderType]);
+
+  const detailValue = useMemo(() => {
+    if (activeBill) {
+      return activeBill.tableNumber || activeBill.pickupName || activeBill.deliveryName || '';
+    }
+    return orderDetail || tableNumberParam || '';
+  }, [activeBill, orderDetail, tableNumberParam]);
 
 
   return (
-    <PosLayout>
+    <div className="flex h-full flex-col">
       <main className="flex min-h-0 flex-1 gap-6 overflow-hidden pt-2">
         <section className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
           <div className="flex items-center justify-between gap-4">
-            <div>
-              <h3 className="text-2xl font-black tracking-tight text-[#0c1424]">{selectedCategory?.name || 'Menu'}</h3>
-              <p className="text-sm font-medium text-slate-400">{visibleItems.length} items available</p>
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => {
+                  clearBill();
+                  navigate('/pos');
+                }}
+                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100"
+                title="Close Order"
+              >
+                <X size={24} />
+              </button>
+              <div>
+                <h3 className="text-2xl font-black tracking-tight text-[#0c1424]">{selectedCategory?.name || 'Menu'}</h3>
+                <p className="text-sm font-medium text-slate-400">{visibleItems.length} items available</p>
+              </div>
             </div>
             {error ? (
               <button
@@ -473,12 +533,21 @@ export default function OrderEntryScreen() {
             </div>
 
             <button
-              onClick={() => void handleSendToKitchen()}
+              onClick={() => void handleSendToKitchen(true)}
               disabled={billItems.length === 0 || isSendingToKitchen || !canSendToKitchen}
               className="mt-3 flex h-12 w-full items-center justify-center gap-3 rounded-[22px] bg-[#4adeff] px-3 font-black text-[11px] uppercase tracking-widest text-[#0c1424] shadow-xl shadow-sky-400/20 transition-all active:scale-95 hover:brightness-95 disabled:opacity-40"
             >
               {isSendingToKitchen ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} strokeWidth={3} />}
-              Save & Send to Kitchen
+              Save & Checkout
+            </button>
+
+            <button
+              onClick={() => void handleSendToKitchen(false)}
+              disabled={billItems.length === 0 || isSendingToKitchen || !canSendToKitchen}
+              className="mt-3 flex h-12 w-full items-center justify-center gap-3 rounded-[22px] border-2 border-slate-100 bg-white px-3 font-black text-[11px] uppercase tracking-widest text-[#0c1424] transition-all active:scale-95 hover:bg-slate-50 disabled:opacity-40"
+            >
+              {isSendingToKitchen ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} strokeWidth={3} />}
+              Save & Return to Tables
             </button>
           </div>
         </aside>
@@ -511,6 +580,6 @@ export default function OrderEntryScreen() {
           onClose={() => setShowLoyaltyModal(false)}
         />
       ) : null}
-    </PosLayout>
+    </div>
   );
 }

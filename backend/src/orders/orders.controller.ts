@@ -9,7 +9,11 @@ import {
   Req,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CompleteOrderDto, CreateOrderDto } from './dto/create-order.dto';
+import {
+  CompleteOrderDto,
+  CreateOrderDto,
+  AddOrderItemDto,
+} from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
@@ -38,6 +42,26 @@ export class OrdersController {
       getRestaurantId(req),
       req.user?.userId,
     );
+  }
+
+  @Post(':id/items')
+  @RequirePermissions(PERMISSIONS.BILLING_CREATE)
+  addItem(
+    @Param('id') id: string,
+    @Body() addOrderItemDto: AddOrderItemDto,
+    @Req() req: any,
+  ) {
+    return this.ordersService.addItem(
+      id,
+      getRestaurantId(req),
+      addOrderItemDto,
+    );
+  }
+
+  @Post(':id/send-to-kitchen')
+  @RequirePermissions(PERMISSIONS.KITCHEN_SEND)
+  sendToKitchen(@Param('id') id: string, @Req() req: any) {
+    return this.ordersService.sendToKitchen(id, getRestaurantId(req));
   }
 
   @Post(':id/complete')

@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CompleteOrderDto, CreateOrderDto } from './dto/create-order.dto';
+import { AddOrderItemDto, CompleteOrderDto, CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -17,9 +17,14 @@ import {
   toBaseQuantity,
 } from '../inventory/inventory-units';
 
+import { BillsService } from '../bills/bills.service';
+
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly billsService: BillsService,
+  ) {}
 
   private toNumber(value: unknown): number {
     return Number(value ?? 0);
@@ -30,100 +35,70 @@ export class OrdersService {
     restaurantId: string,
     cashierId: string,
   ) {
-    if (!createOrderDto.items || createOrderDto.items.length === 0) {
-      throw new BadRequestException('Order must include at least one item');
-    }
-
-    const menuItemIds = Array.from(
-      new Set(createOrderDto.items.map((item) => item.menuItemId)),
-    );
-    const menuItems = await this.prisma.menuItem.findMany({
-      where: {
-        restaurantId,
-        id: { in: menuItemIds },
-      },
-      include: {
-        category: true,
-      },
-    });
-
-    if (menuItems.length !== menuItemIds.length) {
-      throw new BadRequestException('One or more order items are invalid');
-    }
-
-    const menuMap = new Map(menuItems.map((item) => [item.id, item]));
-    let subtotalCents = 0;
-
-    const lineItems = createOrderDto.items.map((item) => {
-      const menuItem = menuMap.get(item.menuItemId);
-      if (!menuItem) {
-        throw new BadRequestException('Invalid menu item');
+    try {
+      // 1. Validate serviceType
+      const validTypes = ['DINE_IN', 'PICKUP', 'DELIVERY', 'IN_STORE'];
+      if (!validTypes.includes(createOrderDto.serviceType)) {
+        throw new BadRequestException(`Invalid serviceType: ${createOrderDto.serviceType}`);
       }
 
-      const quantity = Number(item.quantity);
-      if (!Number.isInteger(quantity) || quantity <= 0) {
-        throw new BadRequestException(
-          'Item quantity must be a positive integer',
-        );
+      // 2. Resume existing session if tableId provided (Requirement 2 & 3)
+      if (createOrderDto.tableId) {
+        const activeBill = await this.prisma.bill.findFirst({
+          where: {
+            tableId: createOrderDto.tableId,
+            status: { in: ['OPEN', 'KOT_SENT', 'AWAITING_PAYMENT'] as any },
+            restaurantId,
+          }
+        });
+
+        if (activeBill) {
+          return {
+            id: activeBill.id,
+            status: 'ACTIVE'
+          };
+        }
       }
 
-      const lineTotalCents = menuItem.priceInCents * quantity;
-      subtotalCents += lineTotalCents;
+      // 3. Create new session via BillsService (Requirement 8 - Status Automation)
+      const bill = await this.billsService.createBill(restaurantId, cashierId, {
+        orderType: createOrderDto.serviceType as any,
+        tableId: createOrderDto.tableId,
+        tableNumber: createOrderDto.tableNumber,
+        // Add items if provided in initial request
+      });
+
+      // 4. Add items if provided
+      if (createOrderDto.items && createOrderDto.items.length > 0) {
+        for (const item of createOrderDto.items) {
+          await this.billsService.addBillItem(bill.id, restaurantId, {
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+          });
+        }
+      }
 
       return {
-        menuItemId: menuItem.id,
-        itemName: menuItem.name,
-        categoryName: menuItem.category?.name || 'Uncategorized',
-        unitPriceInCents: menuItem.priceInCents,
-        quantity,
-        lineTotalCents,
-        notes: item.notes?.trim() || null,
+        id: bill.id,
+        status: 'ACTIVE'
       };
-    });
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) throw error;
+      console.error('[OrdersService] Error in createOrder:', error);
+      throw new BadRequestException(error.message || 'Failed to initialize POS session');
+    }
+  }
 
-    // Calculate order numbers
-    const totalOrderCount = await this.prisma.bill.count({
-      where: { restaurantId },
+  async addItem(orderId: string, restaurantId: string, dto: AddOrderItemDto) {
+    return this.billsService.addBillItem(orderId, restaurantId, {
+      menuItemId: dto.productId,
+      quantity: dto.quantity,
     });
+  }
 
-    // Find the latest day closure to reset displayOrderNumber
-    const latestClosure = await this.prisma.dayClosure.findFirst({
-      where: { restaurantId },
-      orderBy: { closedDate: 'desc' },
-    });
-
-    const displayOrderCount = await this.prisma.bill.count({
-      where: {
-        restaurantId,
-        createdAt: {
-          gte: latestClosure ? latestClosure.createdAt : new Date(0),
-        },
-      },
-    });
-
-    return this.prisma.bill.create({
-      data: {
-        restaurantId,
-        cashierId,
-        orderNumber: totalOrderCount + 1,
-        displayOrderNumber: displayOrderCount + 1,
-        orderType: (createOrderDto.orderType as OrderType) || OrderType.DINE_IN,
-        status: BillStatus.KOT_SENT,
-        tableNumber: createOrderDto.tableNumber || null,
-        subtotalCents,
-        taxAmountCents: 0,
-        totalCents: subtotalCents,
-        taxMode: TaxMode.INCLUSIVE,
-        taxRate: 0,
-        kotSentAt: new Date(),
-        items: {
-          create: lineItems,
-        },
-      },
-      include: {
-        items: true,
-      },
-    });
+  async sendToKitchen(orderId: string, restaurantId: string) {
+    const result = await this.billsService.sendToKitchen(orderId, restaurantId);
+    return result.bill;
   }
 
   async complete(
@@ -290,13 +265,8 @@ export class OrdersService {
     });
   }
 
-  findOne(id: string, restaurantId: string) {
-    return this.prisma.bill.findFirst({
-      where: { id, restaurantId },
-      include: {
-        items: true,
-      },
-    });
+  async findOne(id: string, restaurantId: string) {
+    return this.billsService.findOne(id, restaurantId);
   }
 
   update(id: string, updateOrderDto: UpdateOrderDto, restaurantId: string) {

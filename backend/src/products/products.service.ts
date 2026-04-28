@@ -291,6 +291,9 @@ export class ProductsService {
     }
     if (updateProductDto.priceInCents !== undefined) {
       updateData.priceInCents = updateProductDto.priceInCents;
+    } else {
+      // Ensure priceInCents is always included (required field)
+      updateData.priceInCents = existingProduct.priceInCents;
     }
     if (updateProductDto.imageUrl !== undefined) {
       updateData.imageUrl = updateProductDto.imageUrl?.trim() || null;

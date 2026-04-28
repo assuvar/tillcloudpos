@@ -44,6 +44,7 @@ async function bootstrap() {
         '/orders',
         '/permissions',
         '/restaurant',
+        '/tables',
         '/users',
         '/onboarding',
       ].some(

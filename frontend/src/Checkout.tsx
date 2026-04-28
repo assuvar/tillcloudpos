@@ -6,7 +6,7 @@ import {
 import CashPaymentModal from './components/CashPaymentModal';
 import { useAuth } from './context/AuthContext';
 import { usePosCart } from './context/PosCartContext';
-import PosLayout from './components/PosLayout';
+import UnifiedLayout from './components/UnifiedLayout';
 
 type CheckoutLocationState = {
   billId?: string;
@@ -84,7 +84,7 @@ export default function Checkout() {
   };
 
   return (
-    <PosLayout>
+    <UnifiedLayout fullScreen={true} currentView="orders">
       <main className="flex-1 overflow-y-auto px-8 pb-24 pt-2">
         <div className="mx-auto max-w-[1200px]">
           <div className="mb-10 flex items-center justify-between">
@@ -193,6 +193,6 @@ export default function Checkout() {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
       `}</style>
-    </PosLayout>
+    </UnifiedLayout>
   );
 }

@@ -46,6 +46,7 @@ interface AuthContextType {
   hasPermission: (code: string) => boolean;
   canAccess: (module: string, action: string) => boolean;
   hasModuleAccess: (group: PermissionGroup) => boolean;
+  setMode: (mode: AuthMode) => void;
   getLandingRoute: () => string;
 }
 
@@ -395,6 +396,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasPermission,
         canAccess,
         hasModuleAccess,
+        setMode: (newMode: AuthMode) => {
+          setMode(newMode);
+          localStorage.setItem(MODE_KEY, newMode);
+        },
         getLandingRoute: () => {
           if (user && !user.onboardingCompleted) {
             return '/onboarding';
