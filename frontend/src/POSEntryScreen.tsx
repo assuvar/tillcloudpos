@@ -5,8 +5,6 @@ import {
   RefreshCw,
   ShoppingBag,
   Wallet,
-  CheckCircle2,
-  AlertCircle,
 } from 'lucide-react';
 import ServiceModeModal from './components/ServiceModeModal';
 import { useAuth } from './context/AuthContext';
@@ -97,9 +95,9 @@ export default function POSEntryScreen() {
                 <ShoppingBag size={22} />
               </div>
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bills Today</div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Bills</div>
                 <div className="text-2xl font-black text-[#0c1424]">
-                  {openBills.filter(b => b.status !== 'CLOSED').length}
+                  {openBills.filter(b => b.status !== 'COMPLETED' && b.status !== 'CLOSED').length}
                 </div>
               </div>
             </div>
@@ -128,7 +126,7 @@ export default function POSEntryScreen() {
           ) : openBills.filter(b => b.status !== 'CLOSED').length === 0 ? (
             <div className="flex h-64 flex-col items-center justify-center rounded-[32px] border-2 border-dashed border-slate-200 bg-white text-center text-slate-400">
               <ShoppingBag size={48} className="mb-4 opacity-20" />
-              <p className="text-lg font-bold">No bills yet</p>
+              <p className="text-lg font-bold">No bills yet today</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -138,7 +136,8 @@ export default function POSEntryScreen() {
 
                 const handleCloseOrder = async (e: React.MouseEvent) => {
                   e.stopPropagation();
-                  if (window.confirm(`Are you sure you want to close order #${bill.orderNumber}?`)) {
+                  const action = bill.status === 'COMPLETED' ? 'dismiss' : 'close';
+                  if (window.confirm(`Are you sure you want to ${action} order #${bill.orderNumber}?`)) {
                     await closeOrder(bill.id);
                   }
                 };
@@ -190,7 +189,7 @@ export default function POSEntryScreen() {
                         onClick={handleCloseOrder}
                         className="flex-1 rounded-xl bg-slate-50 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500"
                       >
-                        Close Order
+                        {bill.status === 'COMPLETED' ? 'Dismiss Order' : 'Close Order'}
                       </button>
                       <div className="text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest group-hover:translate-x-1 transition-transform">
                         Details →

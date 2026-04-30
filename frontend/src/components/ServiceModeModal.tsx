@@ -53,12 +53,15 @@ export default function ServiceModeModal({ onClose }: ServiceModeModalProps) {
   const { createBillSession } = usePosCart();
   const [selectedType, setSelectedType] = useState<PosOrderType>('DINE_IN');
   const [inputValue, setInputValue] = useState('');
-  const [availableTables, setAvailableTables] = useState<{id: string, name: string, seats: number}[]>([]);
+  const [availableTables, setAvailableTables] = useState<{id: string, name: string, seats: number, floor: string}[]>([]);
   const [selectedTableId, setSelectedTableId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [visibleServiceModels, setVisibleServiceModels] = useState<PosOrderType[]>([
     ...ALLOWED_SERVICE_MODELS,
   ]);
+  const [pickupPhone, setPickupPhone] = useState('');
+  const [pickupTime, setPickupTime] = useState('');
+  const [deliveryData, setDeliveryData] = useState({ name: '', phone: '', address: '' });
 
   useEffect(() => {
     const loadRestaurant = async () => {
@@ -95,11 +98,27 @@ export default function ServiceModeModal({ onClose }: ServiceModeModalProps) {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const bill = await createBillSession(
-        selectedType, 
-        selectedType === 'DINE_IN' ? selectedTableId : null,
-        selectedType === 'DELIVERY' ? deliveryData.name : selectedType === 'PICKUP' ? inputValue : null
-      );
+      let sessionData: any = {};
+      
+      if (selectedType === 'DINE_IN') {
+        sessionData = { tableId: selectedTableId };
+      } else if (selectedType === 'DELIVERY') {
+        sessionData = {
+          deliveryName: deliveryData.name,
+          deliveryPhone: deliveryData.phone,
+          deliveryAddress: deliveryData.address,
+          customer: deliveryData.name
+        };
+      } else if (selectedType === 'PICKUP') {
+        sessionData = {
+          pickupName: inputValue,
+          pickupPhone: pickupPhone,
+          pickupTime: pickupTime,
+          customer: inputValue
+        };
+      }
+
+      const bill = await createBillSession(selectedType, sessionData);
       navigate(`/pos/order-entry?billId=${bill.id}`);
       onClose();
     } catch (error) {
@@ -112,15 +131,14 @@ export default function ServiceModeModal({ onClose }: ServiceModeModalProps) {
     }
   };
 
-  const [deliveryData, setDeliveryData] = useState({ name: '', phone: '', address: '' });
-
-  const hasInput = SERVICE_MODEL_CONFIG[selectedType].inputRequired;
   const isDelivery = selectedType === 'DELIVERY';
   const canConfirm = isDelivery 
-    ? deliveryData.name.trim().length > 0 && deliveryData.address.trim().length > 0
+    ? deliveryData.name.trim().length > 0 && deliveryData.address.trim().length > 0 && deliveryData.phone.trim().length > 0
     : selectedType === 'DINE_IN' 
       ? selectedTableId !== '' 
-      : hasInput ? inputValue.trim().length > 0 : true;
+      : selectedType === 'PICKUP'
+        ? inputValue.trim().length > 0 && pickupPhone.trim().length > 0
+        : true;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0c1424]/40 backdrop-blur-md overflow-y-auto">
@@ -165,27 +183,62 @@ export default function ServiceModeModal({ onClose }: ServiceModeModalProps) {
                   </div>
 
                   {isActive ? (
-                    <div className="pt-2 animate-in slide-in-from-top-4 duration-300 min-h-[100px]">
+                    <div className="pt-2 animate-in slide-in-from-top-4 duration-300 min-h-[120px]">
                       {model === 'DELIVERY' ? (
                         <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="text"
-                            value={deliveryData.name}
-                            onChange={(e) => setDeliveryData({ ...deliveryData, name: e.target.value })}
-                            placeholder="Customer Name"
-                            className="w-full h-12 px-4 rounded-xl bg-white border border-slate-100 text-sm font-bold text-[#0c1424] outline-none focus:border-[#5dc7ec] transition-all"
-                          />
-                          <input
-                            type="text"
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={deliveryData.name}
+                              onChange={(e) => setDeliveryData({ ...deliveryData, name: e.target.value })}
+                              placeholder="Customer Name"
+                              className="w-full h-12 px-4 rounded-xl bg-white border border-slate-100 text-sm font-bold text-[#0c1424] outline-none focus:border-[#5dc7ec] transition-all"
+                            />
+                            <input
+                              type="tel"
+                              value={deliveryData.phone}
+                              onChange={(e) => setDeliveryData({ ...deliveryData, phone: e.target.value })}
+                              placeholder="Mobile Number"
+                              className="w-full h-12 px-4 rounded-xl bg-white border border-slate-100 text-sm font-bold text-[#0c1424] outline-none focus:border-[#5dc7ec] transition-all"
+                            />
+                          </div>
+                          <textarea
                             value={deliveryData.address}
                             onChange={(e) => setDeliveryData({ ...deliveryData, address: e.target.value })}
                             placeholder="Delivery Address"
+                            rows={2}
+                            className="w-full p-4 rounded-xl bg-white border border-slate-100 text-sm font-bold text-[#0c1424] outline-none focus:border-[#5dc7ec] transition-all resize-none"
+                          />
+                        </div>
+                      ) : model === 'PICKUP' ? (
+                        <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={inputValue}
+                              onChange={(e) => setInputValue(e.target.value)}
+                              placeholder="Customer Name"
+                              className="w-full h-12 px-4 rounded-xl bg-white border border-slate-100 text-sm font-bold text-[#0c1424] outline-none focus:border-[#5dc7ec] transition-all"
+                            />
+                            <input
+                              type="tel"
+                              value={pickupPhone}
+                              onChange={(e) => setPickupPhone(e.target.value)}
+                              placeholder="Mobile Number"
+                              className="w-full h-12 px-4 rounded-xl bg-white border border-slate-100 text-sm font-bold text-[#0c1424] outline-none focus:border-[#5dc7ec] transition-all"
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            value={pickupTime}
+                            onChange={(e) => setPickupTime(e.target.value)}
+                            placeholder="Pickup Time (Optional)"
                             className="w-full h-12 px-4 rounded-xl bg-white border border-slate-100 text-sm font-bold text-[#0c1424] outline-none focus:border-[#5dc7ec] transition-all"
                           />
                         </div>
                       ) : model === 'DINE_IN' ? (
                         <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
-                          <label className="block text-[9px] font-black text-rose-500 uppercase tracking-widest ml-1">
+                          <label className="block text-[9px] font-black text-[#5dc7ec] uppercase tracking-widest ml-1">
                             SELECT AVAILABLE TABLE <span className="text-rose-500">*</span>
                           </label>
                           <select
@@ -196,26 +249,14 @@ export default function ServiceModeModal({ onClose }: ServiceModeModalProps) {
                           >
                             <option value="">Choose a table...</option>
                             {availableTables.map(t => (
-                              <option key={t.id} value={t.id}>{t.name} ({t.seats} Seats)</option>
+                              <option key={t.id} value={t.id}>
+                                {t.name} - {t.floor.toLowerCase()} floor ({t.seats} seats)
+                              </option>
                             ))}
                           </select>
                           {availableTables.length === 0 && (
                             <p className="text-[10px] font-bold text-rose-500 ml-1">No tables currently available</p>
                           )}
-                        </div>
-                      ) : config.inputRequired ? (
-                        <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
-                          <label className="block text-[9px] font-black text-rose-500 uppercase tracking-widest ml-1">
-                            {config.inputLabel} <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            placeholder={config.inputPlaceholder}
-                            className="w-full h-14 px-6 rounded-2xl bg-white border border-slate-100 focus:border-[#5dc7ec] focus:ring-4 focus:ring-[#5dc7ec]/10 text-[15px] font-bold text-[#0c1424] placeholder:text-slate-300 transition-all outline-none"
-                            autoFocus
-                          />
                         </div>
                       ) : (
                         <div className="h-14 rounded-2xl bg-white border border-dashed border-slate-100 flex items-center justify-center">
@@ -224,7 +265,7 @@ export default function ServiceModeModal({ onClose }: ServiceModeModalProps) {
                       )}
                     </div>
                   ) : (
-                      <div className="min-h-[100px]" />
+                      <div className="min-h-[120px]" />
                   )}
                 </div>
               );

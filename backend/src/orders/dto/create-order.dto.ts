@@ -26,6 +26,7 @@ export class CreateOrderDto {
   deliveryState?: string;
   deliveryPostcode?: string;
   deliveryNotes?: string;
+  deliveryType?: string;
 }
 
 export class AddOrderItemDto {

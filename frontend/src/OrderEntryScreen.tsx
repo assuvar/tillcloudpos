@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CheckCircle2,
   CreditCard,
   Loader2,
   Plus,
+  MapPin,
   RefreshCw,
   Send,
   ShoppingBag,
@@ -120,6 +121,9 @@ export default function OrderEntryScreen() {
     ? orderType
     : enabledServiceModels[0] || 'DINE_IN';
 
+  const isCreatingRef = useRef(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
   useEffect(() => {
     if (billId) {
       if (activeBill?.id !== billId) {
@@ -128,24 +132,30 @@ export default function OrderEntryScreen() {
       return;
     }
 
-    if (!activeBill && !isLoading && !isCreatingSession && (tableId || orderTypeParam)) {
+    if (!activeBill && !isLoading && !isCreatingRef.current && !sessionError && (tableId || orderTypeParam)) {
       const startSession = async () => {
+        isCreatingRef.current = true;
         setIsCreatingSession(true);
         try {
           await createBillSession(
             orderType, 
-            tableId || null,
-            orderDetail || tableNumberParam || null
+            {
+              tableId: tableId || null,
+              customer: orderDetail || tableNumberParam || null
+            }
           );
-        } catch (err) {
-          console.error("Failed to start session:", err);
+        } catch (err: any) {
+          const msg = err?.response?.data?.message || err?.message || 'Failed to start session';
+          console.error("Failed to start session:", msg);
+          setSessionError(typeof msg === 'string' ? msg : JSON.stringify(msg));
         } finally {
+          isCreatingRef.current = false;
           setIsCreatingSession(false);
         }
       };
       void startSession();
     }
-  }, [billId, tableId, tableNumberParam, orderType, orderDetail, activeBill?.id, isLoading, isCreatingSession]);
+  }, [billId, tableId, tableNumberParam, orderType, orderDetail, activeBill?.id, isLoading]);
 
   useEffect(() => {
     if (!activeBill && !isLoading && !billId && !tableId && !orderTypeParam && !isCreatingSession) {
@@ -254,22 +264,6 @@ export default function OrderEntryScreen() {
     });
   };
 
-  const detailLabel = useMemo(() => {
-    const type = activeBill?.orderType || effectiveOrderType;
-    if (type === 'DINE_IN') return 'Table';
-    if (type === 'PICKUP') return 'Pickup';
-    if (type === 'DELIVERY') return 'Delivery';
-    return 'Ref';
-  }, [activeBill?.orderType, effectiveOrderType]);
-
-  const detailValue = useMemo(() => {
-    if (activeBill) {
-      return activeBill.tableNumber || activeBill.pickupName || activeBill.deliveryName || '';
-    }
-    return orderDetail || tableNumberParam || '';
-  }, [activeBill, orderDetail, tableNumberParam]);
-
-
   return (
     <div className="flex h-full flex-col">
       <main className="flex min-h-0 flex-1 gap-6 overflow-hidden pt-2">
@@ -291,7 +285,19 @@ export default function OrderEntryScreen() {
                 <p className="text-sm font-medium text-slate-400">{visibleItems.length} items available</p>
               </div>
             </div>
-            {error ? (
+            {sessionError ? (
+              <div className="flex items-center gap-4">
+                <div className="rounded-full border border-rose-100 bg-rose-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-600">
+                  {sessionError}
+                </div>
+                <button
+                  onClick={() => navigate('/pos')}
+                  className="rounded-full bg-[#0c1424] px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:bg-black"
+                >
+                  Go Back to Dashboard
+                </button>
+              </div>
+            ) : error ? (
               <button
                 type="button"
                 onClick={() => void handleRetryLoad()}
@@ -402,17 +408,27 @@ export default function OrderEntryScreen() {
               <div>
                 <h2 className="flex items-center gap-3 text-2xl font-black capitalize text-[#0c1424]">
                   {getOrderTypeLabel(effectiveOrderType)}
-                  {detailValue ? ` • ${detailLabel} ${detailValue}` : ''}
+                  {activeBill?.tableNumber ? ` • Table ${activeBill.tableNumber}` : ''}
+                  {activeBill?.pickupName ? ` • ${activeBill.pickupName}` : ''}
+                  {activeBill?.deliveryName ? ` • ${activeBill.deliveryName}` : ''}
                 </h2>
-                <div className="mt-1 flex items-center gap-3">
-                  <span className="text-xs font-bold text-slate-400">Order #{activeBill?.orderNumber?.toString().padStart(3, '0') || '---'}</span>
-                  <div className="h-1 w-1 rounded-full bg-slate-200" />
-                  <span className="text-xs font-bold text-slate-400">{customer?.name || user?.fullName || 'Cashier'}</span>
+                <div className="mt-1 flex flex-col gap-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-400">Order #{activeBill?.orderNumber?.toString().padStart(3, '0') || '---'}</span>
+                    <div className="h-1 w-1 rounded-full bg-slate-200" />
+                    <span className="text-xs font-bold text-slate-400">{customer?.name || activeBill?.deliveryName || activeBill?.pickupName || user?.fullName || 'Cashier'}</span>
+                  </div>
+                  {activeBill?.deliveryAddress && (
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
+                      <MapPin size={12} />
+                      <span className="truncate max-w-[300px]">{activeBill.deliveryAddress}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${activeBill?.status === 'KOT_SENT' ? 'border-emerald-100 bg-emerald-50 text-emerald-600' : 'border-rose-100 bg-rose-50 text-rose-500'}`}>
+              <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${activeBill?.status === 'KOT_SENT' ? 'border-blue-100 bg-blue-50 text-blue-600' : activeBill?.status === 'AWAITING_PAYMENT' ? 'border-emerald-100 bg-emerald-50 text-emerald-600' : 'border-amber-100 bg-amber-50 text-amber-500'}`}>
                 <CheckCircle2 size={12} strokeWidth={3} />
-                {activeBill?.status === 'KOT_SENT' ? 'KOT Sent' : 'Draft'}
+                {activeBill?.status === 'KOT_SENT' ? 'IN PROGRESS' : activeBill?.status === 'AWAITING_PAYMENT' ? 'BILLING' : 'CREATED'}
               </div>
             </div>
 

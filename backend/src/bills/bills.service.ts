@@ -14,8 +14,11 @@ import {
   TaxMode,
   TableStatus,
   IngredientMovementType,
-  InventoryMovementType,
 } from '../../generated/prisma';
+import {
+  normalizeIngredientUnit,
+  toBaseQuantity,
+} from '../inventory/inventory-units';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AddBillItemDto,
@@ -77,21 +80,9 @@ export class BillsService {
   }
 
   private async assertBillDateOpen(restaurantId: string, billDate: Date) {
-    const closure = await this.prisma.dayClosure.findUnique({
-      where: {
-        restaurantId_closedDate: {
-          restaurantId,
-          closedDate: this.toClosedDate(billDate),
-        },
-      },
-      select: { id: true },
-    });
-
-    if (closure) {
-      throw new BadRequestException(
-        'This business day has been closed and bill edits are locked',
-      );
-    }
+    // LOCK REMOVED: System must continue working after close day.
+    // Requirement 1 & 2: Close Day = Data Reset (NOT System Lock)
+    return;
   }
 
   private async assertBillOwnership(billId: string, restaurantId: string) {
@@ -395,53 +386,57 @@ export class BillsService {
       if (table) resolvedTableNumber = table.name;
     }
 
-    const bill = await this.prisma.bill.create({
-      data: {
-        restaurantId,
-        cashierId,
-        orderNumber: totalOrderCount + 1,
-        displayOrderNumber: displayOrderCount + 1,
-        orderType: (dto.orderType as OrderType) || OrderType.DINE_IN,
-        status: BillStatus.OPEN,
-        tableId: dto.tableId || null,
-        tableNumber: resolvedTableNumber,
-
-        // New Pickup/Delivery fields
-        pickupName: dto.pickupName || null,
-        deliveryName: dto.deliveryName || null,
-        deliveryAddress: dto.deliveryAddress || null,
-        deliverySuburb: dto.deliverySuburb || null,
-        deliveryState: dto.deliveryState || null,
-        deliveryPostcode: dto.deliveryPostcode || null,
-        deliveryPhone: dto.deliveryPhone || null,
-        deliveryNotes: dto.deliveryNotes || null,
-
-        subtotalCents: 0,
-        taxAmountCents: 0,
-        totalCents: 0,
-        taxMode: TaxMode.INCLUSIVE,
-        taxRate: new Prisma.Decimal(0),
-      },
-      include: {
-        items: true,
-        kitchenOrders: true,
-      },
-    });
-
-    // If a table is associated, update its status to OCCUPIED
-    if (dto.tableId) {
-      await this.prisma.table.update({
-        where: { id: dto.tableId, restaurantId },
+    return this.prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.create({
         data: {
-          status: TableStatus.OCCUPIED,
-          activeBillId: bill.id,
-          currentOrderId: bill.id,
-          startedAt: new Date(),
+          restaurantId,
+          cashierId,
+          orderNumber: totalOrderCount + 1,
+          displayOrderNumber: displayOrderCount + 1,
+          orderType: (dto.orderType as OrderType) || OrderType.DINE_IN,
+          status: BillStatus.OPEN,
+          tableId: dto.tableId || null,
+          tableNumber: resolvedTableNumber,
+
+          // New Pickup/Delivery fields
+          pickupName: dto.pickupName || null,
+          pickupPhone: dto.pickupPhone || null,
+          pickupTime: dto.pickupTime || null,
+          deliveryName: dto.deliveryName || null,
+          deliveryAddress: dto.deliveryAddress || null,
+          deliverySuburb: dto.deliverySuburb || null,
+          deliveryState: dto.deliveryState || null,
+          deliveryPostcode: dto.deliveryPostcode || null,
+          deliveryPhone: dto.deliveryPhone || null,
+          deliveryNotes: dto.deliveryNotes || null,
+
+          subtotalCents: 0,
+          taxAmountCents: 0,
+          totalCents: 0,
+          taxMode: TaxMode.INCLUSIVE,
+          taxRate: new Prisma.Decimal(0),
+        },
+        include: {
+          items: true,
+          kitchenOrders: true,
         },
       });
-    }
 
-    return this.normalizeBill(bill);
+      // If a table is associated, update its table reference but DO NOT mark as OCCUPIED yet (Requirement: Override)
+      if (dto.tableId) {
+        await tx.table.update({
+          where: { id: dto.tableId, restaurantId },
+          data: {
+            // status: TableStatus.OCCUPIED, // DO NOT mark occupied yet
+            activeBillId: bill.id,
+            currentOrderId: bill.id,
+            // startedAt: new Date(), // DO NOT start timer yet
+          },
+        });
+      }
+
+      return this.normalizeBill(bill);
+    });
   }
 
   async findAll(restaurantId: string, status?: string, limit?: number) {
@@ -457,7 +452,7 @@ export class BillsService {
           ? {}
           : {
               status: {
-                in: [BillStatus.OPEN, BillStatus.KOT_SENT],
+                in: [BillStatus.OPEN, BillStatus.KOT_SENT, BillStatus.AWAITING_PAYMENT],
               },
             }),
     };
@@ -467,6 +462,7 @@ export class BillsService {
       include: {
         items: true,
         kitchenOrders: true,
+        table: true,
       },
       orderBy: { createdAt: 'desc' },
       take,
@@ -705,12 +701,13 @@ export class BillsService {
         bill,
       );
 
-      // If a table is associated, update its status to BILLING
-      if (updatedBill.tableId) {
+      // Requirement: Timer should start when order is sent to kitchen
+      if (bill.tableId) {
         await tx.table.update({
-          where: { id: updatedBill.tableId, restaurantId },
+          where: { id: bill.tableId, restaurantId },
           data: {
-            status: TableStatus.BILLING,
+            status: TableStatus.OCCUPIED,
+            startedAt: bill.kotSentAt || new Date(),
           },
         });
       }
@@ -845,15 +842,18 @@ export class BillsService {
         },
       });
 
-      // If a table is associated, update its status back to AVAILABLE
+      // Inventory Deduction (CRITICAL Requirement)
+      await this.deductInventoryForBill(tx, bill.id, restaurantId);
+
+      // If a table is associated, update its status to OCCUPIED and start timer (Requirement: Override)
       if (updatedBill.tableId) {
         await tx.table.update({
           where: { id: updatedBill.tableId, restaurantId },
           data: {
-            status: TableStatus.AVAILABLE,
-            activeBillId: null,
-            currentOrderId: null,
-            startedAt: null,
+            status: TableStatus.OCCUPIED,
+            activeBillId: updatedBill.id,
+            currentOrderId: updatedBill.id,
+            startedAt: new Date(),
           },
         });
       }
@@ -880,18 +880,13 @@ export class BillsService {
     restaurantId: string,
   ) {
     const bill = await tx.bill.findUnique({
-      where: { id: billId, restaurantId },
+      where: { id: billId },
       include: {
         items: {
           include: {
             menuItem: {
               include: {
-                recipeItems: {
-                  include: {
-                    ingredient: true,
-                  },
-                },
-                inventoryItem: true,
+                recipeItems: true,
               },
             },
           },
@@ -901,65 +896,80 @@ export class BillsService {
 
     if (!bill) return;
 
+    const deductionMap = new Map<string, number>();
+
     for (const item of bill.items) {
-      if (!item.menuItem) continue;
-
-      // 1. Recipe-based deduction (Ingredients)
-      if (item.menuItem.recipeItems?.length > 0) {
-        for (const recipeItem of item.menuItem.recipeItems) {
-          const deduction = Number(recipeItem.quantity) * item.quantity;
-          const ingredient = recipeItem.ingredient;
-
-          // Update ingredient quantity
-          await tx.ingredient.update({
-            where: { id: ingredient.id },
-            data: {
-              quantity: {
-                decrement: deduction,
-              },
-            },
-          });
-
-          // Log movement
-          await tx.ingredientMovement.create({
-            data: {
-              ingredientId: ingredient.id,
-              restaurantId,
-              type: IngredientMovementType.ORDER_DEDUCTION,
-              quantityChange: -deduction,
-              quantityAfter: Number(ingredient.quantity) - deduction,
-              reason: `Order #${bill.orderNumber} - ${item.itemName}`,
-              referenceId: billId,
-            },
-          });
-        }
+      const menuItem = item.menuItem;
+      if (!menuItem || !menuItem.trackInventory) {
+        continue;
       }
 
-      // 2. Direct Item Tracking (InventoryItem) - if enabled
-      if (item.menuItem.trackInventory && item.menuItem.inventoryItem) {
-        const inventoryItem = item.menuItem.inventoryItem;
-        const deduction = item.quantity;
+      if (!menuItem.recipeItems || menuItem.recipeItems.length === 0) {
+        throw new BadRequestException(
+          `Recipe is missing for tracked item: ${item.itemName}`,
+        );
+      }
 
-        await tx.inventoryItem.update({
-          where: { id: inventoryItem.id },
-          data: {
-            quantity: {
-              decrement: deduction,
-            },
-          },
-        });
+      for (const recipeItem of menuItem.recipeItems) {
+        const required = Number(recipeItem.quantity) * item.quantity;
+        const current = deductionMap.get(recipeItem.ingredientId) || 0;
+        deductionMap.set(recipeItem.ingredientId, current + required);
+      }
+    }
 
-        await tx.inventoryMovement.create({
-          data: {
-            inventoryItemId: inventoryItem.id,
-            type: InventoryMovementType.SALE,
-            quantityChange: -deduction,
-            quantityAfter: Number(inventoryItem.quantity) - deduction,
-            reason: `Order #${bill.orderNumber}`,
-            billId: billId,
-          },
+    const ingredientIds = Array.from(deductionMap.keys());
+    if (ingredientIds.length === 0) return;
+
+    const ingredients = await tx.ingredient.findMany({
+      where: {
+        restaurantId,
+        id: { in: ingredientIds },
+      },
+    });
+
+    if (ingredients.length !== ingredientIds.length) {
+      throw new BadRequestException('Ingredient configuration is incomplete');
+    }
+
+    for (const ingredient of ingredients) {
+      const required = deductionMap.get(ingredient.id) || 0;
+      // Get current available in base units
+      const available = toBaseQuantity(
+        Number(ingredient.quantity),
+        ingredient.unit,
+      );
+
+      if (required > available) {
+        throw new BadRequestException({
+          message: 'Insufficient stock',
+          ingredient: ingredient.name,
+          required,
+          available,
         });
       }
+
+      const quantityAfter = available - required;
+      const baseUnit = normalizeIngredientUnit(ingredient.unit);
+
+      await tx.ingredient.update({
+        where: { id: ingredient.id },
+        data: {
+          quantity: quantityAfter,
+          unit: baseUnit,
+        },
+      });
+
+      await tx.ingredientMovement.create({
+        data: {
+          ingredientId: ingredient.id,
+          restaurantId,
+          type: IngredientMovementType.ORDER_DEDUCTION,
+          quantityChange: -required,
+          quantityAfter,
+          reason: `Bill #${bill.orderNumber} payment`,
+          referenceId: bill.id,
+        },
+      });
     }
   }
 }

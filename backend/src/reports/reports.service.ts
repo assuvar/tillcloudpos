@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { BillStatus } from '../../generated/prisma';
+import { BillStatus, TableStatus } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 
 type CloseDayOptions = {
@@ -260,18 +260,18 @@ export class ReportsService {
     const totalRevenue = this.toAmount(paidAgg._sum.totalCents);
 
     const closure = await this.prisma.$transaction(async (tx) => {
-      // 1. Mark all today's bills for this restaurant as CLOSED
-      // We only close PAID or OPEN/AWAITING bills. VOIDED remains VOIDED.
+      // 1. Mark all today's active bills for this restaurant as CLOSED
+      // This effectively clears the "Open Bills" dashboard.
       await tx.bill.updateMany({
         where: {
           restaurantId,
           createdAt: { gte: start, lt: end },
           status: {
             in: [
-              BillStatus.PAID,
               BillStatus.OPEN,
               BillStatus.KOT_SENT,
               BillStatus.AWAITING_PAYMENT,
+              BillStatus.PAID,
             ],
           },
         },
@@ -280,7 +280,21 @@ export class ReportsService {
         },
       });
 
-      // 2. Create or update the closure record
+      // 2. Reset ALL tables to AVAILABLE and stop timers
+      // This handles Requirement 1 & 5 (Table Reset Logic)
+      await tx.table.updateMany({
+        where: {
+          restaurantId,
+        },
+        data: {
+          status: TableStatus.AVAILABLE,
+          activeBillId: null,
+          currentOrderId: null,
+          startedAt: null,
+        },
+      });
+
+      // 3. Create or update the closure record
       return tx.dayClosure.upsert({
         where: {
           restaurantId_closedDate: {
@@ -307,8 +321,6 @@ export class ReportsService {
       closedAt: closure.createdAt.toISOString(),
       billsCount,
       revenue: totalRevenue,
-      lockNote:
-        'Bill edit lock is enforced for bills created on this closed business date.',
     };
   }
 

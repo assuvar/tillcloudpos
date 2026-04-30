@@ -321,11 +321,11 @@ export class OrdersService {
         await this.billsService.deductInventoryForBill(tx, bill.id, restaurantId);
       }
 
-      // Update Bill status to PAID/COMPLETED
+      // Update Bill status to CLOSED (Archived from dashboard)
       await tx.bill.update({
         where: { id },
         data: {
-          status: BillStatus.PAID,
+          status: BillStatus.CLOSED,
           paidAt: bill.paidAt || new Date(),
         },
       });
