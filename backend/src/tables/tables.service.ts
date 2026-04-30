@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateTableDto,
@@ -125,13 +126,54 @@ export class TablesService {
     }
 
     const { groupId: _ignored, ...rest } = dto;
-    return this.prisma.table.create({
-      data: {
-        ...rest,
-        groupId,
+
+    // Safety check for ghost merged tables
+    const existingTable = await this.prisma.table.findFirst({
+      where: {
         restaurantId,
+        name: rest.name,
+        floor: rest.floor || Floor.GROUND,
       },
     });
+
+    if (existingTable) {
+      if (existingTable.status === TableStatus.MERGED) {
+        // Check if it's a ghost (not part of any active virtual table)
+        const virtualTable = await this.prisma.table.findFirst({
+          where: {
+            restaurantId,
+            isMerged: true,
+            originalTableIds: { has: existingTable.id },
+          },
+        });
+
+        if (!virtualTable) {
+          // It's a ghost! Clean it up.
+          await this.prisma.table.delete({ where: { id: existingTable.id } });
+        } else {
+          throw new BadRequestException(
+            `Table "${rest.name}" is currently part of a merged table (${virtualTable.name})`,
+          );
+        }
+      } else {
+        throw new BadRequestException('A table with that name already exists on this floor');
+      }
+    }
+
+    try {
+      return await this.prisma.table.create({
+        data: {
+          ...rest,
+          groupId,
+          restaurantId,
+        },
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new BadRequestException('A table with that name already exists on this floor');
+      }
+      throw e;
+    }
   }
 
   async findAllTables(
@@ -204,8 +246,28 @@ export class TablesService {
   }
 
   async deleteTable(restaurantId: string, id: string) {
-    return this.prisma.table.delete({
+    const table = await this.prisma.table.findUnique({
       where: { id, restaurantId },
+    });
+
+    if (!table) throw new NotFoundException('Table not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      // If this is a virtual/merged table, try to restore the original tables
+      if (table.isMerged && table.originalTableIds.length > 0) {
+        await tx.table.updateMany({
+          where: {
+            id: { in: table.originalTableIds },
+            restaurantId,
+            status: TableStatus.MERGED,
+          },
+          data: { status: TableStatus.AVAILABLE },
+        });
+      }
+
+      return tx.table.delete({
+        where: { id },
+      });
     });
   }
 
@@ -310,6 +372,7 @@ export class TablesService {
           floor,
           status: TableStatus.AVAILABLE,
           isMerged: true,
+          originalTableIds: tableIds,
         },
       });
 
@@ -339,6 +402,38 @@ export class TablesService {
         startedAt: null,
         isMerged: false,
       },
+    });
+  }
+
+  async unmergeTable(restaurantId: string, id: string) {
+    const table = await this.prisma.table.findUnique({
+      where: { id, restaurantId },
+    });
+
+    if (!table) throw new NotFoundException('Table not found');
+    if (!table.isMerged) throw new BadRequestException('Table is not a merged table');
+    if (table.activeBillId) throw new BadRequestException('Cannot unmerge table with an active bill. Please clear the table first.');
+
+    return this.prisma.$transaction(async (tx) => {
+      // Restore original tables
+      if (table.originalTableIds.length > 0) {
+        await tx.table.updateMany({
+          where: {
+            id: { in: table.originalTableIds },
+            restaurantId,
+            status: TableStatus.MERGED,
+          },
+          data: { 
+            status: TableStatus.AVAILABLE,
+            isMerged: false 
+          },
+        });
+      }
+
+      // Delete virtual table
+      return tx.table.delete({
+        where: { id },
+      });
     });
   }
 }

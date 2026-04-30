@@ -38,9 +38,17 @@ export interface BillRecord {
   status: string;
   tableId: string | null;
   tableNumber: string | null;
+  table?: {
+    id: string;
+    name: string;
+    floor: string;
+  } | null;
   subtotalAmount: number;
   taxAmount: number;
   totalAmount: number;
+  paidAmount?: number;
+  remainingAmount?: number;
+  customerName?: string | null;
   kotSentAt: string | null;
   paidAt: string | null;
   createdAt: string;
@@ -84,8 +92,17 @@ interface PosCartContextType {
   loadOpenBills: () => Promise<void>;
   createBillSession: (
     serviceType: string,
-    tableId?: string | null,
-    customer?: string | null
+    data: {
+      tableId?: string | null;
+      customer?: string | null;
+      pickupName?: string | null;
+      pickupPhone?: string | null;
+      pickupTime?: string | null;
+      deliveryName?: string | null;
+      deliveryPhone?: string | null;
+      deliveryAddress?: string | null;
+      deliveryNotes?: string | null;
+    }
   ) => Promise<BillRecord>;
   loadBill: (billId: string) => Promise<BillRecord | null>;
   addItemToBill: (item: MenuItem) => Promise<boolean>;
@@ -100,6 +117,7 @@ interface PosCartContextType {
     amount: number,
     _cashReceived: number,
   ) => Promise<CashPaymentResult>;
+  closeOrder: (orderId: string) => Promise<boolean>;
   loadMenuItems: () => Promise<void>;
 }
 
@@ -251,19 +269,9 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const loadOpenBills = async () => {
     try {
-      const response = await api.get("/bills");
-
-      // Support both legacy raw-array responses and { success, data } wrappers
-      const payload =
-        response?.data?.data ?? (Array.isArray(response?.data) ? response.data : null);
-
-      if (Array.isArray(payload)) {
-        setOpenBills(payload.map(normalizeBill));
-      } else {
-        // If API returned unexpected shape, keep empty list but don't crash
-        console.warn('[PosCartContext] Unexpected open bills payload:', response.data);
-        setOpenBills([]);
-      }
+      const response = await api.get("/orders");
+      const payload = Array.isArray(response.data) ? response.data : [];
+      setOpenBills(payload);
     } catch (err: any) {
       console.error('[PosCartContext] Failed to load open bills:', err);
       setOpenBills([]);
@@ -273,14 +281,24 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const createBillSession = async (
     serviceType: string,
-    tableId?: string | null,
-    customer?: string | null
+    data: {
+      tableId?: string | null;
+      customer?: string | null;
+      pickupName?: string | null;
+      pickupPhone?: string | null;
+      pickupTime?: string | null;
+      deliveryName?: string | null;
+      deliveryPhone?: string | null;
+      deliveryAddress?: string | null;
+      deliveryNotes?: string | null;
+    }
   ) => {
     try {
       const response = await api.post("/orders", {
         serviceType,
-        tableId: tableId || undefined,
-        customer: customer || undefined
+        ...data,
+        tableId: data.tableId || undefined,
+        customer: data.customer || undefined
       });
 
       const orderData = response.data;
@@ -293,6 +311,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!bill) throw new Error("Failed to load bill after creation");
 
       syncBill(bill);
+      await loadOpenBills();
       return bill;
     } catch (err: any) {
       console.error('[PosCartContext] Failed to create order session:', err);
@@ -444,6 +463,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await api.post(`/orders/${activeBill.id}/send-to-kitchen`);
       syncBill(normalizeBill(response.data));
+      await loadOpenBills(); // Sync dashboard
       return {
         success: true,
         billId: activeBill.id,
@@ -471,6 +491,12 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const nextBill = normalizeBill(response.data.bill);
       syncBill(nextBill);
+      
+      // Force data refetching for UI synchronization (Requirement)
+      await Promise.all([
+        loadOpenBills(), // Sync dashboard
+        loadMenuItems(), // Sync item stock/out-of-stock status
+      ]);
 
       return {
         success: true,
@@ -479,7 +505,30 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       };
     } catch (err: any) {
       const errorMsg = parseApiError(err, "Payment failed");
+      setError(errorMsg);
       return { success: false, error: errorMsg };
+    }
+  };
+
+  const closeOrder = async (orderId: string): Promise<boolean> => {
+    try {
+      await api.patch(`/orders/${orderId}/close`);
+      
+      // Clear active bill if it was the one being closed
+      if (activeBill?.id === orderId) {
+        clearBill();
+      }
+
+      await Promise.all([
+        loadOpenBills(),
+        // Also reload tables if possible (handled by dashboard intervals but good to be explicit)
+      ]);
+      return true;
+    } catch (err: any) {
+      console.error('Failed to close order:', err);
+      const msg = err?.response?.data?.message || err?.message || 'Failed to close order';
+      setError(msg);
+      return false;
     }
   };
 
@@ -513,6 +562,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
         clearBill,
         sendToKitchen,
         processCashPayment,
+        closeOrder,
         loadMenuItems,
       }}
     >

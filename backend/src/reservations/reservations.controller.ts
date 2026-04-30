@@ -30,7 +30,14 @@ export class ReservationsController {
   }
 
   @Get()
-  findAll(@GetUser() user: User, @Query('status') status?: ReservationStatus) {
+  findAll(
+    @GetUser() user: User,
+    @Query('status') status?: ReservationStatus,
+    @Query('date') date?: string,
+  ) {
+    if (date === 'today') {
+      return this.reservationsService.findToday(user.restaurantId);
+    }
     return this.reservationsService.findAll(user.restaurantId, status);
   }
 

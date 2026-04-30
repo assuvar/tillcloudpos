@@ -11,7 +11,9 @@ export class ReservationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(restaurantId: string, dto: CreateReservationDto) {
-    const { tableId, ...data } = dto;
+    const { tableId, tableIds, ...data } = dto;
+    const finalTableId = tableId || (tableIds && tableIds.length > 0 ? tableIds[0] : null);
+    const allTableIds = tableIds && tableIds.length > 0 ? tableIds : tableId ? [tableId] : [];
 
     return this.prisma.$transaction(async (tx) => {
       const reservation = await tx.reservation.create({
@@ -23,13 +25,13 @@ export class ReservationsService {
           floor: data.floor,
           notes: data.notes,
           restaurantId,
-          tableId,
+          tableId: finalTableId,
         },
       });
 
-      if (tableId) {
-        await tx.table.update({
-          where: { id: tableId },
+      if (allTableIds.length > 0) {
+        await tx.table.updateMany({
+          where: { id: { in: allTableIds }, restaurantId },
           data: { status: TableStatus.RESERVED },
         });
       }

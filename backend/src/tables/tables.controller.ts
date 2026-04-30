@@ -120,6 +120,11 @@ export class TablesController {
     return this.tablesService.clearTable(user.restaurantId, id);
   }
 
+  @Post(':id/unmerge')
+  unmerge(@GetUser() user: User, @Param('id') id: string) {
+    return this.tablesService.unmergeTable(user.restaurantId, id);
+  }
+
   @Delete(':id')
   deleteTable(@GetUser() user: User, @Param('id') id: string) {
     return this.tablesService.deleteTable(user.restaurantId, id);

@@ -35,6 +35,10 @@ export class CreateReservationDto {
   @IsOptional()
   tableId?: string;
 
+  @IsOptional()
+  @IsString({ each: true })
+  tableIds?: string[];
+
   @IsBoolean()
   @IsOptional()
   mergeRequired?: boolean;

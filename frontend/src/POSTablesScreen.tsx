@@ -5,13 +5,14 @@ import {
   Plus, 
   Calendar, 
   CheckCircle2, 
-  ChevronRight, 
   FileText, 
   ArrowUpFromLine, 
   Eraser, 
   PlusCircle,
   Search,
-  X
+  X,
+  Trash2,
+  Split
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from './services/api';
@@ -32,15 +33,20 @@ interface Table {
   currentTotal?: number;
   isKotSent?: boolean;
   customerName?: string;
+  isMerged?: boolean;
 }
 
 interface Reservation {
   id: string;
   customerName: string;
+  mobile: string;
   guests: number;
   dateTime: string;
   status: string;
   tableId?: string;
+  floor?: string;
+  tableIds?: string[];
+  isMerged?: boolean;
 }
 
 export default function POSTablesScreen() {
@@ -53,6 +59,7 @@ export default function POSTablesScreen() {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [showAddTableModal, setShowAddTableModal] = useState(false);
   const [showAddResModal, setShowAddResModal] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [showMergeModal, setShowMergeModal] = useState(false);
 
 
@@ -71,8 +78,17 @@ export default function POSTablesScreen() {
 
   useEffect(() => {
     void loadData();
-    const interval = setInterval(() => void loadData(), 3000);
-    return () => clearInterval(interval);
+    const dataInterval = setInterval(() => void loadData(), 3000);
+    
+    // Timer sync: force re-render every second for the running clock
+    const timerInterval = setInterval(() => {
+      setTables(prev => [...prev]); 
+    }, 1000);
+
+    return () => {
+      clearInterval(dataInterval);
+      clearInterval(timerInterval);
+    };
   }, []);
 
   const filteredTables = useMemo(() => 
@@ -84,7 +100,11 @@ export default function POSTablesScreen() {
     if (!selectedTable || selectedTable.status === 'OCCUPIED' || selectedTable.status === 'BILLING') return;
     try {
       // Create order session
-      const bill = await createBillSession('DINE_IN', selectedTable.id, selectedTable.name);
+      const bill = await createBillSession('DINE_IN', {
+        tableId: selectedTable.id,
+        customer: selectedTable.name,
+      });
+      await loadData(); // Force sync before navigation
       navigate(`/pos/order-entry?billId=${bill.id}`);
     } catch (err) {
       console.error('Failed to start table session:', err);
@@ -99,6 +119,41 @@ export default function POSTablesScreen() {
       setSelectedTable(null);
     } catch (err) {
       console.error('Clear failed:', err);
+    }
+  };
+
+  const handleDeleteTable = async () => {
+    if (!selectedTable) return;
+    if (selectedTable.status !== 'AVAILABLE') {
+      alert('Only available tables can be deleted.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete table ${selectedTable.name}?`)) return;
+    
+    try {
+      await api.delete(`/tables/${selectedTable.id}`);
+      void loadData();
+      setSelectedTable(null);
+    } catch (err) {
+      console.error('Failed to delete table:', err);
+    }
+  };
+
+  const handleUnmergeTable = async () => {
+    if (!selectedTable || !selectedTable.isMerged) return;
+    if (selectedTable.status !== 'AVAILABLE') {
+      alert('Please clear the table before unmerging.');
+      return;
+    }
+    
+    try {
+      await api.post(`/tables/${selectedTable.id}/unmerge`);
+      void loadData();
+      setSelectedTable(null);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Unmerge failed';
+      alert(message);
+      console.error('Unmerge failed:', err);
     }
   };
 
@@ -190,6 +245,14 @@ export default function POSTablesScreen() {
           </div>
         </div>
 
+        {/* Floor Header */}
+        <div className="mb-6 flex items-center gap-4 px-2">
+          <h2 className="text-[18px] font-black text-[#0c1424] tracking-tight uppercase">
+            {activeFloor} Floor
+          </h2>
+          <div className="h-[2px] flex-1 bg-slate-100" />
+        </div>
+
         {/* Table Grid */}
         <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
           {filteredTables.map((table) => (
@@ -232,17 +295,25 @@ export default function POSTablesScreen() {
               </div>
 
               <div className="mt-6">
-                {table.status === 'OCCUPIED' && (
-                  <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-1.5 text-white">
-                    <Clock size={14} />
-                    <span className="text-[13px] font-black tracking-tight">{getRunningTime(table.startedAt) || '0:00'}</span>
-                  </div>
-                )}
-                {table.status === 'BILLING' && (
-                  <div className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-1.5 text-sky-600">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Billing</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  {table.status === 'OCCUPIED' && (
+                    <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-1.5 text-white">
+                      <Clock size={14} />
+                      <span className="text-[13px] font-black tracking-tight">{getRunningTime(table.startedAt) || '0:00'}</span>
+                    </div>
+                  )}
+                  {table.status === 'BILLING' && (
+                    <>
+                      <div className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-1.5 text-sky-600">
+                        <Clock size={14} />
+                        <span className="text-[13px] font-black tracking-tight">{getRunningTime(table.startedAt) || '0:00'}</span>
+                      </div>
+                      <div className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-1.5 text-sky-600">
+                        <span className="text-[10px] font-black uppercase tracking-widest">Billing</span>
+                      </div>
+                    </>
+                  )}
+                </div>
                 {table.status === 'RESERVED' && (
                   <div className="text-[12px] font-black text-[#0c1424] truncate">
                     {table.customerName || 'Reserved'}
@@ -296,6 +367,25 @@ export default function POSTablesScreen() {
             </button>
 
             <button 
+              onClick={handleDeleteTable}
+              disabled={selectedTable.status !== 'AVAILABLE'}
+              className="flex h-12 items-center gap-2.5 rounded-2xl bg-rose-500/10 px-6 text-[12px] font-black uppercase tracking-widest text-rose-400 transition-all hover:bg-rose-500/20 disabled:opacity-20"
+            >
+              <Trash2 size={18} />
+              Delete
+            </button>
+
+            {selectedTable.isMerged && (
+              <button 
+                onClick={handleUnmergeTable}
+                className="flex h-12 items-center gap-2.5 rounded-2xl bg-sky-500/10 px-6 text-[12px] font-black uppercase tracking-widest text-sky-400 transition-all hover:bg-sky-500/20"
+              >
+                <Split size={18} />
+                Unmerge
+              </button>
+            )}
+
+            <button 
               onClick={() => setSelectedTable(null)}
               className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-white/60 hover:text-white"
             >
@@ -323,8 +413,15 @@ export default function POSTablesScreen() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {reservations.map((res) => (
-                  <div key={res.id} className="flex items-center justify-between rounded-2xl border border-slate-50 bg-slate-50/30 p-5 transition-all hover:border-[#5dc7ec]/30 hover:bg-white">
+                 {reservations.map((res) => (
+                  <button 
+                    key={res.id} 
+                    onClick={() => {
+                      setSelectedReservation(res);
+                      setShowAddResModal(true);
+                    }}
+                    className="flex items-center justify-between rounded-2xl border border-slate-50 bg-slate-50/30 p-5 transition-all hover:border-[#5dc7ec]/30 hover:bg-white text-left w-full"
+                  >
                     <div>
                       <div className="text-[15px] font-black text-[#0c1424]">{res.customerName}</div>
                       <div className="mt-1 flex items-center gap-4 text-[11px] font-bold text-slate-400 uppercase tracking-tight">
@@ -333,9 +430,9 @@ export default function POSTablesScreen() {
                       </div>
                     </div>
                     <div className="h-10 w-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-[#5dc7ec]">
-                      <ChevronRight size={18} />
+                      <Trash2 size={18} className="text-slate-300 group-hover:text-rose-500 transition-colors" />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -350,17 +447,23 @@ export default function POSTablesScreen() {
             setShowAddTableModal(false);
             void loadData();
           }}
+          floor={activeFloor}
         />
       )}
 
       {showAddResModal && (
         <AddReservationModal
-          onClose={() => setShowAddResModal(false)}
+          onClose={() => {
+            setShowAddResModal(false);
+            setSelectedReservation(null);
+          }}
           onSuccess={() => {
             setShowAddResModal(false);
+            setSelectedReservation(null);
             void loadData();
           }}
           initialFloor={activeFloor}
+          initialData={selectedReservation}
         />
       )}
 

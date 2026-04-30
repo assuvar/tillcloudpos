@@ -14,7 +14,10 @@ import {
   BillStatus,
   IngredientMovementType,
   OrderType,
+  PaymentMethod,
+  PaymentStatus,
   TaxMode,
+  TableStatus,
 } from '../../generated/prisma';
 import {
   normalizeIngredientUnit,
@@ -71,7 +74,18 @@ export class OrdersService {
         orderType: createOrderDto.serviceType as any,
         tableId: createOrderDto.tableId,
         tableNumber: createOrderDto.tableNumber,
-        // Add items if provided in initial request
+        // Pickup Details
+        pickupName: createOrderDto.pickupName,
+        pickupPhone: createOrderDto.pickupPhone,
+        pickupTime: createOrderDto.pickupTime,
+        // Delivery Details
+        deliveryName: createOrderDto.deliveryName,
+        deliveryPhone: createOrderDto.deliveryPhone,
+        deliveryAddress: createOrderDto.deliveryAddress,
+        deliverySuburb: createOrderDto.deliverySuburb,
+        deliveryState: createOrderDto.deliveryState,
+        deliveryPostcode: createOrderDto.deliveryPostcode,
+        deliveryNotes: createOrderDto.deliveryNotes,
       });
 
       // 4. Add items if provided
@@ -94,7 +108,7 @@ export class OrdersService {
         error instanceof NotFoundException
       )
         throw error;
-      console.error('[OrdersService] Error in createOrder:', error);
+      console.error('[OrdersService] Error in createOrder:', error?.message || error);
       throw new BadRequestException(
         error.message || 'Failed to initialize POS session',
       );
@@ -150,102 +164,8 @@ export class OrdersService {
         throw new BadRequestException('Voided order cannot be completed');
       }
 
-      const deductionMap = new Map<string, number>();
-
-      for (const item of bill.items) {
-        const menuItem = item.menuItem;
-        if (!menuItem || !menuItem.trackInventory) {
-          continue;
-        }
-
-        if (!menuItem.recipeItems || menuItem.recipeItems.length === 0) {
-          throw new BadRequestException(
-            `Recipe is missing for tracked item: ${item.itemName}`,
-          );
-        }
-
-        for (const recipeItem of menuItem.recipeItems) {
-          const required = Number(recipeItem.quantity) * item.quantity;
-          const current = deductionMap.get(recipeItem.ingredientId) || 0;
-          deductionMap.set(recipeItem.ingredientId, current + required);
-        }
-      }
-
-      const ingredientIds = Array.from(deductionMap.keys());
-      const ingredients = ingredientIds.length
-        ? await tx.ingredient.findMany({
-            where: {
-              restaurantId,
-              id: { in: ingredientIds },
-            },
-          })
-        : [];
-
-      if (ingredients.length !== ingredientIds.length) {
-        throw new BadRequestException(
-          'Ingredient configuration is incomplete for this order',
-        );
-      }
-
-      const insufficient: {
-        ingredientId: string;
-        name: string;
-        required: number;
-        available: number;
-      }[] = [];
-      for (const ingredient of ingredients) {
-        const required = deductionMap.get(ingredient.id) || 0;
-        const available = toBaseQuantity(
-          this.toNumber(ingredient.quantity),
-          ingredient.unit,
-        );
-        if (required > available) {
-          insufficient.push({
-            ingredientId: ingredient.id,
-            name: ingredient.name,
-            required,
-            available,
-          });
-        }
-      }
-
-      if (insufficient.length > 0) {
-        throw new BadRequestException({
-          message: 'Insufficient ingredient stock to complete this order',
-          insufficient,
-        });
-      }
-
-      for (const ingredient of ingredients) {
-        const required = deductionMap.get(ingredient.id) || 0;
-        if (required <= 0) {
-          continue;
-        }
-
-        const available = toBaseQuantity(
-          this.toNumber(ingredient.quantity),
-          ingredient.unit,
-        );
-        const quantityAfter = available - required;
-        const baseUnit = normalizeIngredientUnit(ingredient.unit);
-        await tx.ingredient.update({
-          where: { id: ingredient.id },
-          data: { quantity: quantityAfter, unit: baseUnit },
-        });
-
-        await tx.ingredientMovement.create({
-          data: {
-            ingredientId: ingredient.id,
-            restaurantId,
-            type: IngredientMovementType.ORDER_DEDUCTION,
-            quantityChange: -required,
-            quantityAfter,
-            reason: `Order #${bill.orderNumber} completion`,
-            referenceId: bill.id,
-            performedById,
-          },
-        });
-      }
+      // Inventory Deduction (CRITICAL Requirement)
+      await this.billsService.deductInventoryForBill(tx, bill.id, restaurantId);
 
       const updatedBill = await tx.bill.update({
         where: { id: bill.id },
@@ -258,27 +178,173 @@ export class OrdersService {
         },
       });
 
+      // If a table is associated, update its status to OCCUPIED and start timer (Requirement: Override)
+      if (updatedBill.tableId) {
+        await tx.table.update({
+          where: { id: updatedBill.tableId, restaurantId },
+          data: {
+            status: TableStatus.OCCUPIED,
+            activeBillId: updatedBill.id,
+            currentOrderId: updatedBill.id,
+            startedAt: new Date(),
+          },
+        });
+      }
+
       return {
         bill: updatedBill,
-        stockDeductions: Array.from(deductionMap.entries()).map(
-          ([ingredientId, quantity]) => ({ ingredientId, quantity }),
-        ),
       };
     });
   }
 
-  findAll(restaurantId: string) {
-    return this.prisma.bill.findMany({
-      where: { restaurantId },
+  async findAll(restaurantId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const bills = await this.prisma.bill.findMany({
+      where: {
+        restaurantId,
+        OR: [
+          { status: { in: [BillStatus.OPEN, BillStatus.KOT_SENT, BillStatus.AWAITING_PAYMENT] } },
+          { 
+            status: { in: [BillStatus.PAID, BillStatus.CLOSED] },
+            createdAt: { gte: today }
+          }
+        ]
+      },
       include: {
         items: true,
+        payments: {
+          where: { status: PaymentStatus.APPROVED },
+        },
+        table: true,
+        customer: true,
       },
       orderBy: { createdAt: 'desc' },
+    });
+
+    return bills.map((bill) => {
+      const totalCents = bill.totalCents || 0;
+      const paidCents = bill.payments.reduce((sum, p) => sum + p.amountCents, 0);
+      const remainingCents = Math.max(0, totalCents - paidCents);
+
+      // Map internal BillStatus to User-requested status strings
+      let statusString = 'CREATED';
+      if (bill.status === BillStatus.KOT_SENT) statusString = 'IN_PROGRESS';
+      if (bill.status === BillStatus.AWAITING_PAYMENT) statusString = 'BILLING';
+      if (bill.status === BillStatus.PAID) statusString = 'COMPLETED';
+      if (bill.status === BillStatus.CLOSED) statusString = 'CLOSED';
+
+      return {
+        id: bill.id,
+        orderNumber: bill.orderNumber,
+        orderType: bill.orderType,
+        status: statusString,
+        totalAmount: totalCents / 100,
+        paidAmount: paidCents / 100,
+        remainingAmount: remainingCents / 100,
+        table: bill.table
+          ? {
+              id: bill.table.id,
+              name: bill.table.name,
+              floor: bill.table.floor,
+            }
+          : null,
+        customerName: bill.customer?.name || bill.deliveryName || bill.pickupName || null,
+        itemCount: bill.items.length,
+        createdAt: bill.createdAt,
+      };
     });
   }
 
   async findOne(id: string, restaurantId: string) {
     return this.billsService.findOne(id, restaurantId);
+  }
+
+  async pay(id: string, restaurantId: string, amount: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findFirst({
+        where: { id, restaurantId },
+        include: { payments: { where: { status: PaymentStatus.APPROVED } } },
+      });
+
+      if (!bill) throw new NotFoundException('Order not found');
+
+      const amountCents = Math.round(amount * 100);
+      
+      await tx.payment.create({
+        data: {
+          billId: id,
+          amountCents,
+          method: PaymentMethod.CASH,
+          status: PaymentStatus.APPROVED,
+          processedAt: new Date(),
+        },
+      });
+
+      const totalPaidCents = bill.payments.reduce((sum, p) => sum + p.amountCents, 0) + amountCents;
+      const isFullyPaid = totalPaidCents >= (bill.totalCents || 0);
+
+      const updatedBill = await tx.bill.update({
+        where: { id },
+        data: {
+          status: isFullyPaid ? BillStatus.PAID : BillStatus.AWAITING_PAYMENT,
+          paidAt: isFullyPaid ? new Date() : undefined,
+        },
+      });
+
+      return updatedBill;
+    });
+  }
+
+  async close(id: string, restaurantId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findFirst({
+        where: { id, restaurantId },
+        include: {
+          items: {
+            include: {
+              menuItem: {
+                include: {
+                  recipeItems: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!bill) throw new NotFoundException('Order not found');
+
+      // Deduct inventory if not already paid (to avoid double deduction if pay was called first)
+      if (bill.status !== BillStatus.PAID) {
+        await this.billsService.deductInventoryForBill(tx, bill.id, restaurantId);
+      }
+
+      // Update Bill status to CLOSED (Archived from dashboard)
+      await tx.bill.update({
+        where: { id },
+        data: {
+          status: BillStatus.CLOSED,
+          paidAt: bill.paidAt || new Date(),
+        },
+      });
+
+      // If a table is associated, reset it to AVAILABLE and STOP timer
+      if (bill.tableId) {
+        await tx.table.update({
+          where: { id: bill.tableId, restaurantId },
+          data: {
+            status: TableStatus.AVAILABLE,
+            startedAt: null,
+            activeBillId: null,
+            currentOrderId: null,
+          },
+        });
+      }
+
+      return { success: true };
+    });
   }
 
   update(id: string, updateOrderDto: UpdateOrderDto, restaurantId: string) {

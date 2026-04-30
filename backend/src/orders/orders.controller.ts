@@ -91,6 +91,22 @@ export class OrdersController {
     return this.ordersService.findOne(id, getRestaurantId(req));
   }
 
+  @Patch(':id/pay')
+  @RequirePermissions(PERMISSIONS.BILLING_CREATE)
+  pay(
+    @Param('id') id: string,
+    @Body('amount') amount: number,
+    @Req() req: any,
+  ) {
+    return this.ordersService.pay(id, getRestaurantId(req), amount);
+  }
+
+  @Patch(':id/close')
+  @RequirePermissions(PERMISSIONS.BILLING_CREATE)
+  close(@Param('id') id: string, @Req() req: any) {
+    return this.ordersService.close(id, getRestaurantId(req));
+  }
+
   @Patch(':id')
   @RequirePermissions(PERMISSIONS.BILLING_DISCOUNT)
   update(
