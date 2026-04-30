@@ -400,6 +400,8 @@ export class BillsService {
 
           // New Pickup/Delivery fields
           pickupName: dto.pickupName || null,
+          pickupPhone: dto.pickupPhone || null,
+          pickupTime: dto.pickupTime || null,
           deliveryName: dto.deliveryName || null,
           deliveryAddress: dto.deliveryAddress || null,
           deliverySuburb: dto.deliverySuburb || null,

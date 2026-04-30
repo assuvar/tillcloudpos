@@ -322,6 +322,8 @@ model Bill {
   tableId               String?
   tableNumber           String?
   pickupName            String?
+  pickupPhone           String?
+  pickupTime            String?
   deliveryName          String?
   deliveryAddress       String?
   deliverySuburb        String?
