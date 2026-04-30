@@ -12,6 +12,20 @@ export class CreateOrderDto {
   tableId?: string;
   tableNumber?: string;
   customer?: string;
+
+  // Pickup Details
+  pickupName?: string;
+  pickupPhone?: string;
+  pickupTime?: string;
+
+  // Delivery Details
+  deliveryName?: string;
+  deliveryPhone?: string;
+  deliveryAddress?: string;
+  deliverySuburb?: string;
+  deliveryState?: string;
+  deliveryPostcode?: string;
+  deliveryNotes?: string;
 }
 
 export class AddOrderItemDto {

@@ -13,6 +13,8 @@ import {
   Prisma,
   TaxMode,
   TableStatus,
+  IngredientMovementType,
+  InventoryMovementType,
 } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -870,5 +872,94 @@ export class BillsService {
         },
       };
     });
+  }
+
+  async deductInventoryForBill(
+    tx: Prisma.TransactionClient,
+    billId: string,
+    restaurantId: string,
+  ) {
+    const bill = await tx.bill.findUnique({
+      where: { id: billId, restaurantId },
+      include: {
+        items: {
+          include: {
+            menuItem: {
+              include: {
+                recipeItems: {
+                  include: {
+                    ingredient: true,
+                  },
+                },
+                inventoryItem: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!bill) return;
+
+    for (const item of bill.items) {
+      if (!item.menuItem) continue;
+
+      // 1. Recipe-based deduction (Ingredients)
+      if (item.menuItem.recipeItems?.length > 0) {
+        for (const recipeItem of item.menuItem.recipeItems) {
+          const deduction = Number(recipeItem.quantity) * item.quantity;
+          const ingredient = recipeItem.ingredient;
+
+          // Update ingredient quantity
+          await tx.ingredient.update({
+            where: { id: ingredient.id },
+            data: {
+              quantity: {
+                decrement: deduction,
+              },
+            },
+          });
+
+          // Log movement
+          await tx.ingredientMovement.create({
+            data: {
+              ingredientId: ingredient.id,
+              restaurantId,
+              type: IngredientMovementType.ORDER_DEDUCTION,
+              quantityChange: -deduction,
+              quantityAfter: Number(ingredient.quantity) - deduction,
+              reason: `Order #${bill.orderNumber} - ${item.itemName}`,
+              referenceId: billId,
+            },
+          });
+        }
+      }
+
+      // 2. Direct Item Tracking (InventoryItem) - if enabled
+      if (item.menuItem.trackInventory && item.menuItem.inventoryItem) {
+        const inventoryItem = item.menuItem.inventoryItem;
+        const deduction = item.quantity;
+
+        await tx.inventoryItem.update({
+          where: { id: inventoryItem.id },
+          data: {
+            quantity: {
+              decrement: deduction,
+            },
+          },
+        });
+
+        await tx.inventoryMovement.create({
+          data: {
+            inventoryItemId: inventoryItem.id,
+            type: InventoryMovementType.SALE,
+            quantityChange: -deduction,
+            quantityAfter: Number(inventoryItem.quantity) - deduction,
+            reason: `Order #${bill.orderNumber}`,
+            billId: billId,
+          },
+        });
+      }
+    }
   }
 }
