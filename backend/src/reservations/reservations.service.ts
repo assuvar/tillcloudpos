@@ -12,8 +12,10 @@ export class ReservationsService {
 
   async create(restaurantId: string, dto: CreateReservationDto) {
     const { tableId, tableIds, ...data } = dto;
-    const finalTableId = tableId || (tableIds && tableIds.length > 0 ? tableIds[0] : null);
-    const allTableIds = tableIds && tableIds.length > 0 ? tableIds : tableId ? [tableId] : [];
+    const finalTableId =
+      tableId || (tableIds && tableIds.length > 0 ? tableIds[0] : null);
+    const allTableIds =
+      tableIds && tableIds.length > 0 ? tableIds : tableId ? [tableId] : [];
 
     return this.prisma.$transaction(async (tx) => {
       const reservation = await tx.reservation.create({

@@ -108,7 +108,10 @@ export class OrdersService {
         error instanceof NotFoundException
       )
         throw error;
-      console.error('[OrdersService] Error in createOrder:', error?.message || error);
+      console.error(
+        '[OrdersService] Error in createOrder:',
+        error?.message || error,
+      );
       throw new BadRequestException(
         error.message || 'Failed to initialize POS session',
       );
@@ -205,12 +208,20 @@ export class OrdersService {
       where: {
         restaurantId,
         OR: [
-          { status: { in: [BillStatus.OPEN, BillStatus.KOT_SENT, BillStatus.AWAITING_PAYMENT] } },
-          { 
+          {
+            status: {
+              in: [
+                BillStatus.OPEN,
+                BillStatus.KOT_SENT,
+                BillStatus.AWAITING_PAYMENT,
+              ],
+            },
+          },
+          {
             status: { in: [BillStatus.PAID, BillStatus.CLOSED] },
-            createdAt: { gte: today }
-          }
-        ]
+            createdAt: { gte: today },
+          },
+        ],
       },
       include: {
         items: true,
@@ -225,7 +236,10 @@ export class OrdersService {
 
     return bills.map((bill) => {
       const totalCents = bill.totalCents || 0;
-      const paidCents = bill.payments.reduce((sum, p) => sum + p.amountCents, 0);
+      const paidCents = bill.payments.reduce(
+        (sum, p) => sum + p.amountCents,
+        0,
+      );
       const remainingCents = Math.max(0, totalCents - paidCents);
 
       // Map internal BillStatus to User-requested status strings
@@ -250,7 +264,8 @@ export class OrdersService {
               floor: bill.table.floor,
             }
           : null,
-        customerName: bill.customer?.name || bill.deliveryName || bill.pickupName || null,
+        customerName:
+          bill.customer?.name || bill.deliveryName || bill.pickupName || null,
         itemCount: bill.items.length,
         createdAt: bill.createdAt,
       };
@@ -271,7 +286,7 @@ export class OrdersService {
       if (!bill) throw new NotFoundException('Order not found');
 
       const amountCents = Math.round(amount * 100);
-      
+
       await tx.payment.create({
         data: {
           billId: id,
@@ -282,7 +297,8 @@ export class OrdersService {
         },
       });
 
-      const totalPaidCents = bill.payments.reduce((sum, p) => sum + p.amountCents, 0) + amountCents;
+      const totalPaidCents =
+        bill.payments.reduce((sum, p) => sum + p.amountCents, 0) + amountCents;
       const isFullyPaid = totalPaidCents >= (bill.totalCents || 0);
 
       const updatedBill = await tx.bill.update({
@@ -318,7 +334,11 @@ export class OrdersService {
 
       // Deduct inventory if not already paid (to avoid double deduction if pay was called first)
       if (bill.status !== BillStatus.PAID) {
-        await this.billsService.deductInventoryForBill(tx, bill.id, restaurantId);
+        await this.billsService.deductInventoryForBill(
+          tx,
+          bill.id,
+          restaurantId,
+        );
       }
 
       // Update Bill status to CLOSED (Archived from dashboard)
