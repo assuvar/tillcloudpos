@@ -114,8 +114,7 @@ export default function ServiceModeModal({ onClose }: ServiceModeModalProps) {
 
   const [deliveryData, setDeliveryData] = useState({ name: '', phone: '', address: '' });
 
-  const selectedConfig = SERVICE_MODEL_CONFIG[selectedType];
-  const hasInput = selectedConfig.inputRequired;
+  const hasInput = SERVICE_MODEL_CONFIG[selectedType].inputRequired;
   const isDelivery = selectedType === 'DELIVERY';
   const canConfirm = isDelivery 
     ? deliveryData.name.trim().length > 0 && deliveryData.address.trim().length > 0
