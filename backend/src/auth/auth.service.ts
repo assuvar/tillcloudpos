@@ -127,8 +127,13 @@ export class AuthService {
       });
       this.logger.log(`[OTP] Database save successful for ${email}`);
     } catch (dbError) {
-      this.logger.error(`[OTP] DATABASE SAVE FAILED for ${email}: ${dbError.message}`, dbError.stack);
-      throw new BadRequestException('Failed to generate security code. Please try again later.');
+      this.logger.error(
+        `[OTP] DATABASE SAVE FAILED for ${email}: ${dbError.message}`,
+        dbError.stack,
+      );
+      throw new BadRequestException(
+        'Failed to generate security code. Please try again later.',
+      );
     }
 
     // Send email
@@ -138,10 +143,15 @@ export class AuthService {
       await this.mailService.sendOtpEmail(email, otp);
       this.logger.log(`[OTP] Email sent successfully to ${email}`);
     } catch (mailError) {
-      this.logger.error(`[OTP] EMAIL SEND FAILED to ${email}: ${mailError.message}`, mailError.stack);
+      this.logger.error(
+        `[OTP] EMAIL SEND FAILED to ${email}: ${mailError.message}`,
+        mailError.stack,
+      );
       // We still return success: true if we want the user to be able to use the devOtp from logs
       // or we can throw if we want strict mode. Given the current issue, let's throw but with details.
-      throw new BadRequestException(`Email service error: ${mailError.message}`);
+      throw new BadRequestException(
+        `Email service error: ${mailError.message}`,
+      );
     }
 
     return {

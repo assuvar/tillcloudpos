@@ -9,7 +9,11 @@ import {
   Req,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CompleteOrderDto, CreateOrderDto } from './dto/create-order.dto';
+import {
+  CompleteOrderDto,
+  CreateOrderDto,
+  AddOrderItemDto,
+} from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
@@ -40,6 +44,26 @@ export class OrdersController {
     );
   }
 
+  @Post(':id/items')
+  @RequirePermissions(PERMISSIONS.BILLING_CREATE)
+  addItem(
+    @Param('id') id: string,
+    @Body() addOrderItemDto: AddOrderItemDto,
+    @Req() req: any,
+  ) {
+    return this.ordersService.addItem(
+      id,
+      getRestaurantId(req),
+      addOrderItemDto,
+    );
+  }
+
+  @Post(':id/send-to-kitchen')
+  @RequirePermissions(PERMISSIONS.KITCHEN_SEND)
+  sendToKitchen(@Param('id') id: string, @Req() req: any) {
+    return this.ordersService.sendToKitchen(id, getRestaurantId(req));
+  }
+
   @Post(':id/complete')
   @RequirePermissions(PERMISSIONS.BILLING_CREATE)
   complete(
@@ -65,6 +89,22 @@ export class OrdersController {
   @RequirePermissions(PERMISSIONS.BILLING_VIEW_OPEN)
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.ordersService.findOne(id, getRestaurantId(req));
+  }
+
+  @Patch(':id/pay')
+  @RequirePermissions(PERMISSIONS.BILLING_CREATE)
+  pay(
+    @Param('id') id: string,
+    @Body('amount') amount: number,
+    @Req() req: any,
+  ) {
+    return this.ordersService.pay(id, getRestaurantId(req), amount);
+  }
+
+  @Patch(':id/close')
+  @RequirePermissions(PERMISSIONS.BILLING_CREATE)
+  close(@Param('id') id: string, @Req() req: any) {
+    return this.ordersService.close(id, getRestaurantId(req));
   }
 
   @Patch(':id')

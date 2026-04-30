@@ -12,7 +12,13 @@ import {
   PaymentStatus,
   Prisma,
   TaxMode,
+  TableStatus,
+  IngredientMovementType,
 } from '../../generated/prisma';
+import {
+  normalizeIngredientUnit,
+  toBaseQuantity,
+} from '../inventory/inventory-units';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AddBillItemDto,
@@ -74,21 +80,9 @@ export class BillsService {
   }
 
   private async assertBillDateOpen(restaurantId: string, billDate: Date) {
-    const closure = await this.prisma.dayClosure.findUnique({
-      where: {
-        restaurantId_closedDate: {
-          restaurantId,
-          closedDate: this.toClosedDate(billDate),
-        },
-      },
-      select: { id: true },
-    });
-
-    if (closure) {
-      throw new BadRequestException(
-        'This business day has been closed and bill edits are locked',
-      );
-    }
+    // LOCK REMOVED: System must continue working after close day.
+    // Requirement 1 & 2: Close Day = Data Reset (NOT System Lock)
+    return;
   }
 
   private async assertBillOwnership(billId: string, restaurantId: string) {
@@ -239,6 +233,10 @@ export class BillsService {
   private normalizeKitchenOrders(orders: any[]): KitchenOrderView[] {
     return orders.map((order) => {
       const bill = order.bill;
+      // In a real system, the KOT itself should store the items it contains.
+      // Since our schema doesn't have a KotItem, we'll assume for now that
+      // the kitchen display wants to see all items but maybe we should only show the ones relevant to THIS KOT?
+      // For now, let's keep it consistent with what createKotForBill does.
       return {
         id: order.id,
         billId: order.billId,
@@ -247,7 +245,7 @@ export class BillsService {
         status: order.status,
         isUpdate: order.isUpdate,
         sentAt: order.sentAt.toISOString(),
-        tableNumber: bill.tableNumber || null,
+        tableNumber: bill.tableNumber || bill.table?.name || null,
         orderNumber: bill.orderNumber,
         createdAt: bill.createdAt.toISOString(),
         items: bill.items.map((item: any) => ({
@@ -265,8 +263,14 @@ export class BillsService {
   }
 
   private async createKotForBill(tx: Prisma.TransactionClient, bill: any) {
-    if (bill.items.length === 0) {
-      throw new BadRequestException('Add items before sending to kitchen');
+    const itemsToSend = bill.items.filter(
+      (item: any) => item.quantity > (item.lastSentQuantity || 0),
+    );
+
+    if (itemsToSend.length === 0) {
+      throw new BadRequestException(
+        'All items have already been sent to the kitchen',
+      );
     }
 
     if (bill.status === BillStatus.PAID || bill.status === BillStatus.VOIDED) {
@@ -299,6 +303,16 @@ export class BillsService {
         kitchenOrders: true,
       },
     });
+
+    // Update lastSentQuantity for all items
+    for (const item of updatedBill.items) {
+      if (item.quantity > item.lastSentQuantity) {
+        await tx.billItem.update({
+          where: { id: item.id },
+          data: { lastSentQuantity: item.quantity },
+        });
+      }
+    }
 
     return {
       bill: updatedBill,
@@ -363,28 +377,66 @@ export class BillsService {
       },
     });
 
-    const bill = await this.prisma.bill.create({
-      data: {
-        restaurantId,
-        cashierId,
-        orderNumber: totalOrderCount + 1,
-        displayOrderNumber: displayOrderCount + 1,
-        orderType: (dto.orderType as OrderType) || OrderType.DINE_IN,
-        status: BillStatus.OPEN,
-        tableNumber: dto.tableNumber?.trim() || null,
-        subtotalCents: 0,
-        taxAmountCents: 0,
-        totalCents: 0,
-        taxMode: TaxMode.INCLUSIVE,
-        taxRate: 0,
-      },
-      include: {
-        items: true,
-        kitchenOrders: true,
-      },
-    });
+    // Auto-resolve table name if tableId is provided but tableNumber is not
+    let resolvedTableNumber = dto.tableNumber?.trim() || null;
+    if (dto.tableId && !resolvedTableNumber) {
+      const table = await this.prisma.table.findUnique({
+        where: { id: dto.tableId },
+      });
+      if (table) resolvedTableNumber = table.name;
+    }
 
-    return this.normalizeBill(bill);
+    return this.prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.create({
+        data: {
+          restaurantId,
+          cashierId,
+          orderNumber: totalOrderCount + 1,
+          displayOrderNumber: displayOrderCount + 1,
+          orderType: (dto.orderType as OrderType) || OrderType.DINE_IN,
+          status: BillStatus.OPEN,
+          tableId: dto.tableId || null,
+          tableNumber: resolvedTableNumber,
+
+          // New Pickup/Delivery fields
+          pickupName: dto.pickupName || null,
+          pickupPhone: dto.pickupPhone || null,
+          pickupTime: dto.pickupTime || null,
+          deliveryName: dto.deliveryName || null,
+          deliveryAddress: dto.deliveryAddress || null,
+          deliverySuburb: dto.deliverySuburb || null,
+          deliveryState: dto.deliveryState || null,
+          deliveryPostcode: dto.deliveryPostcode || null,
+          deliveryPhone: dto.deliveryPhone || null,
+          deliveryNotes: dto.deliveryNotes || null,
+
+          subtotalCents: 0,
+          taxAmountCents: 0,
+          totalCents: 0,
+          taxMode: TaxMode.INCLUSIVE,
+          taxRate: new Prisma.Decimal(0),
+        },
+        include: {
+          items: true,
+          kitchenOrders: true,
+        },
+      });
+
+      // If a table is associated, update its table reference but DO NOT mark as OCCUPIED yet (Requirement: Override)
+      if (dto.tableId) {
+        await tx.table.update({
+          where: { id: dto.tableId, restaurantId },
+          data: {
+            // status: TableStatus.OCCUPIED, // DO NOT mark occupied yet
+            activeBillId: bill.id,
+            currentOrderId: bill.id,
+            // startedAt: new Date(), // DO NOT start timer yet
+          },
+        });
+      }
+
+      return this.normalizeBill(bill);
+    });
   }
 
   async findAll(restaurantId: string, status?: string, limit?: number) {
@@ -400,7 +452,7 @@ export class BillsService {
           ? {}
           : {
               status: {
-                in: [BillStatus.OPEN, BillStatus.KOT_SENT],
+                in: [BillStatus.OPEN, BillStatus.KOT_SENT, BillStatus.AWAITING_PAYMENT],
               },
             }),
     };
@@ -410,6 +462,7 @@ export class BillsService {
       include: {
         items: true,
         kitchenOrders: true,
+        table: true,
       },
       orderBy: { createdAt: 'desc' },
       take,
@@ -648,6 +701,17 @@ export class BillsService {
         bill,
       );
 
+      // Requirement: Timer should start when order is sent to kitchen
+      if (bill.tableId) {
+        await tx.table.update({
+          where: { id: bill.tableId, restaurantId },
+          data: {
+            status: TableStatus.OCCUPIED,
+            startedAt: bill.kotSentAt || new Date(),
+          },
+        });
+      }
+
       return {
         bill: this.normalizeBill(updatedBill),
         kitchenOrder: {
@@ -673,6 +737,7 @@ export class BillsService {
         bill: {
           include: {
             items: true,
+            table: true,
           },
         },
       },
@@ -777,6 +842,22 @@ export class BillsService {
         },
       });
 
+      // Inventory Deduction (CRITICAL Requirement)
+      await this.deductInventoryForBill(tx, bill.id, restaurantId);
+
+      // If a table is associated, update its status to OCCUPIED and start timer (Requirement: Override)
+      if (updatedBill.tableId) {
+        await tx.table.update({
+          where: { id: updatedBill.tableId, restaurantId },
+          data: {
+            status: TableStatus.OCCUPIED,
+            activeBillId: updatedBill.id,
+            currentOrderId: updatedBill.id,
+            startedAt: new Date(),
+          },
+        });
+      }
+
       return {
         bill: this.normalizeBill(updatedBill),
         payment: {
@@ -791,5 +872,104 @@ export class BillsService {
         },
       };
     });
+  }
+
+  async deductInventoryForBill(
+    tx: Prisma.TransactionClient,
+    billId: string,
+    restaurantId: string,
+  ) {
+    const bill = await tx.bill.findUnique({
+      where: { id: billId },
+      include: {
+        items: {
+          include: {
+            menuItem: {
+              include: {
+                recipeItems: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!bill) return;
+
+    const deductionMap = new Map<string, number>();
+
+    for (const item of bill.items) {
+      const menuItem = item.menuItem;
+      if (!menuItem || !menuItem.trackInventory) {
+        continue;
+      }
+
+      if (!menuItem.recipeItems || menuItem.recipeItems.length === 0) {
+        throw new BadRequestException(
+          `Recipe is missing for tracked item: ${item.itemName}`,
+        );
+      }
+
+      for (const recipeItem of menuItem.recipeItems) {
+        const required = Number(recipeItem.quantity) * item.quantity;
+        const current = deductionMap.get(recipeItem.ingredientId) || 0;
+        deductionMap.set(recipeItem.ingredientId, current + required);
+      }
+    }
+
+    const ingredientIds = Array.from(deductionMap.keys());
+    if (ingredientIds.length === 0) return;
+
+    const ingredients = await tx.ingredient.findMany({
+      where: {
+        restaurantId,
+        id: { in: ingredientIds },
+      },
+    });
+
+    if (ingredients.length !== ingredientIds.length) {
+      throw new BadRequestException('Ingredient configuration is incomplete');
+    }
+
+    for (const ingredient of ingredients) {
+      const required = deductionMap.get(ingredient.id) || 0;
+      // Get current available in base units
+      const available = toBaseQuantity(
+        Number(ingredient.quantity),
+        ingredient.unit,
+      );
+
+      if (required > available) {
+        throw new BadRequestException({
+          message: 'Insufficient stock',
+          ingredient: ingredient.name,
+          required,
+          available,
+        });
+      }
+
+      const quantityAfter = available - required;
+      const baseUnit = normalizeIngredientUnit(ingredient.unit);
+
+      await tx.ingredient.update({
+        where: { id: ingredient.id },
+        data: {
+          quantity: quantityAfter,
+          unit: baseUnit,
+        },
+      });
+
+      await tx.ingredientMovement.create({
+        data: {
+          ingredientId: ingredient.id,
+          restaurantId,
+          type: IngredientMovementType.ORDER_DEDUCTION,
+          quantityChange: -required,
+          quantityAfter,
+          reason: `Bill #${bill.orderNumber} payment`,
+          referenceId: bill.id,
+        },
+      });
+    }
   }
 }

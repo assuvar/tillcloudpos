@@ -36,15 +36,27 @@ export interface BillRecord {
   orderNumber: number;
   orderType: string;
   status: string;
+  tableId: string | null;
   tableNumber: string | null;
+  table?: {
+    id: string;
+    name: string;
+    floor: string;
+  } | null;
   subtotalAmount: number;
   taxAmount: number;
   totalAmount: number;
+  paidAmount?: number;
+  remainingAmount?: number;
+  customerName?: string | null;
   kotSentAt: string | null;
   paidAt: string | null;
   createdAt: string;
   updatedAt: string;
   itemCount: number;
+  pickupName?: string | null;
+  deliveryName?: string | null;
+  deliveryAddress?: string | null;
   items: BillItem[];
 }
 
@@ -79,8 +91,18 @@ interface PosCartContextType {
   error: string | null;
   loadOpenBills: () => Promise<void>;
   createBillSession: (
-    orderType: string,
-    tableNumber?: string | null,
+    serviceType: string,
+    data: {
+      tableId?: string | null;
+      customer?: string | null;
+      pickupName?: string | null;
+      pickupPhone?: string | null;
+      pickupTime?: string | null;
+      deliveryName?: string | null;
+      deliveryPhone?: string | null;
+      deliveryAddress?: string | null;
+      deliveryNotes?: string | null;
+    }
   ) => Promise<BillRecord>;
   loadBill: (billId: string) => Promise<BillRecord | null>;
   addItemToBill: (item: MenuItem) => Promise<boolean>;
@@ -93,13 +115,15 @@ interface PosCartContextType {
   sendToKitchen: () => Promise<SendToKitchenResult>;
   processCashPayment: (
     amount: number,
-    cashReceived: number,
+    _cashReceived: number,
   ) => Promise<CashPaymentResult>;
+  closeOrder: (orderId: string) => Promise<boolean>;
   loadMenuItems: () => Promise<void>;
 }
 
 const PosCartContext = createContext<PosCartContextType | undefined>(undefined);
 const ACTIVE_BILL_KEY = "active_pos_bill_id";
+const ACTIVE_BILL_DATA_KEY = "active_pos_bill_data";
 
 export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -155,40 +179,66 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
-  const normalizeBill = (bill: any): BillRecord => ({
-    id: bill.id,
-    orderNumber: Number(bill.orderNumber ?? 0),
-    orderType: bill.orderType,
-    status: bill.status,
-    tableNumber: bill.tableNumber || null,
-    subtotalAmount: Number(bill.subtotalAmount ?? 0),
-    taxAmount: Number(bill.taxAmount ?? 0),
-    totalAmount: Number(bill.totalAmount ?? 0),
-    kotSentAt: bill.kotSentAt || null,
-    paidAt: bill.paidAt || null,
-    createdAt: bill.createdAt,
-    updatedAt: bill.updatedAt,
-    itemCount: Number(bill.itemCount ?? 0),
-    items: Array.isArray(bill.items)
+  const normalizeBill = (bill: any): BillRecord => {
+    // Handle both normalized responses (from /bills with dollar amounts)
+    // AND raw Prisma responses (from /orders with cents fields)
+    const toDollars = (dollars: unknown, cents: unknown): number => {
+      const d = Number(dollars);
+      if (d > 0 || (dollars !== undefined && dollars !== null)) return d;
+      const c = Number(cents);
+      return Number.isFinite(c) ? c / 100 : 0;
+    };
+
+    const items = Array.isArray(bill.items)
       ? bill.items.map((item: any) => ({
           id: item.id,
           menuItemId: item.menuItemId || null,
-          name: item.name,
+          name: item.name || item.itemName,
           categoryName: item.categoryName,
-          price: Number(item.price ?? 0),
+          price: toDollars(item.price, item.unitPriceInCents),
           quantity: Number(item.quantity ?? 0),
-          lineTotal: Number(item.lineTotal ?? 0),
+          lineTotal: toDollars(item.lineTotal, item.lineTotalCents),
           notes: item.notes || null,
         }))
-      : [],
-  });
+      : [];
+
+    // Compute itemCount from actual items array
+    const itemCount = items.reduce((sum: number, i: BillItem) => sum + i.quantity, 0);
+
+    return {
+      id: bill.id,
+      orderNumber: Number(bill.orderNumber ?? 0),
+      orderType: bill.orderType,
+      status: bill.status,
+      tableId: bill.tableId || null,
+      tableNumber: bill.tableNumber || null,
+      subtotalAmount: toDollars(bill.subtotalAmount, bill.subtotalCents),
+      taxAmount: toDollars(bill.taxAmount, bill.taxAmountCents),
+      totalAmount: toDollars(bill.totalAmount, bill.totalCents),
+      kotSentAt: bill.kotSentAt || null,
+      paidAt: bill.paidAt || null,
+      createdAt: bill.createdAt,
+      updatedAt: bill.updatedAt,
+      itemCount,
+      pickupName: bill.pickupName || null,
+      deliveryName: bill.deliveryName || null,
+      deliveryAddress: bill.deliveryAddress || null,
+      items,
+    };
+  };
 
   const syncBill = (nextBill: BillRecord | null) => {
     setActiveBill(nextBill);
     if (nextBill) {
-      localStorage.setItem(ACTIVE_BILL_KEY, nextBill.id);
+      try {
+        localStorage.setItem(ACTIVE_BILL_KEY, nextBill.id);
+        localStorage.setItem(ACTIVE_BILL_DATA_KEY, JSON.stringify(nextBill));
+      } catch (e) {
+        console.warn('Failed to persist active bill to localStorage', e);
+      }
     } else {
       localStorage.removeItem(ACTIVE_BILL_KEY);
+      localStorage.removeItem(ACTIVE_BILL_DATA_KEY);
     }
   };
 
@@ -218,24 +268,57 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const loadOpenBills = async () => {
-    const response = await api.get("/bills");
-    setOpenBills(
-      Array.isArray(response.data) ? response.data.map(normalizeBill) : [],
-    );
+    try {
+      const response = await api.get("/orders");
+      const payload = Array.isArray(response.data) ? response.data : [];
+      setOpenBills(payload);
+    } catch (err: any) {
+      console.error('[PosCartContext] Failed to load open bills:', err);
+      setOpenBills([]);
+      setError('Failed to load open bills');
+    }
   };
 
   const createBillSession = async (
-    orderType: string,
-    tableNumber?: string | null,
+    serviceType: string,
+    data: {
+      tableId?: string | null;
+      customer?: string | null;
+      pickupName?: string | null;
+      pickupPhone?: string | null;
+      pickupTime?: string | null;
+      deliveryName?: string | null;
+      deliveryPhone?: string | null;
+      deliveryAddress?: string | null;
+      deliveryNotes?: string | null;
+    }
   ) => {
-    const response = await api.post("/bills", {
-      orderType,
-      tableNumber: tableNumber || undefined,
-    });
+    try {
+      const response = await api.post("/orders", {
+        serviceType,
+        ...data,
+        tableId: data.tableId || undefined,
+        customer: data.customer || undefined
+      });
 
-    const bill = normalizeBill(response.data);
-    syncBill(bill);
-    return bill;
+      const orderData = response.data;
+      if (!orderData.id) {
+        throw new Error("No order ID returned from server");
+      }
+
+      // Re-load full bill from the created session
+      const bill = await loadBill(orderData.id);
+      if (!bill) throw new Error("Failed to load bill after creation");
+
+      syncBill(bill);
+      await loadOpenBills();
+      return bill;
+    } catch (err: any) {
+      console.error('[PosCartContext] Failed to create order session:', err);
+      const errorMsg = parseApiError(err, 'Failed to create POS session');
+      setError(errorMsg);
+      throw err;
+    }
   };
 
   const loadBill = async (billId: string) => {
@@ -265,9 +348,25 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     const hydrate = async () => {
       await loadMenuItems();
 
+      // Try to hydrate active bill from localStorage to avoid flicker
+      try {
+        const stored = localStorage.getItem(ACTIVE_BILL_DATA_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.id) {
+            setActiveBill(parsed);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to hydrate active bill from storage', e);
+      }
+
       const storedBillId = localStorage.getItem(ACTIVE_BILL_KEY);
       if (storedBillId) {
-        await loadBill(storedBillId);
+        // Refresh from API but don't block UI if it fails
+        void loadBill(storedBillId).catch((e) => {
+          console.warn('Failed to refresh stored bill from API', e);
+        });
       }
     };
 
@@ -284,8 +383,8 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     try {
-      const response = await api.post(`/bills/${activeBill.id}/items`, {
-        menuItemId: item.id,
+      const response = await api.post(`/orders/${activeBill.id}/items`, {
+        productId: item.id,
         quantity: 1,
       });
 
@@ -293,9 +392,8 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       setError(null);
       return true;
     } catch (err: any) {
-      const errorMsg = parseApiError(err, "Failed to add item to bill");
+      const errorMsg = parseApiError(err, "Failed to add item");
       setError(errorMsg);
-      console.error("Error adding bill item:", err);
       return false;
     }
   };
@@ -305,10 +403,14 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
-    const response = await api.delete(
-      `/bills/${activeBill.id}/items/${itemId}`,
-    );
-    syncBill(normalizeBill(response.data));
+    try {
+      const response = await api.delete(
+        `/bills/${activeBill.id}/items/${itemId}`,
+      );
+      syncBill(normalizeBill(response.data));
+    } catch (err: any) {
+      console.error("Error removing bill item:", err);
+    }
   };
 
   const updateQuantity = async (
@@ -359,38 +461,42 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     try {
-      const response = await api.post(`/bills/${activeBill.id}/kot`);
-      syncBill(normalizeBill(response.data.bill));
+      const response = await api.post(`/orders/${activeBill.id}/send-to-kitchen`);
+      syncBill(normalizeBill(response.data));
+      await loadOpenBills(); // Sync dashboard
       return {
         success: true,
-        billId: response.data.bill?.id || activeBill.id,
-        kitchenOrderId: response.data.kitchenOrder?.id,
+        billId: activeBill.id,
       };
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message || "Error sending order to kitchen";
-      console.error("Send to kitchen error:", err);
+      const errorMsg = parseApiError(err, "Error sending order to kitchen");
       return { success: false, error: errorMsg };
     }
   };
 
   const processCashPayment = async (
     amount: number,
-    cashReceived: number,
+    _cashReceived: number,
   ): Promise<CashPaymentResult> => {
     if (!activeBill) {
       return { success: false, error: "No active bill" };
     }
 
     try {
-      const response = await api.post("/payments/cash", {
-        billId: activeBill.id,
+      const response = await api.post("/payments", {
+        orderId: activeBill.id,
         amount,
-        cashReceived,
+        method: 'CASH',
       });
 
       const nextBill = normalizeBill(response.data.bill);
       syncBill(nextBill);
+      
+      // Force data refetching for UI synchronization (Requirement)
+      await Promise.all([
+        loadOpenBills(), // Sync dashboard
+        loadMenuItems(), // Sync item stock/out-of-stock status
+      ]);
 
       return {
         success: true,
@@ -398,10 +504,31 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
         payment: response.data.payment,
       };
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message || "Error processing cash payment";
-      console.error("Cash payment error:", err);
+      const errorMsg = parseApiError(err, "Payment failed");
+      setError(errorMsg);
       return { success: false, error: errorMsg };
+    }
+  };
+
+  const closeOrder = async (orderId: string): Promise<boolean> => {
+    try {
+      await api.patch(`/orders/${orderId}/close`);
+      
+      // Clear active bill if it was the one being closed
+      if (activeBill?.id === orderId) {
+        clearBill();
+      }
+
+      await Promise.all([
+        loadOpenBills(),
+        // Also reload tables if possible (handled by dashboard intervals but good to be explicit)
+      ]);
+      return true;
+    } catch (err: any) {
+      console.error('Failed to close order:', err);
+      const msg = err?.response?.data?.message || err?.message || 'Failed to close order';
+      setError(msg);
+      return false;
     }
   };
 
@@ -435,6 +562,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
         clearBill,
         sendToKitchen,
         processCashPayment,
+        closeOrder,
         loadMenuItems,
       }}
     >

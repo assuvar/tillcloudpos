@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CheckCircle2,
   CreditCard,
   Loader2,
   Plus,
+  MapPin,
+  RefreshCw,
   Send,
   ShoppingBag,
   Trash2,
@@ -17,7 +19,6 @@ import { usePosCart } from './context/PosCartContext';
 import { FRONTEND_PERMISSIONS } from './permissions';
 import api from './services/api';
 import { ALLOWED_SERVICE_MODELS, type ServiceModel } from './serviceModels';
-import PosLayout from './components/PosLayout';
 
 interface CustomerData {
   name: string;
@@ -49,6 +50,10 @@ export default function OrderEntryScreen() {
     ? (orderTypeParam as PosOrderType)
     : 'DINE_IN';
   const orderDetail = searchParams.get('detail') || '';
+  const tableId = searchParams.get('tableId') || '';
+  const tableNumberParam = searchParams.get('tableNumber') || '';
+
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const {
     categories,
@@ -64,6 +69,8 @@ export default function OrderEntryScreen() {
     loadMenuItems,
     loadBill,
     activeBill,
+    createBillSession,
+    clearBill,
   } = usePosCart();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
@@ -114,19 +121,47 @@ export default function OrderEntryScreen() {
     ? orderType
     : enabledServiceModels[0] || 'DINE_IN';
 
+  const isCreatingRef = useRef(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
   useEffect(() => {
     if (billId) {
-      void loadBill(billId);
+      if (activeBill?.id !== billId) {
+        void loadBill(billId);
+      }
       return;
     }
-  }, [billId]);
 
-  // If no bill is active and no session is being created, redirect to terminal entry
+    if (!activeBill && !isLoading && !isCreatingRef.current && !sessionError && (tableId || orderTypeParam)) {
+      const startSession = async () => {
+        isCreatingRef.current = true;
+        setIsCreatingSession(true);
+        try {
+          await createBillSession(
+            orderType, 
+            {
+              tableId: tableId || null,
+              customer: orderDetail || tableNumberParam || null
+            }
+          );
+        } catch (err: any) {
+          const msg = err?.response?.data?.message || err?.message || 'Failed to start session';
+          console.error("Failed to start session:", msg);
+          setSessionError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+        } finally {
+          isCreatingRef.current = false;
+          setIsCreatingSession(false);
+        }
+      };
+      void startSession();
+    }
+  }, [billId, tableId, tableNumberParam, orderType, orderDetail, activeBill?.id, isLoading]);
+
   useEffect(() => {
-    if (!activeBill && !isLoading && !billId) {
+    if (!activeBill && !isLoading && !billId && !tableId && !orderTypeParam && !isCreatingSession) {
       navigate('/pos');
     }
-  }, [activeBill, isLoading, billId, navigate]);
+  }, [activeBill, isLoading, billId, tableId, orderTypeParam, isCreatingSession, navigate]);
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
   const visibleItems = useMemo(
@@ -188,7 +223,7 @@ export default function OrderEntryScreen() {
     showToast(`${item.name} added`);
   };
 
-  const handleSendToKitchen = async () => {
+  const handleSendToKitchen = async (shouldNavigateToCheckout = true) => {
     if (billItems.length === 0 || isSendingToKitchen) {
       return;
     }
@@ -198,7 +233,12 @@ export default function OrderEntryScreen() {
       const result = await sendToKitchen();
       if (result.success) {
         showToast('Order saved and sent to kitchen');
-        navigate(`/checkout?billId=${result.billId || activeBill?.id || ''}`);
+        if (shouldNavigateToCheckout) {
+          navigate(`/checkout?billId=${result.billId || activeBill?.id || ''}`);
+        } else {
+          clearBill();
+          navigate('/pos/tables');
+        }
       } else {
         showToast(result.error || 'Failed to send to kitchen');
       }
@@ -224,20 +264,40 @@ export default function OrderEntryScreen() {
     });
   };
 
-  const detailLabel = effectiveOrderType === 'DINE_IN' ? 'Table' : effectiveOrderType === 'PICKUP' ? 'Pickup' : 'Reference';
-  const detailValue = orderDetail || activeBill?.tableNumber || '';
-
-
   return (
-    <PosLayout>
+    <div className="flex h-full flex-col">
       <main className="flex min-h-0 flex-1 gap-6 overflow-hidden pt-2">
         <section className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
           <div className="flex items-center justify-between gap-4">
-            <div>
-              <h3 className="text-2xl font-black tracking-tight text-[#0c1424]">{selectedCategory?.name || 'Menu'}</h3>
-              <p className="text-sm font-medium text-slate-400">{visibleItems.length} items available</p>
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => {
+                  clearBill();
+                  navigate('/pos');
+                }}
+                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100"
+                title="Close Order"
+              >
+                <X size={24} />
+              </button>
+              <div>
+                <h3 className="text-2xl font-black tracking-tight text-[#0c1424]">{selectedCategory?.name || 'Menu'}</h3>
+                <p className="text-sm font-medium text-slate-400">{visibleItems.length} items available</p>
+              </div>
             </div>
-            {error ? (
+            {sessionError ? (
+              <div className="flex items-center gap-4">
+                <div className="rounded-full border border-rose-100 bg-rose-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-600">
+                  {sessionError}
+                </div>
+                <button
+                  onClick={() => navigate('/pos')}
+                  className="rounded-full bg-[#0c1424] px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:bg-black"
+                >
+                  Go Back to Dashboard
+                </button>
+              </div>
+            ) : error ? (
               <button
                 type="button"
                 onClick={() => void handleRetryLoad()}
@@ -348,17 +408,27 @@ export default function OrderEntryScreen() {
               <div>
                 <h2 className="flex items-center gap-3 text-2xl font-black capitalize text-[#0c1424]">
                   {getOrderTypeLabel(effectiveOrderType)}
-                  {detailValue ? ` • ${detailLabel} ${detailValue}` : ''}
+                  {activeBill?.tableNumber ? ` • Table ${activeBill.tableNumber}` : ''}
+                  {activeBill?.pickupName ? ` • ${activeBill.pickupName}` : ''}
+                  {activeBill?.deliveryName ? ` • ${activeBill.deliveryName}` : ''}
                 </h2>
-                <div className="mt-1 flex items-center gap-3">
-                  <span className="text-xs font-bold text-slate-400">Order #{activeBill?.orderNumber?.toString().padStart(3, '0') || '---'}</span>
-                  <div className="h-1 w-1 rounded-full bg-slate-200" />
-                  <span className="text-xs font-bold text-slate-400">{customer?.name || user?.fullName || 'Cashier'}</span>
+                <div className="mt-1 flex flex-col gap-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-400">Order #{activeBill?.orderNumber?.toString().padStart(3, '0') || '---'}</span>
+                    <div className="h-1 w-1 rounded-full bg-slate-200" />
+                    <span className="text-xs font-bold text-slate-400">{customer?.name || activeBill?.deliveryName || activeBill?.pickupName || user?.fullName || 'Cashier'}</span>
+                  </div>
+                  {activeBill?.deliveryAddress && (
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
+                      <MapPin size={12} />
+                      <span className="truncate max-w-[300px]">{activeBill.deliveryAddress}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${activeBill?.status === 'KOT_SENT' ? 'border-emerald-100 bg-emerald-50 text-emerald-600' : 'border-rose-100 bg-rose-50 text-rose-500'}`}>
+              <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${activeBill?.status === 'KOT_SENT' ? 'border-blue-100 bg-blue-50 text-blue-600' : activeBill?.status === 'AWAITING_PAYMENT' ? 'border-emerald-100 bg-emerald-50 text-emerald-600' : 'border-amber-100 bg-amber-50 text-amber-500'}`}>
                 <CheckCircle2 size={12} strokeWidth={3} />
-                {activeBill?.status === 'KOT_SENT' ? 'KOT Sent' : 'Draft'}
+                {activeBill?.status === 'KOT_SENT' ? 'IN PROGRESS' : activeBill?.status === 'AWAITING_PAYMENT' ? 'BILLING' : 'CREATED'}
               </div>
             </div>
 
@@ -473,12 +543,21 @@ export default function OrderEntryScreen() {
             </div>
 
             <button
-              onClick={() => void handleSendToKitchen()}
+              onClick={() => void handleSendToKitchen(true)}
               disabled={billItems.length === 0 || isSendingToKitchen || !canSendToKitchen}
               className="mt-3 flex h-12 w-full items-center justify-center gap-3 rounded-[22px] bg-[#4adeff] px-3 font-black text-[11px] uppercase tracking-widest text-[#0c1424] shadow-xl shadow-sky-400/20 transition-all active:scale-95 hover:brightness-95 disabled:opacity-40"
             >
               {isSendingToKitchen ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} strokeWidth={3} />}
-              Save & Send to Kitchen
+              Save & Checkout
+            </button>
+
+            <button
+              onClick={() => void handleSendToKitchen(false)}
+              disabled={billItems.length === 0 || isSendingToKitchen || !canSendToKitchen}
+              className="mt-3 flex h-12 w-full items-center justify-center gap-3 rounded-[22px] border-2 border-slate-100 bg-white px-3 font-black text-[11px] uppercase tracking-widest text-[#0c1424] transition-all active:scale-95 hover:bg-slate-50 disabled:opacity-40"
+            >
+              {isSendingToKitchen ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} strokeWidth={3} />}
+              Save & Return to Tables
             </button>
           </div>
         </aside>
@@ -511,6 +590,6 @@ export default function OrderEntryScreen() {
           onClose={() => setShowLoyaltyModal(false)}
         />
       ) : null}
-    </PosLayout>
+    </div>
   );
 }

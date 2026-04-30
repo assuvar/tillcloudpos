@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient } from '../src/generated/prisma';
+import { PrismaClient } from '../generated/prisma';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -13,10 +13,10 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  const deleted = await prisma.user.deleteMany();
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "users" CASCADE');
   const remaining = await prisma.user.count();
 
-  console.log(`Deleted users: ${deleted.count}`);
+  console.log('Deleted users via TRUNCATE CASCADE');
   console.log(`Remaining users: ${remaining}`);
 }
 

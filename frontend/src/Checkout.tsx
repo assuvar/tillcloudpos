@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
+  ShoppingBag,
 } from 'lucide-react';
 import CashPaymentModal from './components/CashPaymentModal';
 import { useAuth } from './context/AuthContext';
 import { usePosCart } from './context/PosCartContext';
-import PosLayout from './components/PosLayout';
+import UnifiedLayout from './components/UnifiedLayout';
 
 type CheckoutLocationState = {
   billId?: string;
@@ -84,29 +85,37 @@ export default function Checkout() {
   };
 
   return (
-    <PosLayout>
+    <UnifiedLayout fullScreen={true} currentView="orders">
       <main className="flex-1 overflow-y-auto px-8 pb-24 pt-2">
         <div className="mx-auto max-w-[1200px]">
           <div className="mb-10 flex items-center justify-between">
-            <div>
-              <div className="mb-2 flex items-center gap-3">
-                <span className="rounded-full bg-emerald-500 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white">
-                  {activeBill?.orderType?.replace(/_/g, ' ') || 'Order'}
-                </span>
-                {activeBill?.tableNumber && (
-                   <span className="text-sm font-bold text-slate-400">
-                     Table {activeBill.tableNumber}
-                   </span>
-                )}
+            <div className="flex items-center gap-6">
+               <div className={`h-20 w-20 rounded-[24px] flex items-center justify-center text-white shadow-lg ${activeBill?.orderType === 'DINE_IN' ? 'bg-indigo-900' : activeBill?.orderType === 'DELIVERY' ? 'bg-sky-500' : activeBill?.orderType === 'PICKUP' ? 'bg-emerald-500' : 'bg-amber-500'}`}>
+                 <ShoppingBag size={36} />
+               </div>
+               <div>
+                <div className="mb-1 flex items-center gap-3">
+                  <span className={`rounded-full px-4 py-1 text-[10px] font-black uppercase tracking-widest ${activeBill?.orderType === 'DINE_IN' ? 'bg-indigo-100 text-indigo-700' : activeBill?.orderType === 'DELIVERY' ? 'bg-sky-100 text-sky-700' : activeBill?.orderType === 'PICKUP' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {activeBill?.orderType?.replace(/_/g, ' ') || 'Order'}
+                  </span>
+                  <span className={`rounded-full px-4 py-1 text-[10px] font-black uppercase tracking-widest border ${activeBill?.status === 'KOT_SENT' ? 'bg-blue-50 text-blue-600 border-blue-100' : activeBill?.status === 'AWAITING_PAYMENT' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                    {activeBill?.status === 'KOT_SENT' ? 'IN PROGRESS' : activeBill?.status === 'AWAITING_PAYMENT' ? 'BILLING' : 'CREATED'}
+                  </span>
+                </div>
+                <h1 className="text-4xl font-black tracking-tight text-[#0c1424]">
+                  Order #{activeBill?.orderNumber?.toString().padStart(3, '0') || '---'}
+                </h1>
+                <p className="text-sm font-bold text-slate-400 mt-1">
+                  {activeBill?.tableNumber ? `Table ${activeBill.tableNumber}` : activeBill?.deliveryName || activeBill?.pickupName || 'Guest Order'}
+                </p>
               </div>
-              <h1 className="text-4xl font-black tracking-tight text-[#0c1424]">
-                Order #{activeBill?.orderNumber?.toString().padStart(3, '0') || '---'}
-              </h1>
             </div>
 
             <div className="text-right">
-              <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">Status</div>
-              <div className="text-lg font-black text-[#0c1424]">{activeBill?.status || 'OPEN'}</div>
+              <div className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">Customer / Location</div>
+              <div className="text-base font-black text-[#0c1424]">
+                {activeBill?.deliveryAddress ? activeBill.deliveryAddress : activeBill?.pickupName ? activeBill.pickupName : 'Standard Checkout'}
+              </div>
             </div>
           </div>
 
@@ -193,6 +202,6 @@ export default function Checkout() {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
       `}</style>
-    </PosLayout>
+    </UnifiedLayout>
   );
 }

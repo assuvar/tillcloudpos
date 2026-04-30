@@ -50,6 +50,9 @@ model Restaurant {
   users            User[]
   rolePermissions  RolePermission[]
   dayClosures      DayClosure[]
+  tableGroups      TableGroup[]
+  tables           Table[]
+  reservations     Reservation[]
 
   @@map("restaurants")
 }
@@ -285,6 +288,7 @@ model Customer {
   bills               Bill[]
   restaurant          Restaurant           @relation(fields: [restaurantId], references: [id])
   loyaltyTransactions LoyaltyTransaction[]
+  reservations        Reservation[]
 
   @@unique([restaurantId, phone])
   @@map("customers")
@@ -315,8 +319,11 @@ model Bill {
   cashierId             String
   terminalId            String?
   customerId            String?
+  tableId               String?
   tableNumber           String?
   pickupName            String?
+  pickupPhone           String?
+  pickupTime            String?
   deliveryName          String?
   deliveryAddress       String?
   deliverySuburb        String?
@@ -345,6 +352,7 @@ model Bill {
   terminal              Terminal?              @relation(fields: [terminalId], references: [id])
   kitchenOrders         KitchenOrder[]
   payments              Payment[]
+  table                 Table?                 @relation(fields: [tableId], references: [id])
 
   @@map("bills")
 }
@@ -357,6 +365,7 @@ model BillItem {
   categoryName     String
   unitPriceInCents Int
   quantity         Int
+  lastSentQuantity Int       @default(0)
   lineTotalCents   Int
   notes            String?
   createdAt        DateTime  @default(now())
@@ -553,4 +562,87 @@ enum PinAction {
 enum PinActionStatus {
   SUCCESS
   FAILED
+}
+
+enum Floor {
+  GROUND
+  TERRACE
+  BAR
+}
+
+model TableGroup {
+  id           String     @id @default(cuid())
+  restaurantId String
+  name         String
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tables       Table[]
+
+  @@unique([restaurantId, name])
+  @@map("table_groups")
+}
+
+model Table {
+  id             String       @id @default(cuid())
+  restaurantId   String
+  groupId        String
+  name           String
+  seats          Int          @default(2)
+  floor          Floor        @default(GROUND)
+  type           String?      // VIP, Normal, etc.
+  status         TableStatus  @default(AVAILABLE)
+  sortOrder      Int          @default(0)
+  activeBillId   String?      @unique
+  startedAt      DateTime?
+  currentOrderId String?
+  isMerged       Boolean      @default(false)
+  originalTableIds String[]     @default([])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  group          TableGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  restaurant     Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  bills          Bill[]
+  reservations   Reservation[]
+
+  @@unique([restaurantId, name, floor])
+  @@map("tables")
+}
+
+model Reservation {
+  id              String            @id @default(cuid())
+  restaurantId    String
+  customerId      String?
+  customerName    String
+  mobile          String            @map("customerPhone")
+  guests          Int               @map("guestCount")
+  dateTime        DateTime          @map("reservationTime")
+  floor           Floor             @default(GROUND)
+  status          ReservationStatus @default(PENDING)
+  tableId         String?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  restaurant      Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  customer        Customer?         @relation(fields: [customerId], references: [id])
+  table           Table?            @relation(fields: [tableId], references: [id])
+
+  @@map("reservations")
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  BILLING
+  MERGED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  SEATED
+  CANCELLED
+  NOSHOW
 }

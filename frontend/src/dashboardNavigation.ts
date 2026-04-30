@@ -14,6 +14,7 @@ import type { PermissionGroup } from './permissions';
 export type DashboardViewId =
   | 'home'
   | 'orders'
+  | 'tables'
   | 'menu'
   | 'staff'
   | 'inventory'
@@ -30,7 +31,7 @@ export type DashboardView = {
 
 export const DASHBOARD_VIEWS: DashboardView[] = [
   { id: 'home', label: 'Home', icon: LayoutDashboard },
-  { id: 'orders', label: 'POS Entry', module: 'BILLING', icon: LayoutGrid },
+  { id: 'orders', label: 'POS', module: 'BILLING', icon: LayoutGrid },
   { id: 'menu', label: 'Menu', module: 'MENU', icon: MenuIcon },
   { id: 'staff', label: 'Staff', module: 'STAFF', icon: Users },
   { id: 'inventory', label: 'Inventory', module: 'INVENTORY', icon: Package },

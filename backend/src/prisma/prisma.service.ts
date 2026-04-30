@@ -24,9 +24,13 @@ export class PrismaService
       await this.$connect();
       console.log('[Prisma] Database connection established successfully.');
     } catch (error) {
-      console.error('[Prisma] CRITICAL: Failed to connect to database on startup.');
+      console.error(
+        '[Prisma] CRITICAL: Failed to connect to database on startup.',
+      );
       console.error(`[Prisma] Error: ${error.message}`);
-      console.error('[Prisma] The app will continue running but DB features will fail until connection is restored.');
+      console.error(
+        '[Prisma] The app will continue running but DB features will fail until connection is restored.',
+      );
       // We don't re-throw here to prevent the whole NestJS app from crashing
     }
   }

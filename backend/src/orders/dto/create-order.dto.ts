@@ -1,4 +1,4 @@
-type SupportedOrderType = 'DINE_IN' | 'PICKUP' | 'DELIVERY' | 'IN_STORE';
+export type SupportedOrderType = 'DINE_IN' | 'PICKUP' | 'DELIVERY' | 'IN_STORE';
 
 export class CreateOrderItemDto {
   menuItemId: string;
@@ -7,9 +7,31 @@ export class CreateOrderItemDto {
 }
 
 export class CreateOrderDto {
-  items: CreateOrderItemDto[];
-  orderType?: SupportedOrderType;
+  items?: CreateOrderItemDto[];
+  serviceType: SupportedOrderType;
+  tableId?: string;
   tableNumber?: string;
+  customer?: string;
+
+  // Pickup Details
+  pickupName?: string;
+  pickupPhone?: string;
+  pickupTime?: string;
+
+  // Delivery Details
+  deliveryName?: string;
+  deliveryPhone?: string;
+  deliveryAddress?: string;
+  deliverySuburb?: string;
+  deliveryState?: string;
+  deliveryPostcode?: string;
+  deliveryNotes?: string;
+  deliveryType?: string;
+}
+
+export class AddOrderItemDto {
+  productId: string;
+  quantity: number;
 }
 
 export class CompleteOrderDto {

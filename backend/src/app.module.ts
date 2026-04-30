@@ -24,6 +24,8 @@ import { RestaurantModule } from './restaurant/restaurant.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { ReportsModule } from './reports/reports.module';
 import { MailModule } from './mail/mail.module';
+import { TablesModule } from './tables/tables.module';
+import { ReservationsModule } from './reservations/reservations.module';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { MailModule } from './mail/mail.module';
     PaymentsModule,
     OrdersModule,
     MailModule,
+    TablesModule,
+    ReservationsModule,
   ],
   controllers: [AppController],
   providers: [
