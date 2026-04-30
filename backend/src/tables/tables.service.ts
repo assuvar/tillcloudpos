@@ -156,7 +156,9 @@ export class TablesService {
           );
         }
       } else {
-        throw new BadRequestException('A table with that name already exists on this floor');
+        throw new BadRequestException(
+          'A table with that name already exists on this floor',
+        );
       }
     }
 
@@ -169,8 +171,13 @@ export class TablesService {
         },
       });
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        throw new BadRequestException('A table with that name already exists on this floor');
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new BadRequestException(
+          'A table with that name already exists on this floor',
+        );
       }
       throw e;
     }
@@ -411,8 +418,12 @@ export class TablesService {
     });
 
     if (!table) throw new NotFoundException('Table not found');
-    if (!table.isMerged) throw new BadRequestException('Table is not a merged table');
-    if (table.activeBillId) throw new BadRequestException('Cannot unmerge table with an active bill. Please clear the table first.');
+    if (!table.isMerged)
+      throw new BadRequestException('Table is not a merged table');
+    if (table.activeBillId)
+      throw new BadRequestException(
+        'Cannot unmerge table with an active bill. Please clear the table first.',
+      );
 
     return this.prisma.$transaction(async (tx) => {
       // Restore original tables
@@ -423,9 +434,9 @@ export class TablesService {
             restaurantId,
             status: TableStatus.MERGED,
           },
-          data: { 
+          data: {
             status: TableStatus.AVAILABLE,
-            isMerged: false 
+            isMerged: false,
           },
         });
       }

@@ -452,7 +452,11 @@ export class BillsService {
           ? {}
           : {
               status: {
-                in: [BillStatus.OPEN, BillStatus.KOT_SENT, BillStatus.AWAITING_PAYMENT],
+                in: [
+                  BillStatus.OPEN,
+                  BillStatus.KOT_SENT,
+                  BillStatus.AWAITING_PAYMENT,
+                ],
               },
             }),
     };
