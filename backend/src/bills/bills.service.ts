@@ -52,6 +52,13 @@ type NormalizedBill = {
   createdAt: string;
   updatedAt: string;
   itemCount: number;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  deliveryAddress?: string | null;
+  deliveryPaymentMethod?: string | null;
+  pickupName?: string | null;
+  pickupPhone?: string | null;
+  deliveryName?: string | null;
   items: BillItemSnapshot[];
 };
 
@@ -171,12 +178,15 @@ export class BillsService {
       })
       .filter((entry) => entry.required > entry.available);
 
+    // Allow negative stock (Requirement: Override constraint)
+    /*
     if (insufficient.length > 0) {
       throw new BadRequestException({
         message: 'Insufficient ingredient stock for this bill',
         insufficient,
       });
     }
+    */
   }
 
   private toCents(value: number): number {
@@ -218,6 +228,18 @@ export class BillsService {
       subtotalAmount: this.toAmount(bill.subtotalCents || 0),
       taxAmount: this.toAmount(bill.taxAmountCents || 0),
       totalAmount: this.toAmount(bill.totalCents || 0),
+      customerName:
+        bill.customerName ||
+        bill.customer?.name ||
+        bill.deliveryName ||
+        bill.pickupName ||
+        null,
+      customerPhone:
+        bill.customerPhone ||
+        bill.customer?.phone ||
+        bill.deliveryPhone ||
+        bill.pickupPhone ||
+        null,
       kotSentAt: bill.kotSentAt ? bill.kotSentAt.toISOString() : null,
       paidAt: bill.paidAt ? bill.paidAt.toISOString() : null,
       createdAt: bill.createdAt.toISOString(),
@@ -274,9 +296,18 @@ export class BillsService {
     }
 
     if (bill.status === BillStatus.PAID || bill.status === BillStatus.VOIDED) {
-      throw new BadRequestException(
-        'Completed bills cannot be sent to kitchen',
-      );
+      // Allow sending KOT for PAID bills if it's Dine-In/In-Store (since that's the rule)
+      // but only if there are new items to send.
+    } else {
+      // For OPEN/AWAITING_PAYMENT, check if it's allowed
+      if (
+        bill.orderType === OrderType.DINE_IN ||
+        bill.orderType === OrderType.IN_STORE
+      ) {
+        throw new BadRequestException(
+          'KOT for Dine-In and In-Store orders can only be triggered after payment is completed.',
+        );
+      }
     }
 
     const kotCount = await tx.kitchenOrder.count({
@@ -397,6 +428,8 @@ export class BillsService {
           status: BillStatus.OPEN,
           tableId: dto.tableId || null,
           tableNumber: resolvedTableNumber,
+          customerName: dto.customerName || null,
+          customerPhone: dto.customerPhone || null,
 
           // New Pickup/Delivery fields
           pickupName: dto.pickupName || null,
@@ -409,6 +442,7 @@ export class BillsService {
           deliveryPostcode: dto.deliveryPostcode || null,
           deliveryPhone: dto.deliveryPhone || null,
           deliveryNotes: dto.deliveryNotes || null,
+          deliveryPaymentMethod: (dto.deliveryPaymentMethod as any) || null,
 
           subtotalCents: 0,
           taxAmountCents: 0,
@@ -694,11 +728,14 @@ export class BillsService {
 
       await this.assertBillDateOpen(restaurantId, bill.createdAt);
 
+      // Stock validation disabled
+      /*
       await this.assertSufficientIngredientStockForBill(
         tx,
         restaurantId,
         billId,
       );
+      */
 
       const { bill: updatedBill, kitchenOrder } = await this.createKotForBill(
         tx,
@@ -782,9 +819,13 @@ export class BillsService {
       }
 
       let bill = initialBill;
+      const isDineInOrInStore =
+        bill.orderType === OrderType.DINE_IN ||
+        bill.orderType === OrderType.IN_STORE;
 
-      // Fallback: if KOT was skipped, automatically create one before payment.
-      if (bill.status !== BillStatus.KOT_SENT) {
+      // For Pickup/Delivery: auto-create KOT before payment if not already sent.
+      // For Dine-In/In-Store: skip pre-payment KOT (it must happen AFTER payment).
+      if (bill.status !== BillStatus.KOT_SENT && !isDineInOrInStore) {
         await this.createKotForBill(tx, bill);
         const refreshedBill = await tx.bill.findFirst({
           where: {
@@ -833,7 +874,7 @@ export class BillsService {
         },
       });
 
-      const updatedBill = await tx.bill.update({
+      let updatedBill = await tx.bill.update({
         where: { id: bill.id },
         data: {
           status: BillStatus.PAID,
@@ -845,6 +886,19 @@ export class BillsService {
           payments: true,
         },
       });
+
+      // For Dine-In/In-Store: NOW create KOT after payment is recorded
+      if (isDineInOrInStore && updatedBill.kitchenOrders.length === 0) {
+        await this.createKotForBill(tx, updatedBill);
+        updatedBill = await tx.bill.findFirstOrThrow({
+          where: { id: bill.id, restaurantId },
+          include: {
+            items: true,
+            kitchenOrders: true,
+            payments: true,
+          },
+        });
+      }
 
       // Inventory Deduction (CRITICAL Requirement)
       await this.deductInventoryForBill(tx, bill.id, restaurantId);
@@ -943,14 +997,8 @@ export class BillsService {
         ingredient.unit,
       );
 
-      if (required > available) {
-        throw new BadRequestException({
-          message: 'Insufficient stock',
-          ingredient: ingredient.name,
-          required,
-          available,
-        });
-      }
+      // Allow negative stock (Requirement: Override constraint)
+      // Removed: if (required > available) { ... throw Insufficient stock ... }
 
       const quantityAfter = available - required;
       const baseUnit = normalizeIngredientUnit(ingredient.unit);

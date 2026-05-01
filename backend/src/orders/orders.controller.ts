@@ -108,7 +108,7 @@ export class OrdersController {
   }
 
   @Patch(':id')
-  @RequirePermissions(PERMISSIONS.BILLING_DISCOUNT)
+  @RequirePermissions(PERMISSIONS.BILLING_CREATE)
   update(
     @Param('id') id: string,
     @Body() updateOrderDto: UpdateOrderDto,

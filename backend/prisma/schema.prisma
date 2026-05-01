@@ -319,6 +319,8 @@ model Bill {
   cashierId             String
   terminalId            String?
   customerId            String?
+  customerName          String?
+  customerPhone         String?
   tableId               String?
   tableNumber           String?
   pickupName            String?

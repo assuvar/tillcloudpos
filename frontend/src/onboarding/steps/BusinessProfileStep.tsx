@@ -8,14 +8,19 @@ interface BusinessProfileStepProps {
   onChange: (data: BusinessProfileData) => void;
 }
 
-export function BusinessProfileStep({ onBack, onNext, data, onChange }: BusinessProfileStepProps) {
+export function BusinessProfileStep({
+  onBack,
+  onNext,
+  data,
+  onChange,
+}: BusinessProfileStepProps) {
   const requiredReady =
-    data.name.trim() !== '' &&
-    data.phone.trim() !== '' &&
-    data.streetAddress.trim() !== '' &&
-    data.suburb.trim() !== '' &&
-    data.state.trim() !== '' &&
-    data.postcode.trim() !== '';
+    data.name.trim() !== "" &&
+    data.phone.trim() !== "" &&
+    data.streetAddress.trim() !== "" &&
+    data.suburb.trim() !== "" &&
+    data.state.trim() !== "" &&
+    data.postcode.trim() !== "";
 
   const updateField = (field: keyof BusinessProfileData, value: string) => {
     onChange({
@@ -37,48 +42,58 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
         <div className="grid md:grid-cols-2 gap-5 sm:gap-8">
           <div className="space-y-5">
             <div>
-              <label className="text-[12px] font-semibold text-[#111827]">Business Name</label>
+              <label className="text-[12px] font-semibold text-[#111827]">
+                Business Name
+              </label>
               <input
                 type="text"
                 placeholder="e.g. TillCloud Cafe"
                 value={data.name}
-                onChange={(event) => updateField('name', event.target.value)}
+                onChange={(event) => updateField("name", event.target.value)}
                 className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
                 aria-label="Business Name"
               />
             </div>
 
             <div>
-              <label className="text-[12px] font-semibold text-[#111827]">Phone</label>
+              <label className="text-[12px] font-semibold text-[#111827]">
+                Phone
+              </label>
               <input
                 type="text"
                 placeholder="e.g. +61 2 1234 5678"
                 value={data.phone}
-                onChange={(event) => updateField('phone', event.target.value)}
+                onChange={(event) => updateField("phone", event.target.value)}
                 className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
                 aria-label="Business Phone"
               />
             </div>
 
             <div>
-              <label className="text-[12px] font-semibold text-[#111827]">Street Address</label>
+              <label className="text-[12px] font-semibold text-[#111827]">
+                Street Address
+              </label>
               <input
                 type="text"
                 placeholder="e.g. 123 George St"
                 value={data.streetAddress}
-                onChange={(event) => updateField('streetAddress', event.target.value)}
+                onChange={(event) =>
+                  updateField("streetAddress", event.target.value)
+                }
                 className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
                 aria-label="Street Address"
               />
             </div>
 
             <div>
-              <label className="text-[12px] font-semibold text-[#111827]">Suburb</label>
+              <label className="text-[12px] font-semibold text-[#111827]">
+                Suburb
+              </label>
               <input
                 type="text"
                 placeholder="Sydney"
                 value={data.suburb}
-                onChange={(event) => updateField('suburb', event.target.value)}
+                onChange={(event) => updateField("suburb", event.target.value)}
                 className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
                 aria-label="Suburb"
               />
@@ -86,11 +101,15 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
 
             <div className="grid grid-cols-[1fr_1fr] gap-3">
               <div>
-                <label className="text-[12px] font-semibold text-[#111827]">State</label>
+                <label className="text-[12px] font-semibold text-[#111827]">
+                  State
+                </label>
                 <div className="relative mt-2">
                   <select
                     value={data.state}
-                    onChange={(event) => updateField('state', event.target.value)}
+                    onChange={(event) =>
+                      updateField("state", event.target.value)
+                    }
                     className="h-11 w-full appearance-none rounded-md bg-[#f1f5fb] px-4 text-[14px] text-slate-600 outline-none"
                     aria-label="State"
                   >
@@ -99,17 +118,24 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
                     <option>QLD</option>
                     <option>VIC</option>
                   </select>
-                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown
+                    size={16}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="text-[12px] font-semibold text-[#111827]">Postcode</label>
+                <label className="text-[12px] font-semibold text-[#111827]">
+                  Postcode
+                </label>
                 <input
                   type="text"
                   placeholder="2000"
                   value={data.postcode}
-                  onChange={(event) => updateField('postcode', event.target.value)}
+                  onChange={(event) =>
+                    updateField("postcode", event.target.value)
+                  }
                   className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
                   aria-label="Postcode"
                 />
@@ -119,24 +145,28 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
 
           <div className="space-y-5">
             <div>
-              <label className="text-[12px] font-semibold text-[#111827]">ABN (Optional)</label>
+              <label className="text-[12px] font-semibold text-[#111827]">
+                ABN (Optional)
+              </label>
               <input
                 type="text"
                 placeholder="11-digit number"
                 value={data.abn}
-                onChange={(event) => updateField('abn', event.target.value)}
+                onChange={(event) => updateField("abn", event.target.value)}
                 className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
                 aria-label="ABN (Optional)"
               />
             </div>
 
             <div>
-              <label className="text-[12px] font-semibold text-[#111827]">Restaurant Logo</label>
+              <label className="text-[12px] font-semibold text-[#111827]">
+                Restaurant Logo
+              </label>
               <input
                 type="text"
                 placeholder="https://example.com/logo.png"
                 value={data.logoUrl}
-                onChange={(event) => updateField('logoUrl', event.target.value)}
+                onChange={(event) => updateField("logoUrl", event.target.value)}
                 className="mt-2 h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] placeholder:text-slate-400 outline-none"
                 aria-label="Restaurant Logo URL"
               />
@@ -144,21 +174,30 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
 
             <div className="grid grid-cols-[1fr_1fr] gap-3">
               <div>
-                <label className="text-[12px] font-semibold text-[#111827]">Timezone</label>
+                <label className="text-[12px] font-semibold text-[#111827]">
+                  Timezone
+                </label>
                 <div className="relative mt-2">
                   <select
                     value={data.timezone}
-                    onChange={(event) => updateField('timezone', event.target.value)}
+                    onChange={(event) =>
+                      updateField("timezone", event.target.value)
+                    }
                     className="h-11 w-full appearance-none rounded-md bg-[#f1f5fb] px-3 text-[12px] text-slate-600 outline-none pr-7"
                   >
                     <option>(GMT+10:00) Sydney</option>
                   </select>
-                  <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown
+                    size={14}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="text-[12px] font-semibold text-[#111827]">Currency</label>
+                <label className="text-[12px] font-semibold text-[#111827]">
+                  Currency
+                </label>
                 <div className="relative mt-2">
                   <input
                     type="text"
@@ -166,7 +205,10 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
                     readOnly
                     className="h-11 w-full rounded-md bg-[#f1f5fb] px-4 text-[14px] text-slate-700 outline-none"
                   />
-                  <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search
+                    size={14}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
                 </div>
               </div>
             </div>
@@ -176,7 +218,8 @@ export function BusinessProfileStep({ onBack, onNext, data, onChange }: Business
         <div className="mt-12 space-y-4">
           {!requiredReady ? (
             <div className="max-w-[420px] rounded-lg border border-rose-100 bg-rose-50 px-4 py-3 text-[12px] font-semibold text-rose-700">
-              Required: business name, phone, street address, suburb, state, and postcode.
+              Required: business name, phone, street address, suburb, state, and
+              postcode.
             </div>
           ) : null}
 

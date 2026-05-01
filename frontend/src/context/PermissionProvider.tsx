@@ -1,9 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import {
-  flattenPermissionMap,
-  UserRole,
-  PermissionMap,
-} from "../permissions";
+import { flattenPermissionMap, UserRole, PermissionMap } from "../permissions";
 import { useAuth } from "./AuthContext";
 
 type PermissionUser = {
@@ -21,8 +17,16 @@ type PermissionContextType = {
 
 const PermissionContext = createContext<PermissionContextType | null>(null);
 
-export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user: authUser, isAuthenticated, permissions: authPermissions, isLoading: authLoading, refreshPermissions } = useAuth();
+export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const {
+    user: authUser,
+    isAuthenticated,
+    permissions: authPermissions,
+    isLoading: authLoading,
+    refreshPermissions,
+  } = useAuth();
   const [permissions, setPermissions] = useState<string[]>([]);
 
   useEffect(() => {
@@ -37,11 +41,11 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   return (
     <PermissionContext.Provider
-      value={{ 
-        user: authUser as any, 
-        permissions, 
+      value={{
+        user: authUser as any,
+        permissions,
         refreshPermissions,
-        isLoading: authLoading
+        isLoading: authLoading,
       }}
     >
       {children}
@@ -57,7 +61,7 @@ export const usePermissions = () => {
       user: null,
       permissions: [],
       refreshPermissions: async () => {},
-      isLoading: false
+      isLoading: false,
     };
   }
   return ctx;

@@ -53,7 +53,7 @@ export type BusinessProfileData = {
 };
 
 export type TaxConfigurationData = {
-  taxMode: 'INCLUSIVE' | 'EXCLUSIVE' | 'NONE';
+  taxMode: "INCLUSIVE" | "EXCLUSIVE" | "NONE";
   taxRate: string;
 };
 
@@ -72,7 +72,7 @@ export type MenuItemData = {
 };
 
 export type PaymentSetupData = {
-  paymentMode: 'TYRO' | 'CASH';
+  paymentMode: "TYRO" | "CASH";
   merchantId: string;
   terminalId: string;
   tyroConnected: boolean;
@@ -93,7 +93,9 @@ function Sidebar({ currentStep }: { currentStep: number }) {
         <div className="mt-2 text-[28px] font-bold text-[#111827] leading-tight">
           Onboarding
         </div>
-        <div className="text-[12px] text-slate-500 mt-1">Step {currentStep} of 5</div>
+        <div className="text-[12px] text-slate-500 mt-1">
+          Step {currentStep} of 5
+        </div>
       </div>
 
       <nav className="py-2 border-t border-slate-200">
@@ -106,22 +108,28 @@ function Sidebar({ currentStep }: { currentStep: number }) {
             <div
               key={step.id}
               className={`relative flex items-center gap-3 px-7 py-4 text-[13px] font-medium transition-colors ${
-                isActive ? "text-[#111827] bg-white" : isCompleted ? "text-[#0c607b]" : "text-slate-500"
+                isActive
+                  ? "text-[#111827] bg-white"
+                  : isCompleted
+                    ? "text-[#0c607b]"
+                    : "text-slate-500"
               }`}
             >
               <span
                 className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-black ${
                   isActive
-                    ? 'border-[#5dc7ec] bg-[#e9f7fc] text-[#0c607b]'
+                    ? "border-[#5dc7ec] bg-[#e9f7fc] text-[#0c607b]"
                     : isCompleted
-                      ? 'border-[#5dc7ec] bg-[#5dc7ec] text-white'
-                      : 'border-slate-200 bg-white text-slate-400'
+                      ? "border-[#5dc7ec] bg-[#5dc7ec] text-white"
+                      : "border-slate-200 bg-white text-slate-400"
                 }`}
               >
-                {isCompleted ? '✓' : <Icon size={10} />}
+                {isCompleted ? "✓" : <Icon size={10} />}
               </span>
               <span>{step.label}</span>
-              {isActive && <span className="absolute right-0 top-0 h-full w-[2px] bg-[#5dc7ec]" />}
+              {isActive && (
+                <span className="absolute right-0 top-0 h-full w-[2px] bg-[#5dc7ec]" />
+              )}
             </div>
           );
         })}
@@ -133,29 +141,29 @@ function Sidebar({ currentStep }: { currentStep: number }) {
 export default function OnboardingFlow() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [stepFeedback, setStepFeedback] = useState<string>('');
+  const [stepFeedback, setStepFeedback] = useState<string>("");
   const [businessProfile, setBusinessProfile] = useState<BusinessProfileData>({
-    name: '',
-    phone: '',
-    streetAddress: '',
-    suburb: '',
-    state: '',
-    postcode: '',
-    abn: '',
-    logoUrl: '',
-    timezone: '(GMT+10:00) Sydney',
-    currency: 'AUD',
+    name: "",
+    phone: "",
+    streetAddress: "",
+    suburb: "",
+    state: "",
+    postcode: "",
+    abn: "",
+    logoUrl: "",
+    timezone: "(GMT+10:00) Sydney",
+    currency: "AUD",
   });
   const [taxConfig, setTaxConfig] = useState<TaxConfigurationData>({
-    taxMode: 'INCLUSIVE',
-    taxRate: '10',
+    taxMode: "INCLUSIVE",
+    taxRate: "10",
   });
   const [menuCategories, setMenuCategories] = useState<MenuCategoryData[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
   const [paymentSetup, setPaymentSetup] = useState<PaymentSetupData>({
-    paymentMode: 'TYRO',
-    merchantId: '',
-    terminalId: '',
+    paymentMode: "TYRO",
+    merchantId: "",
+    terminalId: "",
     tyroConnected: false,
   });
   const navigate = useNavigate();
@@ -164,7 +172,7 @@ export default function OnboardingFlow() {
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
-    const stepParam = query.get('step');
+    const stepParam = query.get("step");
     const parsed = stepParam ? Number(stepParam) : NaN;
     if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 5) {
       setCurrentStep(parsed);
@@ -174,11 +182,12 @@ export default function OnboardingFlow() {
   useEffect(() => {
     const hydrateOnboarding = async () => {
       try {
-        const [statusResponse, restaurantResponse, menuResponse] = await Promise.all([
-          api.get('/onboarding/status'),
-          api.get('/restaurant'),
-          api.get('/menu/categories'),
-        ]);
+        const [statusResponse, restaurantResponse, menuResponse] =
+          await Promise.all([
+            api.get("/onboarding/status"),
+            api.get("/restaurant"),
+            api.get("/menu/categories"),
+          ]);
 
         const statusData = statusResponse.data as {
           onboardingCompleted?: boolean;
@@ -186,7 +195,7 @@ export default function OnboardingFlow() {
 
         if (statusData?.onboardingCompleted) {
           updateOnboardingStatus(true);
-          navigate('/dashboard', { replace: true });
+          navigate("/dashboard", { replace: true });
           return;
         }
 
@@ -200,7 +209,7 @@ export default function OnboardingFlow() {
           abn?: string;
           logoUrl?: string;
           timezone?: string;
-          taxMode?: 'INCLUSIVE' | 'EXCLUSIVE' | 'NONE';
+          taxMode?: "INCLUSIVE" | "EXCLUSIVE" | "NONE";
           taxRate?: number;
         };
 
@@ -252,12 +261,12 @@ export default function OnboardingFlow() {
               categoryId: item.categoryId,
               name: item.name,
               price: String(item.price),
-              description: item.description || '',
+              description: item.description || "",
             })),
           ),
         );
       } catch (error) {
-        console.error('Failed to hydrate onboarding data', error);
+        console.error("Failed to hydrate onboarding data", error);
       }
     };
 
@@ -269,7 +278,7 @@ export default function OnboardingFlow() {
       return;
     }
 
-    const existingResponse = await api.get('/menu/categories');
+    const existingResponse = await api.get("/menu/categories");
     const existingCategories = (existingResponse.data || []) as Array<{
       id: string;
       name: string;
@@ -289,7 +298,7 @@ export default function OnboardingFlow() {
 
       const key = normalizedName.toLowerCase();
       if (!categoryMap.has(key)) {
-        const created = await api.post('/menu/categories', {
+        const created = await api.post("/menu/categories", {
           name: normalizedName,
         });
         const createdId = created.data?.id as string | undefined;
@@ -299,7 +308,7 @@ export default function OnboardingFlow() {
       }
     }
 
-    const refreshed = await api.get('/menu/categories');
+    const refreshed = await api.get("/menu/categories");
     const refreshedCategories = (refreshed.data || []) as Array<{
       id: string;
       name: string;
@@ -309,33 +318,45 @@ export default function OnboardingFlow() {
     const existingItemsByCategory = new Map<string, Set<string>>();
     refreshedCategories.forEach((category) => {
       const names = new Set<string>();
-      (category.items || []).forEach((item) => names.add(item.name.trim().toLowerCase()));
+      (category.items || []).forEach((item) =>
+        names.add(item.name.trim().toLowerCase()),
+      );
       existingItemsByCategory.set(category.id, names);
       categoryMap.set(category.name.trim().toLowerCase(), category.id);
     });
 
     for (const item of menuItems) {
-      const category = menuCategories.find((value) => value.id === item.categoryId);
+      const category = menuCategories.find(
+        (value) => value.id === item.categoryId,
+      );
       const categoryName = category?.name?.trim();
-      const categoryId = categoryName ? categoryMap.get(categoryName.toLowerCase()) : undefined;
+      const categoryId = categoryName
+        ? categoryMap.get(categoryName.toLowerCase())
+        : undefined;
       const itemName = item.name.trim();
       const itemPrice = Number(item.price);
 
-      if (!categoryId || !itemName || !Number.isFinite(itemPrice) || itemPrice < 0) {
+      if (
+        !categoryId ||
+        !itemName ||
+        !Number.isFinite(itemPrice) ||
+        itemPrice < 0
+      ) {
         continue;
       }
 
-      const existingNames = existingItemsByCategory.get(categoryId) || new Set<string>();
+      const existingNames =
+        existingItemsByCategory.get(categoryId) || new Set<string>();
       const normalizedItemName = itemName.toLowerCase();
       if (existingNames.has(normalizedItemName)) {
         continue;
       }
 
-      await api.post('/menu/items', {
+      await api.post("/menu/items", {
         name: itemName,
         categoryId,
         price: itemPrice,
-        description: item.description?.trim() || '',
+        description: item.description?.trim() || "",
       });
 
       existingNames.add(normalizedItemName);
@@ -344,7 +365,7 @@ export default function OnboardingFlow() {
   };
 
   const persistBusinessSetup = async () => {
-    const response = await api.patch('/restaurant', {
+    const response = await api.patch("/restaurant", {
       name: businessProfile.name,
       phone: businessProfile.phone,
       streetAddress: businessProfile.streetAddress,
@@ -372,13 +393,13 @@ export default function OnboardingFlow() {
   };
 
   const persistTaxSetup = async () => {
-    const response = await api.patch('/restaurant/tax', {
+    const response = await api.patch("/restaurant/tax", {
       taxMode: taxConfig.taxMode,
       taxRate: Number(taxConfig.taxRate || 0),
     });
 
     const taxData = response.data as {
-      taxMode?: TaxConfigurationData['taxMode'];
+      taxMode?: TaxConfigurationData["taxMode"];
       taxRate?: number;
     };
     setTaxConfig((previous) => ({
@@ -391,11 +412,11 @@ export default function OnboardingFlow() {
   };
 
   const persistPaymentSetup = async () => {
-    if (paymentSetup.paymentMode !== 'TYRO') {
+    if (paymentSetup.paymentMode !== "TYRO") {
       return;
     }
 
-    await api.patch('/restaurant', {
+    await api.patch("/restaurant", {
       tyroMerchantId: paymentSetup.merchantId.trim() || null,
       tyroTerminalId: paymentSetup.terminalId.trim() || null,
       tyroConnected: paymentSetup.tyroConnected,
@@ -404,35 +425,35 @@ export default function OnboardingFlow() {
 
   const nextStep = async () => {
     setIsSubmitting(true);
-    setStepFeedback('');
+    setStepFeedback("");
     try {
       if (currentStep === 1) {
         await persistBusinessSetup();
-        setStepFeedback('Saved successfully');
+        setStepFeedback("Saved successfully");
       }
 
       if (currentStep === 2) {
         await persistTaxSetup();
-        setStepFeedback('Saved successfully');
+        setStepFeedback("Saved successfully");
       }
 
       if (currentStep === 3) {
         await persistMenuSetup();
-        setStepFeedback('Saved successfully');
+        setStepFeedback("Saved successfully");
       }
 
       if (currentStep === 4) {
-        setStepFeedback('Saved successfully');
+        setStepFeedback("Saved successfully");
       }
 
       if (currentStep === 5) {
         await persistPaymentSetup();
-        const completionResponse = await api.post('/onboarding/complete');
+        const completionResponse = await api.post("/onboarding/complete");
         if (completionResponse.data?.onboardingCompleted) {
-          setStepFeedback('Setup completed successfully');
+          setStepFeedback("Setup completed successfully");
           updateOnboardingStatus(true);
           window.setTimeout(() => {
-            navigate('/dashboard');
+            navigate("/dashboard");
           }, 900);
           return;
         }
@@ -440,32 +461,41 @@ export default function OnboardingFlow() {
 
       setCurrentStep((previous) => Math.min(5, previous + 1));
     } catch (error: any) {
-      console.error('Failed to persist onboarding step', error);
-      
+      console.error("Failed to persist onboarding step", error);
+
       const responseData = error?.response?.data;
       if (error?.response?.status === 400 && responseData?.missingSteps) {
         const missing = responseData.missingSteps as string[];
-        
-        if (missing.includes('business')) {
-          setStepFeedback('Missing business identity (Name, Address, or Phone). Redirecting to Step 1...');
+
+        if (missing.includes("business")) {
+          setStepFeedback(
+            "Missing business identity (Name, Address, or Phone). Redirecting to Step 1...",
+          );
           window.setTimeout(() => setCurrentStep(1), 1500);
-        } else if (missing.includes('serviceModel')) {
-          setStepFeedback('Please select at least one Service Model. Redirecting to Step 1...');
+        } else if (missing.includes("serviceModel")) {
+          setStepFeedback(
+            "Please select at least one Service Model. Redirecting to Step 1...",
+          );
           window.setTimeout(() => setCurrentStep(1), 1500);
-        } else if (missing.includes('emailVerification')) {
-          setStepFeedback('Email verification is required. Please verify your email first.');
+        } else if (missing.includes("emailVerification")) {
+          setStepFeedback(
+            "Email verification is required. Please verify your email first.",
+          );
         } else {
-          setStepFeedback(responseData.message || 'Mandatory steps are incomplete.');
+          setStepFeedback(
+            responseData.message || "Mandatory steps are incomplete.",
+          );
         }
       } else {
-        setStepFeedback('Unable to save step. Please try again.');
+        setStepFeedback("Unable to save step. Please try again.");
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const backStep = () => setCurrentStep((previous) => Math.max(1, previous - 1));
+  const backStep = () =>
+    setCurrentStep((previous) => Math.max(1, previous - 1));
 
   const skipStep = () => {
     if (currentStep === 5) {
@@ -511,9 +541,7 @@ export default function OnboardingFlow() {
           />
         );
       case 4:
-        return (
-          <StaffTerminalsStep {...actions} />
-        );
+        return <StaffTerminalsStep {...actions} />;
       case 5:
         return (
           <PaymentSetupStep
@@ -531,7 +559,15 @@ export default function OnboardingFlow() {
           />
         );
     }
-  }, [currentStep, actions, businessProfile, taxConfig, menuCategories, menuItems, paymentSetup]);
+  }, [
+    currentStep,
+    actions,
+    businessProfile,
+    taxConfig,
+    menuCategories,
+    menuItems,
+    paymentSetup,
+  ]);
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -541,7 +577,9 @@ export default function OnboardingFlow() {
         <main className="bg-[#ebf5f9]">
           <div className="mx-auto max-w-[980px] px-5 py-6 sm:px-8 lg:px-12">
             <div className="flex items-center justify-between lg:justify-end mb-6">
-              <div className="lg:hidden text-[22px] font-black text-[#111827]">TILLCLOUD</div>
+              <div className="lg:hidden text-[22px] font-black text-[#111827]">
+                TILLCLOUD
+              </div>
               <button
                 type="button"
                 disabled={isSubmitting}

@@ -1,4 +1,4 @@
-import api from './api';
+import api from "./api";
 
 export type SummaryResponse = {
   totalRevenue: number;
@@ -70,7 +70,11 @@ type ApiAnalyticsPayload = {
   revenueTrend?: Array<{ date?: unknown; value?: unknown }>;
   ordersTrend?: Array<{ date?: unknown; value?: unknown }>;
   topItems?: Array<{ name?: unknown; quantity?: unknown }>;
-  categorySales?: Array<{ category?: unknown; value?: unknown; revenue?: unknown }>;
+  categorySales?: Array<{
+    category?: unknown;
+    value?: unknown;
+    revenue?: unknown;
+  }>;
 };
 
 type ApiOrderPayload = {
@@ -103,14 +107,17 @@ type ApiCloseDayPayload = {
 
 const toNumber = (value: unknown): number => Number(value || 0);
 
-const toText = (value: unknown): string => (typeof value === 'string' ? value : String(value || ''));
+const toText = (value: unknown): string =>
+  typeof value === "string" ? value : String(value || "");
 
 const toBlob = (value: unknown): Blob =>
-  value instanceof Blob ? value : new Blob([value as BlobPart], { type: 'text/csv;charset=utf-8;' });
+  value instanceof Blob
+    ? value
+    : new Blob([value as BlobPart], { type: "text/csv;charset=utf-8;" });
 
 const request = async <T>(
   path: string,
-  options?: { params?: Record<string, string | number>; responseType?: 'blob' },
+  options?: { params?: Record<string, string | number>; responseType?: "blob" },
 ): Promise<T> => {
   const response = await api.get(path, options);
   return response.data as T;
@@ -118,12 +125,14 @@ const request = async <T>(
 
 export const reportsService = {
   async getSummary(): Promise<SummaryResponse> {
-    const payload = await request<ApiSummaryPayload>('/reports/summary');
+    const payload = await request<ApiSummaryPayload>("/reports/summary");
 
     return {
       totalRevenue: toNumber(payload.totalRevenue ?? payload.revenue),
       totalOrders: toNumber(payload.totalOrders ?? payload.orders),
-      averageOrderValue: toNumber(payload.averageOrderValue ?? payload.avgOrderValue),
+      averageOrderValue: toNumber(
+        payload.averageOrderValue ?? payload.avgOrderValue,
+      ),
     };
   },
 
@@ -138,7 +147,7 @@ export const reportsService = {
       query.endDate = params.endDate;
     }
 
-    const payload = await request<ApiAnalyticsPayload>('/reports/analytics', {
+    const payload = await request<ApiAnalyticsPayload>("/reports/analytics", {
       params: query,
     });
 
@@ -171,7 +180,7 @@ export const reportsService = {
   },
 
   async getRecentOrders(limit = 15): Promise<Order[]> {
-    const payload = await request<ApiOrderPayload[]>('/bills', {
+    const payload = await request<ApiOrderPayload[]>("/bills", {
       params: {
         limit,
       },
@@ -189,7 +198,9 @@ export const reportsService = {
   },
 
   async getLowStock(): Promise<InventoryItem[]> {
-    const payload = await request<ApiInventoryPayload[]>('/inventory/low-stock');
+    const payload = await request<ApiInventoryPayload[]>(
+      "/inventory/low-stock",
+    );
 
     return Array.isArray(payload)
       ? payload.map((row) => ({
@@ -202,15 +213,15 @@ export const reportsService = {
   },
 
   async exportReport(): Promise<Blob> {
-    const response = await api.get('/reports/export?format=csv', {
-      responseType: 'blob',
+    const response = await api.get("/reports/export?format=csv", {
+      responseType: "blob",
     });
 
     return toBlob(response.data);
   },
 
   async closeDay(businessDate?: string): Promise<CloseDayResponse> {
-    const response = await api.post('/reports/close-day', {
+    const response = await api.post("/reports/close-day", {
       businessDate,
     });
     const payload = response.data as ApiCloseDayPayload | undefined;

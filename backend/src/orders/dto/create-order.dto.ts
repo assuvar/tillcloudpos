@@ -11,7 +11,10 @@ export class CreateOrderDto {
   serviceType: SupportedOrderType;
   tableId?: string;
   tableNumber?: string;
-  customer?: string;
+  // Customer Details
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
 
   // Pickup Details
   pickupName?: string;
@@ -27,6 +30,7 @@ export class CreateOrderDto {
   deliveryPostcode?: string;
   deliveryNotes?: string;
   deliveryType?: string;
+  paymentType?: string;
 }
 
 export class AddOrderItemDto {

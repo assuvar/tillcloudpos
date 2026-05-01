@@ -36,11 +36,15 @@ export function MenuSetupStep({
   onCategoriesChange,
   onItemsChange,
 }: MenuSetupStepProps) {
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categories[0]?.id || '');
-  const [disabledTooltip, setDisabledTooltip] = useState('');
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
+    categories[0]?.id || "",
+  );
+  const [disabledTooltip, setDisabledTooltip] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
 
-  const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+  const selectedCategory = categories.find(
+    (category) => category.id === selectedCategoryId,
+  );
 
   const filteredItems = selectedCategory
     ? items.filter((item) => item.categoryId === selectedCategory.id)
@@ -49,8 +53,8 @@ export function MenuSetupStep({
   const addCategory = () => {
     const trimmedName = newCategoryName.trim();
     if (!trimmedName) {
-      setDisabledTooltip('Enter a category name first');
-      window.setTimeout(() => setDisabledTooltip(''), 1800);
+      setDisabledTooltip("Enter a category name first");
+      window.setTimeout(() => setDisabledTooltip(""), 1800);
       return;
     }
 
@@ -62,27 +66,31 @@ export function MenuSetupStep({
     const nextCategories = [...categories, nextCategory];
     onCategoriesChange(nextCategories);
     setSelectedCategoryId(nextCategory.id);
-    setNewCategoryName('');
+    setNewCategoryName("");
   };
 
   const addItem = () => {
     if (!selectedCategory) {
-      setDisabledTooltip('Add a category first');
-      window.setTimeout(() => setDisabledTooltip(''), 1800);
+      setDisabledTooltip("Add a category first");
+      window.setTimeout(() => setDisabledTooltip(""), 1800);
       return;
     }
 
     const nextItem: MenuItemData = {
       id: crypto.randomUUID(),
       categoryId: selectedCategory.id,
-      name: '',
-      price: '',
-      description: '',
+      name: "",
+      price: "",
+      description: "",
     };
     onItemsChange([...items, nextItem]);
   };
 
-  const updateItem = (itemId: string, field: keyof MenuItemData, value: string) => {
+  const updateItem = (
+    itemId: string,
+    field: keyof MenuItemData,
+    value: string,
+  ) => {
     onItemsChange(
       items.map((item) =>
         item.id === itemId
@@ -121,8 +129,12 @@ export function MenuSetupStep({
         <div className="grid lg:grid-cols-[250px_1fr] gap-5">
           <aside className="rounded-[8px] border border-slate-200 bg-[#f8fbff] p-3">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-[12px] font-bold text-slate-600">Categories</span>
-              <span className="text-[11px] text-slate-400">{categories.length} Total</span>
+              <span className="text-[12px] font-bold text-slate-600">
+                Categories
+              </span>
+              <span className="text-[11px] text-slate-400">
+                {categories.length} Total
+              </span>
             </div>
 
             <div className="mb-3 rounded-md border border-slate-200 bg-white p-2">
@@ -134,10 +146,10 @@ export function MenuSetupStep({
                 value={newCategoryName}
                 onChange={(event) => {
                   setNewCategoryName(event.target.value);
-                  setDisabledTooltip('');
+                  setDisabledTooltip("");
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
+                  if (event.key === "Enter") {
                     event.preventDefault();
                     addCategory();
                   }
@@ -148,7 +160,7 @@ export function MenuSetupStep({
               <button
                 type="button"
                 onClick={addCategory}
-                disabled={newCategoryName.trim() === ''}
+                disabled={newCategoryName.trim() === ""}
                 className="mt-2 h-9 w-full rounded-md bg-[#07142a] text-[12px] font-semibold text-white"
               >
                 Add Category
@@ -157,7 +169,9 @@ export function MenuSetupStep({
 
             <div className="space-y-1">
               {categories.length === 0 && (
-                <div className="rounded-md px-3 py-2 text-[13px] text-slate-400">No categories yet</div>
+                <div className="rounded-md px-3 py-2 text-[13px] text-slate-400">
+                  No categories yet
+                </div>
               )}
               {categories.map(({ id, name, isActive }) => {
                 const isSelected = selectedCategoryId === id;
@@ -168,24 +182,28 @@ export function MenuSetupStep({
                     tabIndex={0}
                     onClick={() => setSelectedCategoryId(id)}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
                         setSelectedCategoryId(id);
                       }
                     }}
                     className={`w-full rounded-md px-3 py-2 flex items-center gap-3 text-[13px] border ${
-                      isSelected ? 'bg-white border-[#5cc7eb]' : 'border-transparent'
+                      isSelected
+                        ? "bg-white border-[#5cc7eb]"
+                        : "border-transparent"
                     }`}
                   >
                     <input
                       type="text"
                       value={name}
-                      onChange={(event) => updateCategory(id, event.target.value)}
+                      onChange={(event) =>
+                        updateCategory(id, event.target.value)
+                      }
                       onFocus={() => setSelectedCategoryId(id)}
                       className={`w-full bg-transparent font-medium outline-none ${
-                        isSelected ? 'text-[#111827]' : 'text-slate-600'
+                        isSelected ? "text-[#111827]" : "text-slate-600"
                       }`}
-                      aria-label={`Category name for ${name || 'untitled category'}`}
+                      aria-label={`Category name for ${name || "untitled category"}`}
                     />
                     <Toggle on={isActive} />
                   </div>
@@ -196,7 +214,7 @@ export function MenuSetupStep({
             <button
               type="button"
               onClick={addCategory}
-              disabled={newCategoryName.trim() === ''}
+              disabled={newCategoryName.trim() === ""}
               className="mt-20 h-10 w-full rounded-md border border-dashed border-slate-300 text-[13px] text-slate-600 inline-flex items-center justify-center gap-2"
             >
               <CirclePlus size={14} />
@@ -207,15 +225,19 @@ export function MenuSetupStep({
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="text-[18px] font-bold text-[#111827]">{selectedCategory?.name || 'Menu Items'}</div>
-                <div className="text-[11px] text-slate-500">Configure individual items for this category</div>
+                <div className="text-[18px] font-bold text-[#111827]">
+                  {selectedCategory?.name || "Menu Items"}
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Configure individual items for this category
+                </div>
               </div>
               <div
                 className="relative"
                 onClick={() => {
                   if (categories.length === 0) {
-                    setDisabledTooltip('Add a category first');
-                    window.setTimeout(() => setDisabledTooltip(''), 1800);
+                    setDisabledTooltip("Add a category first");
+                    window.setTimeout(() => setDisabledTooltip(""), 1800);
                   }
                 }}
               >
@@ -243,39 +265,57 @@ export function MenuSetupStep({
             )}
 
             {filteredItems.map((item) => (
-              <div key={item.id} className="rounded-[8px] border border-slate-200 bg-[#f7fafc] p-4 mb-3">
+              <div
+                key={item.id}
+                className="rounded-[8px] border border-slate-200 bg-[#f7fafc] p-4 mb-3"
+              >
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-semibold text-slate-500">ITEM NAME</label>
+                    <label className="text-[10px] font-semibold text-slate-500">
+                      ITEM NAME
+                    </label>
                     <input
                       type="text"
                       value={item.name}
-                      onChange={(event) => updateItem(item.id, 'name', event.target.value)}
+                      onChange={(event) =>
+                        updateItem(item.id, "name", event.target.value)
+                      }
                       className="mt-1 h-9 w-full rounded bg-[#edf2f8] px-3 text-[13px] text-slate-700 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-slate-500">PRICE (AUD)</label>
+                    <label className="text-[10px] font-semibold text-slate-500">
+                      PRICE (AUD)
+                    </label>
                     <input
                       type="number"
                       min={0}
                       value={item.price}
-                      disabled={item.name.trim() === ''}
-                      onChange={(event) => updateItem(item.id, 'price', event.target.value)}
+                      disabled={item.name.trim() === ""}
+                      onChange={(event) =>
+                        updateItem(item.id, "price", event.target.value)
+                      }
                       className="mt-1 h-9 w-full rounded bg-[#edf2f8] px-3 text-[13px] text-slate-700 outline-none"
                     />
-                    {item.price.trim() !== '' && !isNonNegativeNumber(item.price) && (
-                      <p className="mt-1 text-[10px] font-semibold text-rose-600">Price must be greater than or equal to 0.</p>
-                    )}
+                    {item.price.trim() !== "" &&
+                      !isNonNegativeNumber(item.price) && (
+                        <p className="mt-1 text-[10px] font-semibold text-rose-600">
+                          Price must be greater than or equal to 0.
+                        </p>
+                      )}
                   </div>
                 </div>
 
                 <div className="mt-3">
-                  <label className="text-[10px] font-semibold text-slate-500">DESCRIPTION</label>
+                  <label className="text-[10px] font-semibold text-slate-500">
+                    DESCRIPTION
+                  </label>
                   <input
                     type="text"
                     value={item.description}
-                    onChange={(event) => updateItem(item.id, 'description', event.target.value)}
+                    onChange={(event) =>
+                      updateItem(item.id, "description", event.target.value)
+                    }
                     className="mt-1 h-9 w-full rounded bg-[#edf2f8] px-3 text-[12px] text-slate-500 outline-none"
                   />
                 </div>
@@ -305,7 +345,11 @@ export function MenuSetupStep({
           </button>
 
           <div className="flex items-center gap-5">
-            <button type="button" onClick={onSkip} className="text-[13px] text-slate-700 font-medium">
+            <button
+              type="button"
+              onClick={onSkip}
+              className="text-[13px] text-slate-700 font-medium"
+            >
               Skip for now
             </button>
             <button

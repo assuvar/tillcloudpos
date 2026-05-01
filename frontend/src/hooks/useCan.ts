@@ -3,7 +3,7 @@ import { usePermissions } from "../context/PermissionProvider";
 
 /**
  * Hook to check if the current user has a specific permission.
- * Usage: 
+ * Usage:
  *   const can = useCan();
  *   if (can("pos:create")) { ... }
  */

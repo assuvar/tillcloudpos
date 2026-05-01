@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { X, Info, ChevronDown } from 'lucide-react';
+import React, { useState } from "react";
+import { X, Info, ChevronDown } from "lucide-react";
 
 interface InviteStaffModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mode?: 'create' | 'edit';
+  mode?: "create" | "edit";
   initialValues?: {
     name?: string;
     email?: string;
@@ -17,52 +17,52 @@ interface InviteStaffModalProps {
     name: string;
     email: string;
     phone?: string;
-    role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
+    role: "ADMIN" | "MANAGER" | "CASHIER" | "KITCHEN";
   }) => Promise<void> | void;
 }
 
 const ROLES: Array<{
   label: string;
-  value: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
+  value: "ADMIN" | "MANAGER" | "CASHIER" | "KITCHEN";
 }> = [
-  { label: 'Admin', value: 'ADMIN' },
-  { label: 'Manager', value: 'MANAGER' },
-  { label: 'Cashier', value: 'CASHIER' },
-  { label: 'Kitchen', value: 'KITCHEN' },
+  { label: "Admin", value: "ADMIN" },
+  { label: "Manager", value: "MANAGER" },
+  { label: "Cashier", value: "CASHIER" },
+  { label: "Kitchen", value: "KITCHEN" },
 ];
 
 export default function InviteStaffModal({
   isOpen,
   onClose,
   onInvite,
-  mode = 'create',
+  mode = "create",
   initialValues,
   submitError,
   isSubmitting = false,
 }: InviteStaffModalProps) {
-  const [fullName, setFullName] = useState(initialValues?.name || '');
-  const [email, setEmail] = useState(initialValues?.email || '');
-  const [phone, setPhone] = useState(initialValues?.phone || '');
-  const [role, setRole] = useState<'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN'>(
+  const [fullName, setFullName] = useState(initialValues?.name || "");
+  const [email, setEmail] = useState(initialValues?.email || "");
+  const [phone, setPhone] = useState(initialValues?.phone || "");
+  const [role, setRole] = useState<"ADMIN" | "MANAGER" | "CASHIER" | "KITCHEN">(
     (initialValues?.role?.toUpperCase() as
-      | 'ADMIN'
-      | 'MANAGER'
-      | 'CASHIER'
-      | 'KITCHEN') || 'CASHIER',
+      | "ADMIN"
+      | "MANAGER"
+      | "CASHIER"
+      | "KITCHEN") || "CASHIER",
   );
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
-      setFullName(initialValues?.name || '');
-      setEmail(initialValues?.email || '');
-      setPhone(initialValues?.phone || '');
+      setFullName(initialValues?.name || "");
+      setEmail(initialValues?.email || "");
+      setPhone(initialValues?.phone || "");
       setRole(
         (initialValues?.role?.toUpperCase() as
-          | 'ADMIN'
-          | 'MANAGER'
-          | 'CASHIER'
-          | 'KITCHEN') || 'CASHIER',
+          | "ADMIN"
+          | "MANAGER"
+          | "CASHIER"
+          | "KITCHEN") || "CASHIER",
       );
     }
   }, [isOpen, initialValues]);
@@ -96,7 +96,7 @@ export default function InviteStaffModal({
         {/* Header */}
         <div className="flex items-center justify-between p-4 pb-4 sm:p-8">
           <h2 className="text-[22px] font-black text-[#0c1424] sm:text-[24px]">
-            {mode === 'create' ? 'Add Staff Member' : 'Edit Staff Member'}
+            {mode === "create" ? "Add Staff Member" : "Edit Staff Member"}
           </h2>
           <button
             onClick={onClose}
@@ -109,9 +109,9 @@ export default function InviteStaffModal({
 
         <form onSubmit={handleSubmit} className="space-y-6 p-4 pt-0 sm:p-8">
           <p className="text-[14px] text-slate-500 font-medium leading-relaxed">
-            {mode === 'create'
-              ? 'Add a staff member. A 4-digit POS PIN is generated for Manager, Cashier, and Kitchen roles.'
-              : 'Update staff details and role permissions.'}
+            {mode === "create"
+              ? "Add a staff member. A 4-digit POS PIN is generated for Manager, Cashier, and Kitchen roles."
+              : "Update staff details and role permissions."}
           </p>
 
           {/* Full Name */}
@@ -171,7 +171,10 @@ export default function InviteStaffModal({
               className="w-full h-12 px-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-[14px] font-bold text-[#0c1424] hover:bg-slate-100/50 transition-all"
             >
               <span>{ROLES.find((r) => r.value === role)?.label || role}</span>
-              <ChevronDown size={18} className={`text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                size={18}
+                className={`text-slate-400 transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
+              />
             </button>
 
             {isDropdownOpen && (
@@ -184,7 +187,7 @@ export default function InviteStaffModal({
                       setRole(r.value);
                       setIsDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-5 py-3 text-[14px] font-bold transition-colors ${role === r.value ? 'bg-slate-50 text-[#0c1424]' : 'text-slate-500 hover:bg-slate-50'}`}
+                    className={`w-full text-left px-5 py-3 text-[14px] font-bold transition-colors ${role === r.value ? "bg-slate-50 text-[#0c1424]" : "text-slate-500 hover:bg-slate-50"}`}
                   >
                     {r.label}
                   </button>
@@ -201,37 +204,38 @@ export default function InviteStaffModal({
 
           {/* Info Box */}
           <div className="bg-blue-50/50 border-l-4 border-[#5dc7ec] rounded-2xl p-5 flex gap-4">
-             <div className="h-6 w-6 rounded-full bg-[#5dc7ec]/10 flex items-center justify-center text-[#5dc7ec] shrink-0 mt-0.5">
-               <Info size={14} />
-             </div>
-             <p className="text-[12px] text-slate-500 font-medium leading-relaxed">
-               Invited users will have default access to POS terminals. You can refine permissions in settings after they join.
-             </p>
+            <div className="h-6 w-6 rounded-full bg-[#5dc7ec]/10 flex items-center justify-center text-[#5dc7ec] shrink-0 mt-0.5">
+              <Info size={14} />
+            </div>
+            <p className="text-[12px] text-slate-500 font-medium leading-relaxed">
+              Invited users will have default access to POS terminals. You can
+              refine permissions in settings after they join.
+            </p>
           </div>
 
           {/* Buttons */}
           <div className="flex flex-col gap-3 pt-4 sm:flex-row">
-             <button
-               type="submit"
-               disabled={isSubmitting}
-               className="h-14 w-full rounded-2xl bg-[#0c1424] text-white font-black uppercase tracking-widest shadow-xl shadow-black/20 transition-all hover:bg-black"
-             >
-               {isSubmitting
-                 ? mode === 'create'
-                   ? 'Creating...'
-                   : 'Saving...'
-                 : mode === 'create'
-                   ? 'Create Staff'
-                   : 'Save Changes'}
-             </button>
-             <button
-               type="button"
-               onClick={onClose}
-               disabled={isSubmitting}
-               className="h-12 w-full font-black uppercase tracking-widest text-slate-400 transition-all hover:text-[#0c1424]"
-             >
-               Cancel
-             </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-14 w-full rounded-2xl bg-[#0c1424] text-white font-black uppercase tracking-widest shadow-xl shadow-black/20 transition-all hover:bg-black"
+            >
+              {isSubmitting
+                ? mode === "create"
+                  ? "Creating..."
+                  : "Saving..."
+                : mode === "create"
+                  ? "Create Staff"
+                  : "Save Changes"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="h-12 w-full font-black uppercase tracking-widest text-slate-400 transition-all hover:text-[#0c1424]"
+            >
+              Cancel
+            </button>
           </div>
         </form>
       </div>
