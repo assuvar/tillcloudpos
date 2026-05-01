@@ -4,6 +4,8 @@ export class CreateBillDto {
   orderType?: OrderTypeValue;
   tableNumber?: string;
   tableId?: string;
+  customerName?: string;
+  customerPhone?: string;
 
   // Pickup Details
   pickupName?: string;
@@ -18,6 +20,7 @@ export class CreateBillDto {
   deliveryState?: string;
   deliveryPostcode?: string;
   deliveryNotes?: string;
+  deliveryPaymentMethod?: string;
 }
 
 export class AddBillItemDto {

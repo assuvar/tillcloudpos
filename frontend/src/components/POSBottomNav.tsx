@@ -1,44 +1,73 @@
-import React from 'react';
-import { LayoutGrid, UtensilsCrossed, ClipboardList, HelpCircle } from 'lucide-react';
+import React from "react";
+import {
+  LayoutGrid,
+  UtensilsCrossed,
+  ClipboardList,
+  HelpCircle,
+} from "lucide-react";
 
 interface POSBottomNavProps {
-  activeView: 'orders' | 'tables' | 'menu';
-  onViewChange: (view: 'orders' | 'tables' | 'menu') => void;
+  activeView: "orders" | "tables" | "menu";
+  onViewChange: (view: "orders" | "tables" | "menu") => void;
 }
 
-const POSBottomNav: React.FC<POSBottomNavProps> = ({ activeView, onViewChange }) => {
+const POSBottomNav: React.FC<POSBottomNavProps> = ({
+  activeView,
+  onViewChange,
+}) => {
   return (
     <footer className="h-20 bg-[#0c1424] px-8 text-white shrink-0 border-t border-white/5">
       <div className="flex h-full items-center justify-between">
         <nav className="flex gap-12">
           <button
-            onClick={() => onViewChange('orders')}
+            onClick={() => onViewChange("orders")}
             className={`flex flex-col items-center gap-1.5 transition-colors ${
-              activeView === 'orders' ? 'text-[#5dc7ec]' : 'text-slate-400 hover:text-white'
+              activeView === "orders"
+                ? "text-[#5dc7ec]"
+                : "text-slate-400 hover:text-white"
             }`}
           >
-            <ClipboardList size={22} strokeWidth={activeView === 'orders' ? 2.5 : 2} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Orders</span>
+            <ClipboardList
+              size={22}
+              strokeWidth={activeView === "orders" ? 2.5 : 2}
+            />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Orders
+            </span>
           </button>
 
           <button
-            onClick={() => onViewChange('tables')}
+            onClick={() => onViewChange("tables")}
             className={`flex flex-col items-center gap-1.5 transition-colors ${
-              activeView === 'tables' ? 'text-[#5dc7ec]' : 'text-slate-400 hover:text-white'
+              activeView === "tables"
+                ? "text-[#5dc7ec]"
+                : "text-slate-400 hover:text-white"
             }`}
           >
-            <LayoutGrid size={22} strokeWidth={activeView === 'tables' ? 2.5 : 2} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Tables</span>
+            <LayoutGrid
+              size={22}
+              strokeWidth={activeView === "tables" ? 2.5 : 2}
+            />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Tables
+            </span>
           </button>
 
           <button
-            onClick={() => onViewChange('menu')}
+            onClick={() => onViewChange("menu")}
             className={`flex flex-col items-center gap-1.5 transition-colors ${
-              activeView === 'menu' ? 'text-[#5dc7ec]' : 'text-slate-400 hover:text-white'
+              activeView === "menu"
+                ? "text-[#5dc7ec]"
+                : "text-slate-400 hover:text-white"
             }`}
           >
-            <UtensilsCrossed size={22} strokeWidth={activeView === 'menu' ? 2.5 : 2} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Menu</span>
+            <UtensilsCrossed
+              size={22}
+              strokeWidth={activeView === "menu" ? 2.5 : 2}
+            />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Menu
+            </span>
           </button>
         </nav>
 

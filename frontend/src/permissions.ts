@@ -1,13 +1,15 @@
 export type PermissionMap = Record<string, string[]>;
 
-export const buildPermissionMap = (codes: string[] | null | undefined): PermissionMap => {
+export const buildPermissionMap = (
+  codes: string[] | null | undefined,
+): PermissionMap => {
   const grouped: PermissionMap = {};
   if (!codes || !Array.isArray(codes)) return grouped;
 
   for (const code of codes) {
-    const [module, action] = code.split(':');
+    const [module, action] = code.split(":");
     if (!module || !action) continue;
-    
+
     grouped[module] = grouped[module] || [];
     if (!grouped[module].includes(action)) {
       grouped[module].push(action);
@@ -17,30 +19,30 @@ export const buildPermissionMap = (codes: string[] | null | undefined): Permissi
   return grouped;
 };
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
+export type UserRole = "ADMIN" | "MANAGER" | "CASHIER" | "KITCHEN";
 
 export const ROLE_DEFAULT_CODES: Record<UserRole, string[]> = {
   ADMIN: [], // Handled by backend as full_access
   MANAGER: [
-    'dashboard:view',
-    'pos:view',
-    'pos:create',
-    'pos:edit',
-    'kitchen:view',
-    'menu:view',
-    'menu:create',
-    'menu:edit',
-    'inventory:view',
-    'inventory:edit',
-    'customers:view',
-    'customers:edit',
-    'reports:view',
-    'staff:view',
-    'staff:edit',
-    'settings:view',
+    "dashboard:view",
+    "pos:view",
+    "pos:create",
+    "pos:edit",
+    "kitchen:view",
+    "menu:view",
+    "menu:create",
+    "menu:edit",
+    "inventory:view",
+    "inventory:edit",
+    "customers:view",
+    "customers:edit",
+    "reports:view",
+    "staff:view",
+    "staff:edit",
+    "settings:view",
   ],
-  CASHIER: ['pos:view', 'pos:create', 'customers:view'],
-  KITCHEN: ['kitchen:view', 'kitchen:edit'],
+  CASHIER: ["pos:view", "pos:create", "customers:view"],
+  KITCHEN: ["kitchen:view", "kitchen:edit"],
 };
 
 export const flattenPermissionMap = (
@@ -62,7 +64,7 @@ export const resolveRolePermissionCodes = (
   role: UserRole,
   storedMap?: PermissionMap | null,
 ): string[] => {
-  if (role === 'ADMIN') {
+  if (role === "ADMIN") {
     return []; // Admin typically gets full_access codes from backend
   }
 
@@ -76,95 +78,95 @@ export const resolveRolePermissionCodes = (
 };
 
 export type PermissionGroup =
-  | 'BILLING'
-  | 'PAYMENTS'
-  | 'RECEIPTS'
-  | 'KITCHEN'
-  | 'CUSTOMERS'
-  | 'MENU'
-  | 'INVENTORY'
-  | 'REPORTS'
-  | 'STAFF'
-  | 'SETTINGS';
+  | "BILLING"
+  | "PAYMENTS"
+  | "RECEIPTS"
+  | "KITCHEN"
+  | "CUSTOMERS"
+  | "MENU"
+  | "INVENTORY"
+  | "REPORTS"
+  | "STAFF"
+  | "SETTINGS";
 
 export const FRONTEND_PERMISSIONS = {
-  DASHBOARD_VIEW: 'dashboard:view',
+  DASHBOARD_VIEW: "dashboard:view",
 
-  BILLING_CREATE: 'pos:create',
-  BILLING_VOID: 'pos:delete',
-  BILLING_DISCOUNT: 'pos:edit',
-  BILLING_VIEW_OPEN: 'pos:view',
+  BILLING_CREATE: "pos:create",
+  BILLING_VOID: "pos:delete",
+  BILLING_DISCOUNT: "pos:edit",
+  BILLING_VIEW_OPEN: "pos:view",
 
-  PAYMENTS_CASH: 'pos:edit',
-  PAYMENTS_CARD: 'pos:edit',
-  PAYMENTS_SPLIT: 'pos:edit',
-  PAYMENTS_DELIVERY_PAID: 'pos:edit',
+  PAYMENTS_CASH: "pos:edit",
+  PAYMENTS_CARD: "pos:edit",
+  PAYMENTS_SPLIT: "pos:edit",
+  PAYMENTS_DELIVERY_PAID: "pos:edit",
 
-  RECEIPTS_PRINT: 'pos:view',
-  RECEIPTS_SMS: 'pos:edit',
+  RECEIPTS_PRINT: "pos:view",
+  RECEIPTS_SMS: "pos:edit",
 
-  KITCHEN_SEND: 'kitchen:edit',
-  KITCHEN_VIEW: 'kitchen:view',
-  KITCHEN_MARK_READY: 'kitchen:edit',
-  KITCHEN_BUMP: 'kitchen:edit',
-  KITCHEN_RECALL: 'kitchen:edit',
+  KITCHEN_SEND: "kitchen:edit",
+  KITCHEN_VIEW: "kitchen:view",
+  KITCHEN_MARK_READY: "kitchen:edit",
+  KITCHEN_BUMP: "kitchen:edit",
+  KITCHEN_RECALL: "kitchen:edit",
 
-  CUSTOMERS_LOOKUP: 'customers:view',
-  CUSTOMERS_VIEW_PROFILES: 'customers:view',
-  CUSTOMERS_VIEW_HISTORY: 'customers:view',
-  CUSTOMERS_ADJUST_LOYALTY: 'customers:edit',
+  CUSTOMERS_LOOKUP: "customers:view",
+  CUSTOMERS_VIEW_PROFILES: "customers:view",
+  CUSTOMERS_VIEW_HISTORY: "customers:view",
+  CUSTOMERS_ADJUST_LOYALTY: "customers:edit",
 
-  MENU_ADD_EDIT_ITEMS: 'menu:edit',
-  MENU_DELETE_ITEMS: 'menu:delete',
-  MENU_ADD_EDIT_CATEGORIES: 'menu:edit',
-  MENU_DELETE_CATEGORIES: 'menu:delete',
-  MENU_HIDE_SHOW_ITEMS: 'menu:view',
+  MENU_ADD_EDIT_ITEMS: "menu:edit",
+  MENU_DELETE_ITEMS: "menu:delete",
+  MENU_ADD_EDIT_CATEGORIES: "menu:edit",
+  MENU_DELETE_CATEGORIES: "menu:delete",
+  MENU_HIDE_SHOW_ITEMS: "menu:view",
 
-  INVENTORY_VIEW_STOCK: 'inventory:view',
-  INVENTORY_ADJUST_STOCK: 'inventory:edit',
-  INVENTORY_VIEW_LOW_STOCK: 'inventory:view',
+  INVENTORY_VIEW_STOCK: "inventory:view",
+  INVENTORY_ADJUST_STOCK: "inventory:edit",
+  INVENTORY_VIEW_LOW_STOCK: "inventory:view",
 
-  REPORTS_VIEW: 'reports:view',
-  REPORTS_EXPORT: 'reports:create',
+  REPORTS_VIEW: "reports:view",
+  REPORTS_EXPORT: "reports:create",
 
-  STAFF_INVITE: 'staff:create',
-  STAFF_VIEW: 'staff:view',
-  STAFF_EDIT: 'staff:edit',
-  STAFF_DEACTIVATE: 'staff:edit',
-  STAFF_DELETE: 'staff:delete',
+  STAFF_INVITE: "staff:create",
+  STAFF_VIEW: "staff:view",
+  STAFF_EDIT: "staff:edit",
+  STAFF_DEACTIVATE: "staff:edit",
+  STAFF_DELETE: "staff:delete",
 
-  SETTINGS_VIEW: 'settings:view',
-  SETTINGS_EDIT_PROFILE: 'settings:edit',
-  SETTINGS_EDIT_TAX: 'settings:edit',
-  SETTINGS_EDIT_LOYALTY: 'settings:edit',
-  SETTINGS_TYRO: 'settings:edit',
-  SETTINGS_SMS_CREDITS: 'settings:edit',
-  SETTINGS_TERMINALS: 'settings:edit',
-  SETTINGS_CONFIGURE_PERMISSIONS: 'staff:full_access',
+  SETTINGS_VIEW: "settings:view",
+  SETTINGS_EDIT_PROFILE: "settings:edit",
+  SETTINGS_EDIT_TAX: "settings:edit",
+  SETTINGS_EDIT_LOYALTY: "settings:edit",
+  SETTINGS_TYRO: "settings:edit",
+  SETTINGS_SMS_CREDITS: "settings:edit",
+  SETTINGS_TERMINALS: "settings:edit",
+  SETTINGS_CONFIGURE_PERMISSIONS: "staff:full_access",
 } as const;
 
 export const getLandingPage = (
   _permissions: PermissionMap | string[] | null,
   role?: string,
 ): string => {
-  if (role === 'KITCHEN') {
-    return '/kitchen';
+  if (role === "KITCHEN") {
+    return "/kitchen";
   }
 
-  return '/dashboard';
+  return "/dashboard";
 };
 
 const GROUP_TO_MODULE: Record<PermissionGroup, string> = {
-  BILLING: 'pos',
-  PAYMENTS: 'pos',
-  RECEIPTS: 'pos',
-  KITCHEN: 'kitchen',
-  CUSTOMERS: 'customers',
-  MENU: 'menu',
-  INVENTORY: 'inventory',
-  REPORTS: 'reports',
-  STAFF: 'staff',
-  SETTINGS: 'settings',
+  BILLING: "pos",
+  PAYMENTS: "pos",
+  RECEIPTS: "pos",
+  KITCHEN: "kitchen",
+  CUSTOMERS: "customers",
+  MENU: "menu",
+  INVENTORY: "inventory",
+  REPORTS: "reports",
+  STAFF: "staff",
+  SETTINGS: "settings",
 };
 
 export const hasPermissionCode = (
@@ -172,14 +174,14 @@ export const hasPermissionCode = (
   code: string,
 ): boolean => {
   if (!permissions) return false;
-  
+
   if (Array.isArray(permissions)) {
     if (permissions.includes(code)) return true;
-    const [module] = code.split(':');
+    const [module] = code.split(":");
     return permissions.includes(`${module}:full_access`);
   }
 
-  const [module, action] = code.split(':');
+  const [module, action] = code.split(":");
   if (!module || !action) {
     return false;
   }
@@ -197,12 +199,15 @@ export const canAccess = (
   }
 
   if (Array.isArray(permissions)) {
-    return permissions.includes(`${module}:${action}`) || permissions.includes(`${module}:full_access`);
+    return (
+      permissions.includes(`${module}:${action}`) ||
+      permissions.includes(`${module}:full_access`)
+    );
   }
 
   const modulePermissions = permissions[module] || [];
   return (
-    modulePermissions.includes('full_access') ||
+    modulePermissions.includes("full_access") ||
     modulePermissions.includes(action)
   );
 };
@@ -227,9 +232,13 @@ export const isGroupEnabled = (
 
   // Handle case where permissions are a PermissionMap object
   const actions = permissions[moduleKey] || [];
-  return actions.includes('view') || actions.includes('full_access') || actions.length > 0;
+  return (
+    actions.includes("view") ||
+    actions.includes("full_access") ||
+    actions.length > 0
+  );
 };
 
 export const getPosExitRoute = (role?: string): string => {
-  return role === 'KITCHEN' ? '/kitchen' : '/dashboard';
+  return role === "KITCHEN" ? "/kitchen" : "/dashboard";
 };

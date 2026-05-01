@@ -77,8 +77,8 @@ export class InventoryService {
       dto.conversionRatio,
     );
 
-    if (quantity < 0 || lowStockThreshold < 0) {
-      throw new BadRequestException('Quantity values cannot be negative');
+    if (lowStockThreshold < 0) {
+      throw new BadRequestException('Low stock threshold cannot be negative');
     }
 
     const ingredient = await this.prisma.ingredient.create({
@@ -118,9 +118,7 @@ export class InventoryService {
       };
     }
 
-    if (dto.quantity !== undefined && dto.quantity < 0) {
-      throw new BadRequestException('Quantity cannot be negative');
-    }
+    // Allow negative stock (Requirement: Override constraint)
 
     if (dto.lowStockThreshold !== undefined && dto.lowStockThreshold < 0) {
       throw new BadRequestException('Low stock threshold cannot be negative');
@@ -193,11 +191,7 @@ export class InventoryService {
       nextQuantity = nextQuantity + adjustmentQuantity;
     } else if (dto.mode === 'REMOVE') {
       type = IngredientMovementType.MANUAL_REMOVE;
-      if (adjustmentQuantity > nextQuantity) {
-        throw new BadRequestException(
-          'Cannot remove more stock than available',
-        );
-      }
+      // Allow manual removal beyond zero (Requirement: Override constraint)
       nextQuantity = nextQuantity - adjustmentQuantity;
     } else {
       type = IngredientMovementType.SET_FIXED;

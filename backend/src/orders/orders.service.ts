@@ -70,22 +70,50 @@ export class OrdersService {
       }
 
       // 3. Create new session via BillsService (Requirement 8 - Status Automation)
+      const pickupName =
+        createOrderDto.pickupName ??
+        (createOrderDto.serviceType === 'PICKUP'
+          ? createOrderDto.customerName
+          : undefined);
+      const pickupPhone =
+        createOrderDto.pickupPhone ??
+        (createOrderDto.serviceType === 'PICKUP'
+          ? createOrderDto.customerPhone
+          : undefined);
+
+      const deliveryName =
+        createOrderDto.deliveryName ??
+        (createOrderDto.serviceType === 'DELIVERY'
+          ? createOrderDto.customerName
+          : undefined);
+      const deliveryPhone =
+        createOrderDto.deliveryPhone ??
+        (createOrderDto.serviceType === 'DELIVERY'
+          ? createOrderDto.customerPhone
+          : undefined);
+      const deliveryAddress =
+        createOrderDto.deliveryAddress ??
+        (createOrderDto.serviceType === 'DELIVERY'
+          ? createOrderDto.customerAddress
+          : undefined);
+
       const bill = await this.billsService.createBill(restaurantId, cashierId, {
         orderType: createOrderDto.serviceType as any,
         tableId: createOrderDto.tableId,
         tableNumber: createOrderDto.tableNumber,
-        // Pickup Details
-        pickupName: createOrderDto.pickupName,
-        pickupPhone: createOrderDto.pickupPhone,
+        customerName: createOrderDto.customerName,
+        customerPhone: createOrderDto.customerPhone,
+        pickupName,
+        pickupPhone,
         pickupTime: createOrderDto.pickupTime,
-        // Delivery Details
-        deliveryName: createOrderDto.deliveryName,
-        deliveryPhone: createOrderDto.deliveryPhone,
-        deliveryAddress: createOrderDto.deliveryAddress,
+        deliveryName,
+        deliveryPhone,
+        deliveryAddress,
         deliverySuburb: createOrderDto.deliverySuburb,
         deliveryState: createOrderDto.deliveryState,
         deliveryPostcode: createOrderDto.deliveryPostcode,
         deliveryNotes: createOrderDto.deliveryNotes,
+        deliveryPaymentMethod: createOrderDto.paymentType,
       });
 
       // 4. Add items if provided
@@ -194,6 +222,15 @@ export class OrdersService {
         });
       }
 
+      // KOT TRIGGER: Dine-In and In-Store should only be sent to kitchen AFTER payment
+      if (
+        (updatedBill.orderType === OrderType.DINE_IN ||
+          updatedBill.orderType === OrderType.IN_STORE) &&
+        !updatedBill.kotSentAt
+      ) {
+        await this.billsService.sendToKitchen(updatedBill.id, restaurantId);
+      }
+
       return {
         bill: updatedBill,
       };
@@ -265,7 +302,19 @@ export class OrdersService {
             }
           : null,
         customerName:
-          bill.customer?.name || bill.deliveryName || bill.pickupName || null,
+          bill.customerName ||
+          bill.customer?.name ||
+          bill.deliveryName ||
+          bill.pickupName ||
+          null,
+        customerPhone:
+          bill.customerPhone ||
+          bill.customer?.phone ||
+          bill.deliveryPhone ||
+          bill.pickupPhone ||
+          null,
+        deliveryAddress: bill.deliveryAddress,
+        deliveryPaymentMethod: bill.deliveryPaymentMethod,
         itemCount: bill.items.length,
         createdAt: bill.createdAt,
       };
@@ -381,7 +430,28 @@ export class OrdersService {
       return tx.bill.update({
         where: { id },
         data: {
+          customerName: updateOrderDto.customerName || undefined,
+          customerPhone: updateOrderDto.customerPhone || undefined,
           tableNumber: updateOrderDto.tableNumber || undefined,
+          pickupName: updateOrderDto.pickupName || undefined,
+          pickupPhone: updateOrderDto.pickupPhone || undefined,
+          pickupTime: updateOrderDto.pickupTime || undefined,
+          deliveryName: updateOrderDto.deliveryName || undefined,
+          deliveryPhone: updateOrderDto.deliveryPhone || undefined,
+          deliveryAddress:
+            updateOrderDto.deliveryAddress ||
+            updateOrderDto.customerAddress ||
+            undefined,
+          deliverySuburb: updateOrderDto.deliverySuburb || undefined,
+          deliveryState: updateOrderDto.deliveryState || undefined,
+          deliveryPostcode: updateOrderDto.deliveryPostcode || undefined,
+          deliveryNotes: updateOrderDto.deliveryNotes || undefined,
+          deliveryPaymentMethod:
+            (updateOrderDto.paymentType as any) || undefined,
+        },
+        include: {
+          items: true,
+          customer: true,
         },
       });
     });

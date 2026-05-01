@@ -1,25 +1,25 @@
-import { useState } from 'react';
-import { X, Plus, Minus, Info } from 'lucide-react';
+import { useState } from "react";
+import { X, Plus, Minus, Info } from "lucide-react";
 
 const UNIT_OPTIONS = [
-  { value: 'kg', label: 'Kilograms (kg)' },
-  { value: 'g', label: 'Grams (g)' },
-  { value: 'mg', label: 'Milligrams (mg)' },
-  { value: 'l', label: 'Liters (l)' },
-  { value: 'ml', label: 'Milliliters (ml)' },
-  { value: 'ea', label: 'Each (ea)' },
-  { value: 'pc', label: 'Pieces (pc)' },
-  { value: 'doz', label: 'Dozen (doz)' },
-  { value: 'pack', label: 'Pack (pack)' },
-  { value: 'box', label: 'Box (box)' },
-  { value: 'tray', label: 'Tray (tray)' },
-  { value: 'carton', label: 'Carton (carton)' },
-  { value: 'bottle', label: 'Bottle (bottle)' },
-  { value: 'can', label: 'Can (can)' },
-  { value: 'm', label: 'Meters (m)' },
-  { value: 'cm', label: 'Centimeters (cm)' },
-  { value: 'mm', label: 'Millimeters (mm)' },
-  { value: 'c', label: 'Celsius (C)' },
+  { value: "kg", label: "Kilograms (kg)" },
+  { value: "g", label: "Grams (g)" },
+  { value: "mg", label: "Milligrams (mg)" },
+  { value: "l", label: "Liters (l)" },
+  { value: "ml", label: "Milliliters (ml)" },
+  { value: "ea", label: "Each (ea)" },
+  { value: "pc", label: "Pieces (pc)" },
+  { value: "doz", label: "Dozen (doz)" },
+  { value: "pack", label: "Pack (pack)" },
+  { value: "box", label: "Box (box)" },
+  { value: "tray", label: "Tray (tray)" },
+  { value: "carton", label: "Carton (carton)" },
+  { value: "bottle", label: "Bottle (bottle)" },
+  { value: "can", label: "Can (can)" },
+  { value: "m", label: "Meters (m)" },
+  { value: "cm", label: "Centimeters (cm)" },
+  { value: "mm", label: "Millimeters (mm)" },
+  { value: "c", label: "Celsius (C)" },
 ] as const;
 
 interface NewItemModalProps {
@@ -34,9 +34,13 @@ interface NewItemModalProps {
   }) => void;
 }
 
-export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalProps) {
-  const [name, setName] = useState('');
-  const [unit, setUnit] = useState('ea');
+export default function NewItemModal({
+  isOpen,
+  onClose,
+  onAdd,
+}: NewItemModalProps) {
+  const [name, setName] = useState("");
+  const [unit, setUnit] = useState("ea");
   const [quantity, setQuantity] = useState(0);
   const [lowStockThreshold, setLowStockThreshold] = useState(0);
   const [conversionRatio, setConversionRatio] = useState(1);
@@ -49,10 +53,14 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
         {/* Header */}
         <div className="flex items-start justify-between p-4 pb-0 sm:p-8">
           <div>
-            <h2 className="text-[22px] font-black tracking-tight text-[#0c1424] sm:text-[24px]">New Inventory item</h2>
-            <p className="text-[13px] text-slate-400 font-medium mt-1">New items that adds to the inventory</p>
+            <h2 className="text-[22px] font-black tracking-tight text-[#0c1424] sm:text-[24px]">
+              New Inventory item
+            </h2>
+            <p className="text-[13px] text-slate-400 font-medium mt-1">
+              New items that adds to the inventory
+            </p>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-slate-50 text-slate-400 transition-colors"
           >
@@ -64,10 +72,12 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
         <div className="space-y-6 p-4 sm:p-8">
           {/* Name Field */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Name</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Name
+            </label>
             <div className="h-14 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center px-6">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="bg-transparent w-full text-[15px] font-bold text-[#0c1424] outline-none"
@@ -77,7 +87,9 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
 
           {/* Unit Field */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Unit
+            </label>
             <div className="h-14 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center px-6">
               <select
                 value={unit}
@@ -95,26 +107,30 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
 
           {/* Quantity Field */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Enter Quantity</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Enter Quantity
+            </label>
             <div className="h-14 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center gap-4 pr-2 pl-6">
               <div className="flex-1 flex items-center gap-2">
-                 <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={quantity}
                   onChange={(e) => setQuantity(Number(e.target.value))}
                   className="bg-transparent w-full text-[15px] font-black text-[#0c1424] outline-none"
                 />
-                <span className="text-[13px] font-bold text-slate-400">{unit}</span>
+                <span className="text-[13px] font-bold text-slate-400">
+                  {unit}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
-                <button 
-                  onClick={() => setQuantity(prev => prev + 1)}
+                <button
+                  onClick={() => setQuantity((prev) => prev + 1)}
                   className="h-6 w-8 flex items-center justify-center bg-white border border-slate-100 rounded-lg text-slate-400 hover:text-[#0c1424] shadow-sm transition-all"
                 >
                   <Plus size={12} />
                 </button>
-                <button 
-                  onClick={() => setQuantity(prev => Math.max(0, prev - 1))}
+                <button
+                  onClick={() => setQuantity((prev) => Math.max(0, prev - 1))}
                   className="h-6 w-8 flex items-center justify-center bg-white border border-slate-100 rounded-lg text-slate-400 hover:text-[#0c1424] shadow-sm transition-all"
                 >
                   <Minus size={12} />
@@ -124,7 +140,9 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Low Stock Threshold</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Low Stock Threshold
+            </label>
             <div className="h-14 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center gap-4 px-6">
               <input
                 type="number"
@@ -136,31 +154,38 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Conversion Ratio</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Conversion Ratio
+            </label>
             <div className="h-14 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center gap-4 px-6">
               <input
                 type="number"
                 min="0.0001"
                 step="0.001"
                 value={conversionRatio}
-                onChange={(e) => setConversionRatio(Math.max(0.0001, Number(e.target.value || 1)))}
+                onChange={(e) =>
+                  setConversionRatio(
+                    Math.max(0.0001, Number(e.target.value || 1)),
+                  )
+                }
                 className="bg-transparent w-full text-[15px] font-black text-[#0c1424] outline-none"
               />
             </div>
             <p className="text-[11px] font-medium text-slate-400 leading-relaxed">
-              Use 1 for direct units. Example: if 1 pack contains 12 each, set ratio to 12.
+              Use 1 for direct units. Example: if 1 pack contains 12 each, set
+              ratio to 12.
             </p>
           </div>
 
           {/* Actions */}
           <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
-            <button 
-               onClick={onClose}
-               className="h-14 flex-1 rounded-2xl bg-slate-50 text-[14px] font-black uppercase tracking-widest text-[#0c1424] transition-all hover:bg-slate-100"
+            <button
+              onClick={onClose}
+              className="h-14 flex-1 rounded-2xl bg-slate-50 text-[14px] font-black uppercase tracking-widest text-[#0c1424] transition-all hover:bg-slate-100"
             >
               Cancel
             </button>
-            <button 
+            <button
               onClick={() =>
                 onAdd({
                   name,
@@ -170,7 +195,7 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
                   conversionRatio,
                 })
               }
-               className="h-14 flex-1 rounded-2xl bg-[#0c1424] text-[14px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black"
+              className="h-14 flex-1 rounded-2xl bg-[#0c1424] text-[14px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20 transition-all hover:bg-black"
             >
               Add
             </button>
@@ -183,7 +208,8 @@ export default function NewItemModal({ isOpen, onClose, onAdd }: NewItemModalPro
             <Info size={12} />
           </div>
           <p className="text-[11px] font-medium text-slate-400 leading-relaxed">
-            Quantity values are automatically normalized to base units (g, ml, ea, mm, c) in backend calculations.
+            Quantity values are automatically normalized to base units (g, ml,
+            ea, mm, c) in backend calculations.
           </p>
         </div>
       </div>

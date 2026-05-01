@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import {
   BadgeDollarSign,
   Banknote,
@@ -13,10 +19,10 @@ import {
   X,
   ShieldCheck,
   Loader2,
-} from 'lucide-react';
-import { useAuth } from './context/AuthContext';
-import { usePermissions } from './context/PermissionProvider';
-import api from './services/api';
+} from "lucide-react";
+import { useAuth } from "./context/AuthContext";
+import { usePermissions } from "./context/PermissionProvider";
+import api from "./services/api";
 
 type CatalogAction = {
   key: string;
@@ -64,7 +70,7 @@ const groupIcons: Record<
 const toMessage = (error: any, fallback: string) => {
   const message = error?.response?.data?.message;
   if (Array.isArray(message)) {
-    return message.join(', ');
+    return message.join(", ");
   }
   return message || fallback;
 };
@@ -87,8 +93,12 @@ export default function AccessControlModal({
   const { refreshPermissions: refreshAuthPermissions } = useAuth();
   const { refreshPermissions: refreshLivePermissions } = usePermissions();
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
-  const [savedPermissions, setSavedPermissions] = useState<Record<string, string[]>>({});
-  const [draftPermissions, setDraftPermissions] = useState<Record<string, string[]>>({});
+  const [savedPermissions, setSavedPermissions] = useState<
+    Record<string, string[]>
+  >({});
+  const [draftPermissions, setDraftPermissions] = useState<
+    Record<string, string[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,16 +120,16 @@ export default function AccessControlModal({
       setSuccess(null);
       try {
         const [catalogRes, permissionsRes] = await Promise.all([
-          api.get('/permissions/catalog'),
+          api.get("/permissions/catalog"),
           api.get(`/users/${staffId}/permissions`),
         ]);
-        
+
         setCatalog(catalogRes.data as CatalogResponse);
         const data = permissionsRes.data as StaffPermissionsResponse;
         setSavedPermissions(data.permissions || {});
         setDraftPermissions(data.permissions || {});
       } catch (err: any) {
-        setError(toMessage(err, 'Failed to load access control data'));
+        setError(toMessage(err, "Failed to load access control data"));
       } finally {
         setLoading(false);
       }
@@ -133,23 +143,23 @@ export default function AccessControlModal({
     setError(null);
     setSuccess(null);
     try {
-      console.log(`[Permissions] Saving draft permissions for staff ${staffId}:`, draftPermissions);
+      console.log(
+        `[Permissions] Saving draft permissions for staff ${staffId}:`,
+        draftPermissions,
+      );
       await api.patch(`/users/${staffId}/permissions`, draftPermissions);
       console.log(`[Permissions] Save successful for staff ${staffId}`);
 
       setSavedPermissions(draftPermissions);
-      
+
       // Always refresh permissions to ensure local state is synced
       // If the admin edited their own permissions, this is critical
-      await Promise.all([
-        refreshAuthPermissions(),
-        refreshLivePermissions(),
-      ]);
-      
-      setSuccess('Permissions updated successfully');
+      await Promise.all([refreshAuthPermissions(), refreshLivePermissions()]);
+
+      setSuccess("Permissions updated successfully");
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(toMessage(err, 'Failed to update permissions'));
+      setError(toMessage(err, "Failed to update permissions"));
     } finally {
       setSaving(false);
     }
@@ -163,7 +173,11 @@ export default function AccessControlModal({
     setDraftPermissions(next);
   };
 
-  const toggleGroup = (group: string, allActions: string[], enabled: boolean) => {
+  const toggleGroup = (
+    group: string,
+    allActions: string[],
+    enabled: boolean,
+  ) => {
     updateGroupActions(group, enabled ? allActions : []);
   };
 
@@ -186,16 +200,16 @@ export default function AccessControlModal({
   };
 
   const groupDescriptions: Record<string, string> = {
-    BILLING: 'Manage invoices, subscriptions, and billing history.',
-    PAYMENTS: 'Control checkout process and terminal integrations.',
-    RECEIPTS: 'Customize receipt layouts and digital delivery settings.',
-    KITCHEN: 'Kitchen Display System (KDS) access and routing.',
-    CUSTOMERS: 'Database access and loyalty program management.',
-    MENU: 'Control pricing, items, and seasonal categories.',
-    INVENTORY: 'Stock counting, waste reporting, and supplier POs.',
-    REPORTS: 'Access sensitive sales data and staff performance metrics.',
-    STAFF: 'Manage employee profiles and role assignment.',
-    SETTINGS: 'System-wide configuration and compliance settings.',
+    BILLING: "Manage invoices, subscriptions, and billing history.",
+    PAYMENTS: "Control checkout process and terminal integrations.",
+    RECEIPTS: "Customize receipt layouts and digital delivery settings.",
+    KITCHEN: "Kitchen Display System (KDS) access and routing.",
+    CUSTOMERS: "Database access and loyalty program management.",
+    MENU: "Control pricing, items, and seasonal categories.",
+    INVENTORY: "Stock counting, waste reporting, and supplier POs.",
+    REPORTS: "Access sensitive sales data and staff performance metrics.",
+    STAFF: "Manage employee profiles and role assignment.",
+    SETTINGS: "System-wide configuration and compliance settings.",
   };
 
   if (!isOpen) return null;
@@ -210,16 +224,19 @@ export default function AccessControlModal({
               <ShieldCheck size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-[#0c1424]">Access Control Panel</h2>
+              <h2 className="text-xl font-black text-[#0c1424]">
+                Access Control Panel
+              </h2>
               <p className="text-[13px] font-medium text-slate-500">
-                Managing permissions for <span className="font-bold text-[#0c1424]">{staffName}</span> 
+                Managing permissions for{" "}
+                <span className="font-bold text-[#0c1424]">{staffName}</span>
                 <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase text-slate-400">
                   {staffRole}
                 </span>
               </p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:bg-slate-50 hover:text-[#0c1424] transition-colors"
           >
@@ -243,7 +260,9 @@ export default function AccessControlModal({
           {loading ? (
             <div className="flex h-64 flex-col items-center justify-center gap-4">
               <Loader2 className="h-8 w-8 animate-spin text-[#0c1424]" />
-              <p className="text-sm font-bold text-slate-400">Loading catalog and permissions...</p>
+              <p className="text-sm font-bold text-slate-400">
+                Loading catalog and permissions...
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -260,7 +279,9 @@ export default function AccessControlModal({
                     key={groupKey}
                     icon={<Icon size={18} />}
                     title={group.label}
-                    description={group.description || groupDescriptions[groupKey] || ''}
+                    description={
+                      group.description || groupDescriptions[groupKey] || ""
+                    }
                     actions={group.actions}
                     selected={selected}
                     groupOn={groupOn}
@@ -292,7 +313,7 @@ export default function AccessControlModal({
                 You have unsaved changes
               </span>
             ) : (
-              'Changes saved'
+              "Changes saved"
             )}
           </p>
           <div className="flex items-center gap-4">
@@ -311,7 +332,7 @@ export default function AccessControlModal({
               className="h-12 px-8 rounded-2xl bg-[#0c1424] text-white text-[12px] font-black uppercase tracking-widest shadow-lg shadow-black/20 hover:bg-black transition-all disabled:opacity-40 flex items-center gap-2"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              {saving ? 'Updating...' : 'Save Permissions'}
+              {saving ? "Updating..." : "Save Permissions"}
             </button>
           </div>
         </div>
@@ -357,10 +378,10 @@ function PermissionGroupCard(props: {
           type="button"
           onClick={() => onToggleGroup(!isGroupEnabled)}
           disabled={disabled}
-          className={`relative inline-flex h-7 w-12 rounded-full transition-all ${groupPartial ? 'bg-amber-400' : isGroupEnabled ? 'bg-[#0c1424]' : 'bg-slate-200'} disabled:opacity-50`}
+          className={`relative inline-flex h-7 w-12 rounded-full transition-all ${groupPartial ? "bg-amber-400" : isGroupEnabled ? "bg-[#0c1424]" : "bg-slate-200"} disabled:opacity-50`}
         >
           <span
-            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform mt-1 ${isGroupEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform mt-1 ${isGroupEnabled ? "translate-x-6" : "translate-x-1"}`}
           />
           {groupPartial && (
             <span className="absolute left-1/2 top-1/2 h-[2px] w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-900/40" />
@@ -375,19 +396,23 @@ function PermissionGroupCard(props: {
         </p>
       </div>
 
-      <div className={`space-y-3 pt-4 border-t border-slate-50 transition-opacity ${!isGroupEnabled ? 'opacity-40' : 'opacity-100'}`}>
+      <div
+        className={`space-y-3 pt-4 border-t border-slate-50 transition-opacity ${!isGroupEnabled ? "opacity-40" : "opacity-100"}`}
+      >
         {actions.map((action) => {
           const checked = selected.includes(action.key);
           return (
-            <label 
-              key={action.key} 
-              className={`flex items-center gap-3 text-[13px] font-bold p-2 rounded-xl transition-colors ${checked ? 'text-[#0c1424] bg-slate-50' : 'text-slate-400 hover:bg-slate-50/50'} cursor-pointer`}
+            <label
+              key={action.key}
+              className={`flex items-center gap-3 text-[13px] font-bold p-2 rounded-xl transition-colors ${checked ? "text-[#0c1424] bg-slate-50" : "text-slate-400 hover:bg-slate-50/50"} cursor-pointer`}
             >
               <input
                 type="checkbox"
                 checked={checked}
                 disabled={!isGroupEnabled || disabled}
-                onChange={(event) => onToggleAction(action.key, event.target.checked)}
+                onChange={(event) =>
+                  onToggleAction(action.key, event.target.checked)
+                }
                 className="h-4 w-4 rounded border-slate-300 text-[#0c1424] focus:ring-[#0c1424]"
               />
               <span>{action.label}</span>

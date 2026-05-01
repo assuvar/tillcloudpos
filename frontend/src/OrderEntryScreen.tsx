@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CheckCircle2,
   CreditCard,
@@ -11,14 +11,15 @@ import {
   ShoppingBag,
   Trash2,
   X,
-} from 'lucide-react';
-import CustomerModal from './components/CustomerModal';
-import LoyaltyModal from './components/LoyaltyModal';
-import { useAuth } from './context/AuthContext';
-import { usePosCart } from './context/PosCartContext';
-import { FRONTEND_PERMISSIONS } from './permissions';
-import api from './services/api';
-import { ALLOWED_SERVICE_MODELS, type ServiceModel } from './serviceModels';
+} from "lucide-react";
+import CustomerModal from "./components/CustomerModal";
+import LoyaltyModal from "./components/LoyaltyModal";
+import CustomerDetailsForm from "./components/CustomerDetailsForm";
+import { useAuth } from "./context/AuthContext";
+import { usePosCart } from "./context/PosCartContext";
+import { FRONTEND_PERMISSIONS } from "./permissions";
+import api from "./services/api";
+import { ALLOWED_SERVICE_MODELS, type ServiceModel } from "./serviceModels";
 
 interface CustomerData {
   name: string;
@@ -29,11 +30,16 @@ interface CustomerData {
 
 type PosOrderType = ServiceModel;
 
-const ORDER_TYPES: PosOrderType[] = ['DINE_IN', 'PICKUP', 'DELIVERY', 'IN_STORE'];
+const ORDER_TYPES: PosOrderType[] = [
+  "DINE_IN",
+  "PICKUP",
+  "DELIVERY",
+  "IN_STORE",
+];
 
 const getOrderTypeLabel = (value: PosOrderType) =>
   value
-    .replace(/_/g, ' ')
+    .replace(/_/g, " ")
     .toLowerCase()
     .replace(/\b\w/g, (char: string) => char.toUpperCase());
 
@@ -44,14 +50,16 @@ export default function OrderEntryScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, hasPermission } = useAuth();
-  const billId = searchParams.get('billId') || '';
-  const orderTypeParam = searchParams.get('type') || '';
-  const orderType: PosOrderType = ORDER_TYPES.includes(orderTypeParam as PosOrderType)
+  const billId = searchParams.get("billId") || "";
+  const orderTypeParam = searchParams.get("type") || "";
+  const orderType: PosOrderType = ORDER_TYPES.includes(
+    orderTypeParam as PosOrderType,
+  )
     ? (orderTypeParam as PosOrderType)
-    : 'DINE_IN';
-  const orderDetail = searchParams.get('detail') || '';
-  const tableId = searchParams.get('tableId') || '';
-  const tableNumberParam = searchParams.get('tableNumber') || '';
+    : "DINE_IN";
+  const orderDetail = searchParams.get("detail") || "";
+  const tableId = searchParams.get("tableId") || "";
+  const tableNumberParam = searchParams.get("tableNumber") || "";
 
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
@@ -71,19 +79,25 @@ export default function OrderEntryScreen() {
     activeBill,
     createBillSession,
     clearBill,
+    updateBillDetails,
   } = usePosCart();
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
   const [loyaltyPointsUsed, setLoyaltyPointsUsed] = useState(0);
-  const [toastMessage, setToastMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState("");
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "PAY" | "KITCHEN";
+    shouldCheckout?: boolean;
+  } | null>(null);
   const [isSendingToKitchen, setIsSendingToKitchen] = useState(false);
-  const [enabledServiceModels, setEnabledServiceModels] = useState<PosOrderType[]>([
-    ...ALLOWED_SERVICE_MODELS,
-  ]);
+  const [enabledServiceModels, setEnabledServiceModels] = useState<
+    PosOrderType[]
+  >([...ALLOWED_SERVICE_MODELS]);
 
   const canSendToKitchen = hasPermission(FRONTEND_PERMISSIONS.KITCHEN_SEND);
 
@@ -93,22 +107,25 @@ export default function OrderEntryScreen() {
       return;
     }
 
-    if (selectedCategoryId && !categories.some((category) => category.id === selectedCategoryId)) {
-      setSelectedCategoryId(categories[0]?.id || '');
+    if (
+      selectedCategoryId &&
+      !categories.some((category) => category.id === selectedCategoryId)
+    ) {
+      setSelectedCategoryId(categories[0]?.id || "");
     }
   }, [categories, selectedCategoryId]);
 
   useEffect(() => {
     const loadRestaurantServiceModels = async () => {
       try {
-        const response = await api.get('/restaurant');
+        const response = await api.get("/restaurant");
         const models = Array.isArray(response.data?.serviceModels)
           ? response.data.serviceModels.filter(
               (value: string): value is PosOrderType => isPosOrderType(value),
             )
           : [];
 
-        setEnabledServiceModels(models.length > 0 ? models : ['DINE_IN']);
+        setEnabledServiceModels(models.length > 0 ? models : ["DINE_IN"]);
       } catch {
         setEnabledServiceModels([...ALLOWED_SERVICE_MODELS]);
       }
@@ -119,9 +136,14 @@ export default function OrderEntryScreen() {
 
   const effectiveOrderType = enabledServiceModels.includes(orderType)
     ? orderType
-    : enabledServiceModels[0] || 'DINE_IN';
+    : enabledServiceModels[0] || "DINE_IN";
 
   const isCreatingRef = useRef(false);
+  const activeBillRef = useRef(activeBill);
+  useEffect(() => {
+    activeBillRef.current = activeBill;
+  }, [activeBill]);
+
   const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -132,22 +154,28 @@ export default function OrderEntryScreen() {
       return;
     }
 
-    if (!activeBill && !isLoading && !isCreatingRef.current && !sessionError && (tableId || orderTypeParam)) {
+    if (
+      !activeBill &&
+      !isLoading &&
+      !isCreatingRef.current &&
+      !sessionError &&
+      (tableId || orderTypeParam)
+    ) {
       const startSession = async () => {
         isCreatingRef.current = true;
         setIsCreatingSession(true);
         try {
-          await createBillSession(
-            orderType, 
-            {
-              tableId: tableId || null,
-              customer: orderDetail || tableNumberParam || null
-            }
-          );
+          await createBillSession(orderType, {
+            tableId: tableId || null,
+            customer: orderDetail || tableNumberParam || null,
+          });
         } catch (err: any) {
-          const msg = err?.response?.data?.message || err?.message || 'Failed to start session';
+          const msg =
+            err?.response?.data?.message ||
+            err?.message ||
+            "Failed to start session";
           console.error("Failed to start session:", msg);
-          setSessionError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+          setSessionError(typeof msg === "string" ? msg : JSON.stringify(msg));
         } finally {
           isCreatingRef.current = false;
           setIsCreatingSession(false);
@@ -155,17 +183,45 @@ export default function OrderEntryScreen() {
       };
       void startSession();
     }
-  }, [billId, tableId, tableNumberParam, orderType, orderDetail, activeBill?.id, isLoading]);
+  }, [
+    billId,
+    tableId,
+    tableNumberParam,
+    orderType,
+    orderDetail,
+    activeBill?.id,
+    isLoading,
+  ]);
 
   useEffect(() => {
-    if (!activeBill && !isLoading && !billId && !tableId && !orderTypeParam && !isCreatingSession) {
-      navigate('/pos');
+    if (
+      !activeBill &&
+      !isLoading &&
+      !billId &&
+      !tableId &&
+      !orderTypeParam &&
+      !isCreatingSession
+    ) {
+      navigate("/pos");
     }
-  }, [activeBill, isLoading, billId, tableId, orderTypeParam, isCreatingSession, navigate]);
+  }, [
+    activeBill,
+    isLoading,
+    billId,
+    tableId,
+    orderTypeParam,
+    isCreatingSession,
+    navigate,
+  ]);
 
-  const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+  const selectedCategory = categories.find(
+    (category) => category.id === selectedCategoryId,
+  );
   const visibleItems = useMemo(
-    () => menuItems.filter((item) => !selectedCategoryId || item.categoryId === selectedCategoryId),
+    () =>
+      menuItems.filter(
+        (item) => !selectedCategoryId || item.categoryId === selectedCategoryId,
+      ),
     [menuItems, selectedCategoryId],
   );
 
@@ -174,14 +230,15 @@ export default function OrderEntryScreen() {
   const taxAmount = discountedSubtotal * 0.08;
   const totalDue = discountedSubtotal + taxAmount;
 
-  const formatCurrency = (value: number) => new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
-  }).format(value);
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-AU", {
+      style: "currency",
+      currency: "AUD",
+    }).format(value);
 
   const showToast = (message: string) => {
     setToastMessage(message);
-    window.setTimeout(() => setToastMessage(''), 3500);
+    window.setTimeout(() => setToastMessage(""), 3500);
   };
 
   const handleRetryLoad = async () => {
@@ -204,19 +261,82 @@ export default function OrderEntryScreen() {
   };
 
   const handleSkipLoyalty = () => {
-    setLoyaltyDiscount(0);
     setLoyaltyPointsUsed(0);
     setShowLoyaltyModal(false);
   };
 
+  // Resume pending actions after customer data update
+  useEffect(() => {
+    if (pendingAction && !showCustomerForm && isCustomerDataComplete()) {
+      if (pendingAction.type === "PAY") {
+        setPendingAction(null);
+        handlePay();
+      } else if (pendingAction.type === "KITCHEN") {
+        const shouldCheckout = pendingAction.shouldCheckout ?? false;
+        setPendingAction(null);
+        handleSendToKitchen(shouldCheckout);
+      }
+    }
+  }, [activeBill, pendingAction, showCustomerForm]);
+
+  const isCustomerDataComplete = () => {
+    const bill = activeBillRef.current;
+    const hasBasic =
+      (bill?.customerName ||
+        bill?.pickupName ||
+        bill?.deliveryName ||
+        customer?.name) &&
+      (bill?.customerPhone ||
+        bill?.pickupPhone ||
+        bill?.deliveryPhone ||
+        customer?.phone);
+
+    if (effectiveOrderType === "DELIVERY") {
+      return hasBasic && bill?.deliveryAddress;
+    }
+    return hasBasic;
+  };
+
+  const handleCustomerFormSubmit = async (data: any) => {
+    try {
+      await updateBillDetails({
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        customerAddress: data.customerAddress,
+        pickupName:
+          effectiveOrderType === "PICKUP" ? data.customerName : undefined,
+        pickupPhone:
+          effectiveOrderType === "PICKUP" ? data.customerPhone : undefined,
+        deliveryName:
+          effectiveOrderType === "DELIVERY" ? data.customerName : undefined,
+        deliveryPhone:
+          effectiveOrderType === "DELIVERY" ? data.customerPhone : undefined,
+        deliveryAddress:
+          effectiveOrderType === "DELIVERY" ? data.customerAddress : undefined,
+        paymentType:
+          effectiveOrderType === "DELIVERY" ? data.paymentType : undefined,
+      });
+      setShowCustomerForm(false);
+
+      // Show success feedback AFTER modal starts closing to avoid blur overlap
+      setTimeout(() => {
+        showToast("Customer details added successfully");
+      }, 100);
+
+      // Auto-resume is handled by useEffect to avoid stale closures
+    } catch (err: any) {
+      showToast(err.message || "Failed to update details");
+    }
+  };
+
   const handleItemClick = async (item: any) => {
-    if (!item.isActive || item.isOutOfStock || !activeBill) {
+    if (!item.isActive || !activeBill) {
       return;
     }
 
     const added = await addItemToBill(item);
     if (!added) {
-      showToast(error || 'Unable to add item to this bill');
+      showToast(error || "Unable to add item to this bill");
       return;
     }
 
@@ -228,19 +348,38 @@ export default function OrderEntryScreen() {
       return;
     }
 
+    if (!isCustomerDataComplete()) {
+      setPendingAction({
+        type: "KITCHEN",
+        shouldCheckout: shouldNavigateToCheckout,
+      });
+      setShowCustomerForm(true);
+      showToast("Please complete customer details first");
+      return;
+    }
+
+    // Strict Rule: Dine-In and In-Store can only be sent to kitchen AFTER payment
+    if (
+      (effectiveOrderType === "DINE_IN" || effectiveOrderType === "IN_STORE") &&
+      !shouldNavigateToCheckout
+    ) {
+      showToast("Dine-In/In-Store orders are sent to kitchen after payment");
+      return;
+    }
+
     try {
       setIsSendingToKitchen(true);
       const result = await sendToKitchen();
       if (result.success) {
-        showToast('Order saved and sent to kitchen');
+        showToast("Order saved and sent to kitchen");
         if (shouldNavigateToCheckout) {
-          navigate(`/checkout?billId=${result.billId || activeBill?.id || ''}`);
+          navigate(`/checkout?billId=${result.billId || activeBill?.id || ""}`);
         } else {
           clearBill();
-          navigate('/pos/tables');
+          navigate("/pos/tables");
         }
       } else {
-        showToast(result.error || 'Failed to send to kitchen');
+        showToast(result.error || "Failed to send to kitchen");
       }
     } finally {
       setIsSendingToKitchen(false);
@@ -248,7 +387,15 @@ export default function OrderEntryScreen() {
   };
 
   const handlePay = () => {
-    navigate('/checkout', {
+    // Re-check using latest ref data
+    if (!isCustomerDataComplete()) {
+      setPendingAction({ type: "PAY" });
+      setShowCustomerForm(true);
+      showToast("Please complete customer details first");
+      return;
+    }
+
+    navigate("/checkout", {
       state: {
         billId: activeBill?.id,
         billItems,
@@ -270,10 +417,10 @@ export default function OrderEntryScreen() {
         <section className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-6">
-              <button 
+              <button
                 onClick={() => {
                   clearBill();
-                  navigate('/pos');
+                  navigate("/pos");
                 }}
                 className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100"
                 title="Close Order"
@@ -281,8 +428,12 @@ export default function OrderEntryScreen() {
                 <X size={24} />
               </button>
               <div>
-                <h3 className="text-2xl font-black tracking-tight text-[#0c1424]">{selectedCategory?.name || 'Menu'}</h3>
-                <p className="text-sm font-medium text-slate-400">{visibleItems.length} items available</p>
+                <h3 className="text-2xl font-black tracking-tight text-[#0c1424]">
+                  {selectedCategory?.name || "Menu"}
+                </h3>
+                <p className="text-sm font-medium text-slate-400">
+                  {visibleItems.length} items available
+                </p>
               </div>
             </div>
             {sessionError ? (
@@ -291,7 +442,7 @@ export default function OrderEntryScreen() {
                   {sessionError}
                 </div>
                 <button
-                  onClick={() => navigate('/pos')}
+                  onClick={() => navigate("/pos")}
                   className="rounded-full bg-[#0c1424] px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:bg-black"
                 >
                   Go Back to Dashboard
@@ -312,13 +463,17 @@ export default function OrderEntryScreen() {
             <div className="flex flex-1 items-center justify-center rounded-[32px] border border-slate-100 bg-white">
               <div className="text-center">
                 <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-100 border-t-[#0c1424]" />
-                <p className="mt-4 text-sm font-bold text-slate-500">Loading live menu data...</p>
+                <p className="mt-4 text-sm font-bold text-slate-500">
+                  Loading live menu data...
+                </p>
               </div>
             </div>
           ) : error ? (
             <div className="flex-1 rounded-[32px] border border-rose-100 bg-rose-50 p-8">
               <div className="max-w-md">
-                <div className="text-sm font-black uppercase tracking-widest text-rose-600">Menu unavailable</div>
+                <div className="text-sm font-black uppercase tracking-widest text-rose-600">
+                  Menu unavailable
+                </div>
                 <p className="mt-3 text-sm text-rose-700">{error}</p>
                 <button
                   type="button"
@@ -334,29 +489,42 @@ export default function OrderEntryScreen() {
               {visibleItems.length === 0 ? (
                 <div className="col-span-full rounded-[32px] border border-dashed border-slate-200 bg-white p-10 text-center">
                   <ShoppingBag size={48} className="mx-auto text-slate-300" />
-                  <p className="mt-4 text-lg font-black text-[#0c1424]">No items available</p>
-                  <p className="mt-2 text-sm text-slate-500">Add items in the Admin Dashboard and refresh to see them here.</p>
+                  <p className="mt-4 text-lg font-black text-[#0c1424]">
+                    No items available
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Add items in the Admin Dashboard and refresh to see them
+                    here.
+                  </p>
                 </div>
               ) : (
                 visibleItems.map((item) => {
-                  const unavailable = !item.isActive || item.isOutOfStock;
+                  const unavailable = !item.isActive;
 
                   return (
                     <button
                       key={item.id}
                       onClick={() => void handleItemClick(item)}
                       disabled={unavailable}
-                      className={`group relative overflow-hidden rounded-[32px] border p-6 text-left transition-all ${unavailable ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-60 grayscale' : 'border-slate-100 bg-white hover:-translate-y-1 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/5'}`}
+                      className={`group relative overflow-hidden rounded-[32px] border p-6 text-left transition-all ${unavailable ? "cursor-not-allowed border-slate-100 bg-slate-50 opacity-60 grayscale" : "border-slate-100 bg-white hover:-translate-y-1 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/5"}`}
                     >
                       {item.image ? (
                         <div className="absolute inset-x-0 top-0 h-24">
-                          <img src={item.image} alt={item.name} className="h-full w-full object-cover opacity-90" />
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="h-full w-full object-cover opacity-90"
+                          />
                         </div>
                       ) : null}
 
-                      <div className={`z-10 flex h-48 flex-col justify-between ${item.image ? 'pt-12' : ''}`}>
+                      <div
+                        className={`z-10 flex h-48 flex-col justify-between ${item.image ? "pt-12" : ""}`}
+                      >
                         <div className="flex items-start justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.categoryName}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            {item.categoryName}
+                          </span>
                           {!unavailable ? (
                             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 opacity-0 transition-all group-hover:opacity-100">
                               <Plus size={16} />
@@ -364,12 +532,20 @@ export default function OrderEntryScreen() {
                           ) : null}
                         </div>
                         <div>
-                          <h4 className="mb-1 text-lg font-black text-[#0c1424] leading-tight">{item.name}</h4>
-                          <p className="line-clamp-2 text-xs font-bold text-slate-400">{item.description}</p>
+                          <h4 className="mb-1 text-lg font-black text-[#0c1424] leading-tight">
+                            {item.name}
+                          </h4>
+                          <p className="line-clamp-2 text-xs font-bold text-slate-400">
+                            {item.description}
+                          </p>
                         </div>
                         <div className="mt-4 flex items-end justify-between">
-                          <div className="text-xl font-black text-sky-600">{formatCurrency(item.price)}</div>
-                          <div className="text-[10px] font-black uppercase text-slate-400">Live menu</div>
+                          <div className="text-xl font-black text-sky-600">
+                            {formatCurrency(item.price)}
+                          </div>
+                          <div className="text-[10px] font-black uppercase text-slate-400">
+                            Live menu
+                          </div>
                         </div>
                       </div>
                     </button>
@@ -381,7 +557,9 @@ export default function OrderEntryScreen() {
         </section>
 
         <aside className="custom-scrollbar min-h-0 w-48 shrink-0 overflow-y-auto rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
-          <h3 className="mb-6 px-1 text-lg font-black tracking-tight text-[#0c1424]">Categories</h3>
+          <h3 className="mb-6 px-1 text-lg font-black tracking-tight text-[#0c1424]">
+            Categories
+          </h3>
           {categories.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs font-medium text-slate-500">
               No items available.
@@ -392,10 +570,14 @@ export default function OrderEntryScreen() {
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategoryId(category.id)}
-                  className={`flex w-full flex-col items-center gap-1 rounded-2xl p-4 transition-all ${selectedCategoryId === category.id ? 'border border-sky-100 bg-[#f0f9ff] text-[#0c1424]' : 'text-slate-400 hover:bg-slate-50'}`}
+                  className={`flex w-full flex-col items-center gap-1 rounded-2xl p-4 transition-all ${selectedCategoryId === category.id ? "border border-sky-100 bg-[#f0f9ff] text-[#0c1424]" : "text-slate-400 hover:bg-slate-50"}`}
                 >
-                  <div className="text-center text-xs font-black uppercase tracking-widest leading-none">{category.name}</div>
-                  <div className="text-[10px] font-bold text-[#5dc7ec]">{category.items.length} ITEMS</div>
+                  <div className="text-center text-xs font-black uppercase tracking-widest leading-none">
+                    {category.name}
+                  </div>
+                  <div className="text-[10px] font-bold text-[#5dc7ec]">
+                    {category.items.length} ITEMS
+                  </div>
                 </button>
               ))}
             </div>
@@ -408,44 +590,87 @@ export default function OrderEntryScreen() {
               <div>
                 <h2 className="flex items-center gap-3 text-2xl font-black capitalize text-[#0c1424]">
                   {getOrderTypeLabel(effectiveOrderType)}
-                  {activeBill?.tableNumber ? ` • Table ${activeBill.tableNumber}` : ''}
-                  {activeBill?.pickupName ? ` • ${activeBill.pickupName}` : ''}
-                  {activeBill?.deliveryName ? ` • ${activeBill.deliveryName}` : ''}
+                  {activeBill?.tableNumber
+                    ? ` • Table ${activeBill.tableNumber}`
+                    : ""}
+                  {activeBill?.pickupName ? ` • ${activeBill.pickupName}` : ""}
+                  {activeBill?.deliveryName
+                    ? ` • ${activeBill.deliveryName}`
+                    : ""}
                 </h2>
                 <div className="mt-1 flex flex-col gap-1">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-slate-400">Order #{activeBill?.orderNumber?.toString().padStart(3, '0') || '---'}</span>
+                    <span className="text-xs font-bold text-slate-400">
+                      Order #
+                      {activeBill?.orderNumber?.toString().padStart(3, "0") ||
+                        "---"}
+                    </span>
                     <div className="h-1 w-1 rounded-full bg-slate-200" />
-                    <span className="text-xs font-bold text-slate-400">{customer?.name || activeBill?.deliveryName || activeBill?.pickupName || user?.fullName || 'Cashier'}</span>
+                    <span className="text-xs font-bold text-slate-400">
+                      {customer?.name ||
+                        activeBill?.deliveryName ||
+                        activeBill?.pickupName ||
+                        user?.fullName ||
+                        "Cashier"}
+                    </span>
                   </div>
                   {activeBill?.deliveryAddress && (
                     <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
                       <MapPin size={12} />
-                      <span className="truncate max-w-[300px]">{activeBill.deliveryAddress}</span>
+                      <span className="truncate max-w-[300px]">
+                        {activeBill.deliveryAddress}
+                      </span>
                     </div>
                   )}
                 </div>
               </div>
-              <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${activeBill?.status === 'KOT_SENT' ? 'border-blue-100 bg-blue-50 text-blue-600' : activeBill?.status === 'AWAITING_PAYMENT' ? 'border-emerald-100 bg-emerald-50 text-emerald-600' : 'border-amber-100 bg-amber-50 text-amber-500'}`}>
+              <div
+                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${activeBill?.status === "KOT_SENT" ? "border-blue-100 bg-blue-50 text-blue-600" : activeBill?.status === "AWAITING_PAYMENT" ? "border-emerald-100 bg-emerald-50 text-emerald-600" : "border-amber-100 bg-amber-50 text-amber-500"}`}
+              >
                 <CheckCircle2 size={12} strokeWidth={3} />
-                {activeBill?.status === 'KOT_SENT' ? 'IN PROGRESS' : activeBill?.status === 'AWAITING_PAYMENT' ? 'BILLING' : 'CREATED'}
+                {activeBill?.status === "KOT_SENT"
+                  ? "IN PROGRESS"
+                  : activeBill?.status === "AWAITING_PAYMENT"
+                    ? "BILLING"
+                    : "CREATED"}
               </div>
             </div>
 
-            {customer ? (
+            {customer || isCustomerDataComplete() ? (
               <div className="flex items-center gap-4 rounded-2xl border border-slate-50 bg-slate-50/50 p-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0c1424] font-black text-white text-sm">
-                  {customer.name.split(' ').map((value) => value[0]).join('')}
+                  {(customer?.name || activeBill?.customerName || "C")
+                    .split(" ")
+                    .map((value) => value[0])
+                    .join("")}
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-black text-[#0c1424]">{customer.name}</div>
-                  <div className="text-xs font-bold text-slate-400">{customer.phone}</div>
+                  <div className="text-sm font-black text-[#0c1424]">
+                    {customer?.name ||
+                      activeBill?.customerName ||
+                      activeBill?.pickupName ||
+                      activeBill?.deliveryName}
+                  </div>
+                  <div className="text-xs font-bold text-slate-400">
+                    {customer?.phone ||
+                      activeBill?.pickupPhone ||
+                      activeBill?.deliveryPhone}
+                  </div>
                 </div>
+                <button
+                  onClick={() => setShowCustomerForm(true)}
+                  className="text-[10px] font-black text-sky-600 uppercase tracking-widest hover:underline"
+                >
+                  Edit
+                </button>
               </div>
             ) : (
-              <button onClick={() => setShowCustomerModal(true)} className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#0c1424] font-black text-white text-xs uppercase tracking-widest shadow-xl shadow-black/15 transition-all active:scale-95 hover:bg-black">
+              <button
+                onClick={() => setShowCustomerForm(true)}
+                className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#0c1424] font-black text-white text-xs uppercase tracking-widest shadow-xl shadow-black/15 transition-all active:scale-95 hover:bg-black"
+              >
                 <Plus size={18} />
-                Add Customer
+                Add Customer Details *
               </button>
             )}
           </div>
@@ -454,30 +679,45 @@ export default function OrderEntryScreen() {
             {billItems.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center opacity-20">
                 <ShoppingBag size={42} className="mb-4" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#0c1424]">Bag is Empty</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#0c1424]">
+                  Bag is Empty
+                </p>
               </div>
             ) : (
               <>
                 {billItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-4 rounded-2xl border border-transparent px-2 py-1.5 transition-colors hover:border-slate-100 hover:bg-slate-50/60">
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-4 rounded-2xl border border-transparent px-2 py-1.5 transition-colors hover:border-slate-100 hover:bg-slate-50/60"
+                  >
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg font-black text-[#0c1424]">{item.quantity} × {item.name}</span>
+                        <span className="text-lg font-black text-[#0c1424]">
+                          {item.quantity} × {item.name}
+                        </span>
                       </div>
-                      <div className="mt-1 text-xs font-bold text-slate-400">{item.categoryName}</div>
+                      <div className="mt-1 text-xs font-bold text-slate-400">
+                        {item.categoryName}
+                      </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <div className="text-lg font-black text-[#0c1424] transition-colors duration-200">{formatCurrency(item.lineTotal)}</div>
+                      <div className="text-lg font-black text-[#0c1424] transition-colors duration-200">
+                        {formatCurrency(item.lineTotal)}
+                      </div>
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => void updateQuantity(item.id, 'decrease')}
+                          onClick={() =>
+                            void updateQuantity(item.id, "decrease")
+                          }
                           className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-base font-black text-slate-600 shadow-sm transition-all duration-150 active:scale-95 hover:bg-slate-50"
                           aria-label={`Decrease ${item.name}`}
                         >
                           –
                         </button>
                         <button
-                          onClick={() => void updateQuantity(item.id, 'increase')}
+                          onClick={() =>
+                            void updateQuantity(item.id, "increase")
+                          }
                           className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-[#0c1424] text-base font-black text-white shadow-sm transition-all duration-150 active:scale-95 hover:bg-black"
                           aria-label={`Increase ${item.name}`}
                         >
@@ -498,9 +738,13 @@ export default function OrderEntryScreen() {
                 {loyaltyDiscount > 0 ? (
                   <div className="flex items-center justify-between rounded-2xl border border-emerald-50 bg-[#f0fdf4] px-5 py-3">
                     <div className="flex items-center gap-2 text-emerald-600">
-                      <span className="text-sm font-black uppercase tracking-wider">Loyalty Reward (10%)</span>
+                      <span className="text-sm font-black uppercase tracking-wider">
+                        Loyalty Reward (10%)
+                      </span>
                     </div>
-                    <span className="text-sm font-black text-emerald-600">-{formatCurrency(loyaltyDiscount)}</span>
+                    <span className="text-sm font-black text-emerald-600">
+                      -{formatCurrency(loyaltyDiscount)}
+                    </span>
                   </div>
                 ) : null}
               </>
@@ -525,8 +769,12 @@ export default function OrderEntryScreen() {
               </div>
               <div className="mt-4 flex items-end justify-between px-1">
                 <div>
-                  <span className="mb-1 block text-[11px] font-black uppercase tracking-widest text-slate-400">Total Due</span>
-                  <span className="text-4xl font-[950] tracking-tight text-[#0c1424]">{formatCurrency(totalDue)}</span>
+                  <span className="mb-1 block text-[11px] font-black uppercase tracking-widest text-slate-400">
+                    Total Due
+                  </span>
+                  <span className="text-4xl font-[950] tracking-tight text-[#0c1424]">
+                    {formatCurrency(totalDue)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -536,7 +784,11 @@ export default function OrderEntryScreen() {
                 <Send size={18} />
                 Split Bill
               </button>
-              <button onClick={handlePay} className="flex h-12 items-center justify-center gap-2 rounded-[22px] bg-[#0c1424] px-3 font-black text-[11px] uppercase tracking-widest text-white shadow-xl shadow-black/10 transition-all active:scale-95 hover:bg-black disabled:opacity-40" disabled={billItems.length === 0}>
+              <button
+                onClick={handlePay}
+                className="flex h-12 items-center justify-center gap-2 rounded-[22px] bg-[#0c1424] px-3 font-black text-[11px] uppercase tracking-widest text-white shadow-xl shadow-black/10 transition-all active:scale-95 hover:bg-black disabled:opacity-40"
+                disabled={billItems.length === 0}
+              >
                 <CreditCard size={18} />
                 Pay
               </button>
@@ -544,19 +796,35 @@ export default function OrderEntryScreen() {
 
             <button
               onClick={() => void handleSendToKitchen(true)}
-              disabled={billItems.length === 0 || isSendingToKitchen || !canSendToKitchen}
+              disabled={
+                billItems.length === 0 ||
+                isSendingToKitchen ||
+                !canSendToKitchen
+              }
               className="mt-3 flex h-12 w-full items-center justify-center gap-3 rounded-[22px] bg-[#4adeff] px-3 font-black text-[11px] uppercase tracking-widest text-[#0c1424] shadow-xl shadow-sky-400/20 transition-all active:scale-95 hover:brightness-95 disabled:opacity-40"
             >
-              {isSendingToKitchen ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} strokeWidth={3} />}
+              {isSendingToKitchen ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Send size={18} strokeWidth={3} />
+              )}
               Save & Checkout
             </button>
 
             <button
               onClick={() => void handleSendToKitchen(false)}
-              disabled={billItems.length === 0 || isSendingToKitchen || !canSendToKitchen}
+              disabled={
+                billItems.length === 0 ||
+                isSendingToKitchen ||
+                !canSendToKitchen
+              }
               className="mt-3 flex h-12 w-full items-center justify-center gap-3 rounded-[22px] border-2 border-slate-100 bg-white px-3 font-black text-[11px] uppercase tracking-widest text-[#0c1424] transition-all active:scale-95 hover:bg-slate-50 disabled:opacity-40"
             >
-              {isSendingToKitchen ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} strokeWidth={3} />}
+              {isSendingToKitchen ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <RefreshCw size={18} strokeWidth={3} />
+              )}
               Save & Return to Tables
             </button>
           </div>
@@ -564,14 +832,36 @@ export default function OrderEntryScreen() {
       </main>
 
       {toastMessage ? (
-        <div className="fixed left-1/2 top-28 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/5 bg-[#0c1424] px-6 py-4 text-white shadow-2xl shadow-black/20">
+        <div className="fixed left-1/2 top-28 z-[9999] flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/5 bg-[#0c1424] px-6 py-4 text-white shadow-2xl shadow-black/20 animate-in fade-in zoom-in duration-300">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500">
             <CheckCircle2 size={16} className="text-white" strokeWidth={3} />
           </div>
-          <span className="whitespace-nowrap text-sm font-bold">{toastMessage}</span>
-          <button onClick={() => setToastMessage('')} className="ml-2 text-white/40 transition-colors hover:text-white">
+          <span className="whitespace-nowrap text-sm font-bold">
+            {toastMessage}
+          </span>
+          <button
+            onClick={() => setToastMessage("")}
+            className="ml-2 text-white/40 transition-colors hover:text-white"
+          >
             <X size={16} />
           </button>
+        </div>
+      ) : null}
+
+      {showCustomerForm ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-[#0c1424]/60 backdrop-blur-md"
+            onClick={() => setShowCustomerForm(false)}
+          />
+          <div className="relative w-full max-w-md">
+            <CustomerDetailsForm
+              orderType={effectiveOrderType}
+              initialData={activeBill}
+              onSubmit={handleCustomerFormSubmit}
+              onCancel={() => setShowCustomerForm(false)}
+            />
+          </div>
         </div>
       ) : null}
 

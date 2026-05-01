@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import UnifiedLayout from './components/UnifiedLayout';
+import { useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import UnifiedLayout from "./components/UnifiedLayout";
 
 type ReceiptItem = {
   id: string;
@@ -37,15 +37,15 @@ type ReceiptState = {
 };
 
 const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
+  new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
   }).format(Number(value || 0));
 
 const formatOrderType = (value?: string) => {
-  if (!value) return 'DINE IN';
+  if (!value) return "DINE IN";
   return value
-    .replace(/_/g, ' ')
+    .replace(/_/g, " ")
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
@@ -78,7 +78,9 @@ export default function ThermalReceiptScreen() {
   const tax = Number(bill?.taxAmount || 0);
   const total = Number(bill?.totalAmount || subtotal + tax);
   const paidAmount = Number(payment?.paidAmount ?? payment?.amount ?? total);
-  const changeAmount = Number(payment?.changeAmount ?? Math.max(paidAmount - total, 0));
+  const changeAmount = Number(
+    payment?.changeAmount ?? Math.max(paidAmount - total, 0),
+  );
 
   return (
     <UnifiedLayout fullScreen={true} currentView="orders">
@@ -139,13 +141,13 @@ export default function ThermalReceiptScreen() {
               Print Receipt
             </button>
             <button
-              onClick={() => navigate('/pos')}
+              onClick={() => navigate("/pos")}
               className="flex h-12 items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-8 text-[11px] font-black uppercase tracking-widest text-slate-600 transition-all hover:bg-slate-50"
             >
               Order List
             </button>
             <button
-              onClick={() => navigate('/pos/order-entry', { replace: true })}
+              onClick={() => navigate("/pos/order-entry", { replace: true })}
               className="flex h-12 items-center gap-2 rounded-2xl bg-[#5dc7ec] px-8 text-[11px] font-black uppercase tracking-widest text-[#0c1424] shadow-xl shadow-[#5dc7ec]/20 transition-all hover:bg-white"
             >
               New Transaction
@@ -160,28 +162,51 @@ export default function ThermalReceiptScreen() {
             ) : (
               <div>
                 <div className="text-center">
-                  <div className="text-lg font-[950] uppercase tracking-tighter text-[#0c1424]">TillCloud</div>
-                  <div className="mt-1 text-[10px] font-medium text-slate-500">{receiptDate.toLocaleString('en-AU')}</div>
+                  <div className="text-lg font-[950] uppercase tracking-tighter text-[#0c1424]">
+                    TillCloud
+                  </div>
+                  <div className="mt-1 text-[10px] font-medium text-slate-500">
+                    {receiptDate.toLocaleString("en-AU")}
+                  </div>
                 </div>
 
                 <div className="my-6 border-t border-dashed border-slate-200" />
 
                 <div className="space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Order No</span>
-                    <span className="font-black text-[#0c1424]">#{String(bill?.orderNumber ?? 0).padStart(4, '0')}</span>
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">
+                      Order No
+                    </span>
+                    <span className="font-black text-[#0c1424]">
+                      #{String(bill?.orderNumber ?? 0).padStart(4, "0")}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Ref / Name</span>
-                    <span className="font-black text-[#0c1424]">{bill?.tableNumber || bill?.pickupName || bill?.deliveryName || '-'}</span>
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">
+                      Ref / Name
+                    </span>
+                    <span className="font-black text-[#0c1424]">
+                      {bill?.tableNumber ||
+                        bill?.pickupName ||
+                        bill?.deliveryName ||
+                        "-"}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Type</span>
-                    <span className="font-black text-[#0c1424]">{formatOrderType(bill?.orderType)}</span>
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">
+                      Type
+                    </span>
+                    <span className="font-black text-[#0c1424]">
+                      {formatOrderType(bill?.orderType)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Cashier</span>
-                    <span className="font-black text-[#0c1424]">{state.cashierName || 'Cashier'}</span>
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">
+                      Cashier
+                    </span>
+                    <span className="font-black text-[#0c1424]">
+                      {state.cashierName || "Cashier"}
+                    </span>
                   </div>
                 </div>
 
@@ -190,16 +215,22 @@ export default function ThermalReceiptScreen() {
                 <div className="space-y-4">
                   {(bill?.items || []).map((item) => {
                     const unitPrice = Number(item.price ?? 0);
-                    const lineTotal = Number(item.lineTotal ?? unitPrice * Number(item.quantity ?? 0));
+                    const lineTotal = Number(
+                      item.lineTotal ?? unitPrice * Number(item.quantity ?? 0),
+                    );
 
                     return (
                       <div key={item.id}>
-                        <div className="font-black text-[#0c1424] uppercase tracking-wide">{item.name}</div>
+                        <div className="font-black text-[#0c1424] uppercase tracking-wide">
+                          {item.name}
+                        </div>
                         <div className="mt-1 flex justify-between text-slate-500 font-bold">
                           <span>
                             {item.quantity} x {formatCurrency(unitPrice)}
                           </span>
-                          <span className="text-[#0c1424]">{formatCurrency(lineTotal)}</span>
+                          <span className="text-[#0c1424]">
+                            {formatCurrency(lineTotal)}
+                          </span>
                         </div>
                       </div>
                     );
@@ -228,21 +259,31 @@ export default function ThermalReceiptScreen() {
                 <div className="space-y-2">
                   <div className="flex justify-between font-bold text-slate-500">
                     <span>Method</span>
-                    <span className="uppercase">{payment?.method === 'CARD' ? 'Card' : 'Cash'}</span>
+                    <span className="uppercase">
+                      {payment?.method === "CARD" ? "Card" : "Cash"}
+                    </span>
                   </div>
                   <div className="flex justify-between font-bold text-slate-500">
                     <span>Amount Paid</span>
-                    <span className="text-[#0c1424]">{formatCurrency(paidAmount)}</span>
+                    <span className="text-[#0c1424]">
+                      {formatCurrency(paidAmount)}
+                    </span>
                   </div>
                   <div className="flex justify-between font-bold text-slate-500">
                     <span>Change</span>
-                    <span className="text-[#0c1424]">{formatCurrency(changeAmount)}</span>
+                    <span className="text-[#0c1424]">
+                      {formatCurrency(changeAmount)}
+                    </span>
                   </div>
                 </div>
 
                 <div className="my-8 text-center">
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0c1424]">Thank You</div>
-                  <div className="mt-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Please Visit Again</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0c1424]">
+                    Thank You
+                  </div>
+                  <div className="mt-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    Please Visit Again
+                  </div>
                 </div>
               </div>
             )}

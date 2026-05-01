@@ -49,14 +49,18 @@ export interface BillRecord {
   paidAmount?: number;
   remainingAmount?: number;
   customerName?: string | null;
+  customerPhone?: string | null;
+  deliveryAddress?: string | null;
+  deliveryPaymentMethod?: string | null;
   kotSentAt: string | null;
   paidAt: string | null;
   createdAt: string;
   updatedAt: string;
   itemCount: number;
   pickupName?: string | null;
+  pickupPhone?: string | null;
   deliveryName?: string | null;
-  deliveryAddress?: string | null;
+  deliveryPhone?: string | null;
   items: BillItem[];
 }
 
@@ -102,7 +106,7 @@ interface PosCartContextType {
       deliveryPhone?: string | null;
       deliveryAddress?: string | null;
       deliveryNotes?: string | null;
-    }
+    },
   ) => Promise<BillRecord>;
   loadBill: (billId: string) => Promise<BillRecord | null>;
   addItemToBill: (item: MenuItem) => Promise<boolean>;
@@ -117,6 +121,24 @@ interface PosCartContextType {
     amount: number,
     _cashReceived: number,
   ) => Promise<CashPaymentResult>;
+  updateBillDetails: (
+    data: Partial<{
+      customerName: string;
+      customerPhone: string;
+      customerAddress: string;
+      pickupName: string;
+      pickupPhone: string;
+      pickupTime: string;
+      deliveryName: string;
+      deliveryPhone: string;
+      deliveryAddress: string;
+      deliverySuburb: string;
+      deliveryState: string;
+      deliveryPostcode: string;
+      deliveryNotes: string;
+      paymentType: string;
+    }>,
+  ) => Promise<void>;
   closeOrder: (orderId: string) => Promise<boolean>;
   loadMenuItems: () => Promise<void>;
 }
@@ -203,7 +225,10 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       : [];
 
     // Compute itemCount from actual items array
-    const itemCount = items.reduce((sum: number, i: BillItem) => sum + i.quantity, 0);
+    const itemCount = items.reduce(
+      (sum: number, i: BillItem) => sum + i.quantity,
+      0,
+    );
 
     return {
       id: bill.id,
@@ -215,14 +240,29 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       subtotalAmount: toDollars(bill.subtotalAmount, bill.subtotalCents),
       taxAmount: toDollars(bill.taxAmount, bill.taxAmountCents),
       totalAmount: toDollars(bill.totalAmount, bill.totalCents),
+      customerName:
+        bill.customerName ||
+        bill.customer?.name ||
+        bill.pickupName ||
+        bill.deliveryName ||
+        null,
+      customerPhone:
+        bill.customerPhone ||
+        bill.customer?.phone ||
+        bill.pickupPhone ||
+        bill.deliveryPhone ||
+        null,
+      deliveryAddress: bill.deliveryAddress || null,
+      deliveryPaymentMethod: bill.deliveryPaymentMethod || null,
       kotSentAt: bill.kotSentAt || null,
       paidAt: bill.paidAt || null,
       createdAt: bill.createdAt,
       updatedAt: bill.updatedAt,
       itemCount,
       pickupName: bill.pickupName || null,
+      pickupPhone: bill.pickupPhone || null,
       deliveryName: bill.deliveryName || null,
-      deliveryAddress: bill.deliveryAddress || null,
+      deliveryPhone: bill.deliveryPhone || null,
       items,
     };
   };
@@ -234,7 +274,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.setItem(ACTIVE_BILL_KEY, nextBill.id);
         localStorage.setItem(ACTIVE_BILL_DATA_KEY, JSON.stringify(nextBill));
       } catch (e) {
-        console.warn('Failed to persist active bill to localStorage', e);
+        console.warn("Failed to persist active bill to localStorage", e);
       }
     } else {
       localStorage.removeItem(ACTIVE_BILL_KEY);
@@ -273,9 +313,9 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       const payload = Array.isArray(response.data) ? response.data : [];
       setOpenBills(payload);
     } catch (err: any) {
-      console.error('[PosCartContext] Failed to load open bills:', err);
+      console.error("[PosCartContext] Failed to load open bills:", err);
       setOpenBills([]);
-      setError('Failed to load open bills');
+      setError("Failed to load open bills");
     }
   };
 
@@ -291,14 +331,14 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       deliveryPhone?: string | null;
       deliveryAddress?: string | null;
       deliveryNotes?: string | null;
-    }
+    },
   ) => {
     try {
       const response = await api.post("/orders", {
         serviceType,
         ...data,
         tableId: data.tableId || undefined,
-        customer: data.customer || undefined
+        customer: data.customer || undefined,
       });
 
       const orderData = response.data;
@@ -314,8 +354,8 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       await loadOpenBills();
       return bill;
     } catch (err: any) {
-      console.error('[PosCartContext] Failed to create order session:', err);
-      const errorMsg = parseApiError(err, 'Failed to create POS session');
+      console.error("[PosCartContext] Failed to create order session:", err);
+      const errorMsg = parseApiError(err, "Failed to create POS session");
       setError(errorMsg);
       throw err;
     }
@@ -358,14 +398,14 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
       } catch (e) {
-        console.warn('Failed to hydrate active bill from storage', e);
+        console.warn("Failed to hydrate active bill from storage", e);
       }
 
       const storedBillId = localStorage.getItem(ACTIVE_BILL_KEY);
       if (storedBillId) {
         // Refresh from API but don't block UI if it fails
         void loadBill(storedBillId).catch((e) => {
-          console.warn('Failed to refresh stored bill from API', e);
+          console.warn("Failed to refresh stored bill from API", e);
         });
       }
     };
@@ -461,7 +501,9 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     try {
-      const response = await api.post(`/orders/${activeBill.id}/send-to-kitchen`);
+      const response = await api.post(
+        `/orders/${activeBill.id}/send-to-kitchen`,
+      );
       syncBill(normalizeBill(response.data));
       await loadOpenBills(); // Sync dashboard
       return {
@@ -486,12 +528,12 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await api.post("/payments", {
         orderId: activeBill.id,
         amount,
-        method: 'CASH',
+        method: "CASH",
       });
 
       const nextBill = normalizeBill(response.data.bill);
       syncBill(nextBill);
-      
+
       // Force data refetching for UI synchronization (Requirement)
       await Promise.all([
         loadOpenBills(), // Sync dashboard
@@ -510,10 +552,23 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const updateBillDetails = async (data: any) => {
+    if (!activeBill) return;
+    try {
+      const response = await api.patch(`/orders/${activeBill.id}`, data);
+      syncBill(normalizeBill(response.data));
+    } catch (err: any) {
+      console.error("Failed to update bill details:", err);
+      const msg = parseApiError(err, "Failed to update order details");
+      setError(msg);
+      throw err;
+    }
+  };
+
   const closeOrder = async (orderId: string): Promise<boolean> => {
     try {
       await api.patch(`/orders/${orderId}/close`);
-      
+
       // Clear active bill if it was the one being closed
       if (activeBill?.id === orderId) {
         clearBill();
@@ -525,8 +580,9 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       ]);
       return true;
     } catch (err: any) {
-      console.error('Failed to close order:', err);
-      const msg = err?.response?.data?.message || err?.message || 'Failed to close order';
+      console.error("Failed to close order:", err);
+      const msg =
+        err?.response?.data?.message || err?.message || "Failed to close order";
       setError(msg);
       return false;
     }
@@ -564,6 +620,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
         processCashPayment,
         closeOrder,
         loadMenuItems,
+        updateBillDetails,
       }}
     >
       {children}

@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import api, { configureApiAuthHandlers } from '../services/api';
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
+import api, { configureApiAuthHandlers } from "../services/api";
 import {
   canAccess as canAccessPermission,
   hasPermissionCode,
@@ -9,7 +9,7 @@ import {
   buildPermissionMap,
   type PermissionGroup,
   type PermissionMap,
-} from '../permissions';
+} from "../permissions";
 
 interface User {
   id: string;
@@ -17,13 +17,13 @@ interface User {
   fullName: string;
   businessName?: string;
   mobile?: string;
-  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
+  role: "ADMIN" | "MANAGER" | "CASHIER" | "KITCHEN";
   restaurantId: string;
   onboardingCompleted: boolean;
   permissions?: string[] | PermissionMap;
 }
 
-export type AuthMode = 'dashboard' | 'pos' | 'kitchen';
+export type AuthMode = "dashboard" | "pos" | "kitchen";
 
 interface AuthContextType {
   user: User | null;
@@ -52,14 +52,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const USER_KEY = 'user';
-const MODE_KEY = 'auth_mode';
-const POS_SESSION_KEY = 'pos_session_token';
-const PERMISSIONS_KEY = 'role_permissions';
+const USER_KEY = "user";
+const MODE_KEY = "auth_mode";
+const POS_SESSION_KEY = "pos_session_token";
+const PERMISSIONS_KEY = "role_permissions";
 
 const isTokenExpired = (token: string): boolean => {
   try {
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length < 2) {
       return true;
     }
@@ -85,14 +85,16 @@ const normalizePermissionPayload = (payload: unknown): PermissionMap | null => {
     return buildPermissionMap(payload as string[]);
   }
 
-  if (typeof payload === 'object') {
+  if (typeof payload === "object") {
     return payload as PermissionMap;
   }
 
   return null;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [mode, setMode] = useState<AuthMode | null>(null);
@@ -128,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     tokenOverride?: string,
   ): Promise<{ user: User } | null> => {
     try {
-      const response = await api.get('/auth/me', {
+      const response = await api.get("/auth/me", {
         headers: tokenOverride
           ? { Authorization: `Bearer ${tokenOverride}` }
           : undefined,
@@ -143,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     tokenOverride?: string,
   ): Promise<PermissionMap | null> => {
     try {
-      const response = await api.get('/permissions/me', {
+      const response = await api.get("/permissions/me", {
         headers: tokenOverride
           ? { Authorization: `Bearer ${tokenOverride}` }
           : undefined,
@@ -158,7 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async (skipApiLogout = false) => {
     if (!skipApiLogout) {
       try {
-        await api.post('/auth/logout');
+        await api.post("/auth/logout");
       } catch {
         // Ignore logout endpoint failures and still clear local state.
       }
@@ -176,16 +178,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshAccessToken = async (): Promise<string | null> => {
     try {
-      const currentMode = (localStorage.getItem(MODE_KEY) as AuthMode | null) || mode;
+      const currentMode =
+        (localStorage.getItem(MODE_KEY) as AuthMode | null) || mode;
       const posSessionToken = localStorage.getItem(POS_SESSION_KEY);
 
-      if (currentMode === 'pos' && posSessionToken && isTokenExpired(posSessionToken)) {
+      if (
+        currentMode === "pos" &&
+        posSessionToken &&
+        isTokenExpired(posSessionToken)
+      ) {
         await logout(true);
         return null;
       }
 
-      const response = await api.post('/auth/refresh', {
-        posSessionToken: currentMode === 'pos' ? posSessionToken : undefined,
+      const response = await api.post("/auth/refresh", {
+        posSessionToken: currentMode === "pos" ? posSessionToken : undefined,
       });
 
       const nextToken = response.data.access_token as string;
@@ -193,15 +200,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const sessionData = await fetchCurrentUser(nextToken);
       if (!sessionData?.user) {
-        throw new Error('Could not refresh session user');
+        throw new Error("Could not refresh session user");
       }
 
       const refreshedUser = sessionData.user;
       const fetchedPermissions = await fetchUserPermissions(nextToken);
-      const fallbackPermissions = normalizePermissionPayload(refreshedUser.permissions);
+      const fallbackPermissions = normalizePermissionPayload(
+        refreshedUser.permissions,
+      );
 
       setUser(refreshedUser);
-      setMode(currentMode || 'dashboard');
+      setMode(currentMode || "dashboard");
       savePermissions(fetchedPermissions || fallbackPermissions);
 
       localStorage.setItem(USER_KEY, JSON.stringify(refreshedUser));
@@ -250,7 +259,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (storedPermissions) {
         try {
-          setPermissions(normalizePermissionPayload(JSON.parse(storedPermissions)));
+          setPermissions(
+            normalizePermissionPayload(JSON.parse(storedPermissions)),
+          );
         } catch {
           localStorage.removeItem(PERMISSIONS_KEY);
         }
@@ -286,7 +297,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(sessionData.user);
           localStorage.setItem(USER_KEY, JSON.stringify(sessionData.user));
 
-          const fallbackPermissions = normalizePermissionPayload(sessionData.user.permissions);
+          const fallbackPermissions = normalizePermissionPayload(
+            sessionData.user.permissions,
+          );
           savePermissions(fetchedPermissions || fallbackPermissions);
         }
       } finally {
@@ -304,7 +317,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (
     token: string,
     userData: User,
-    loginMode: AuthMode = 'dashboard',
+    loginMode: AuthMode = "dashboard",
     posSessionToken?: string,
   ): Promise<PermissionMap | null> => {
     setAccessToken(token);
@@ -317,14 +330,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(USER_KEY, JSON.stringify(resolvedUser));
     localStorage.setItem(MODE_KEY, loginMode);
 
-    if (loginMode === 'pos' && posSessionToken) {
+    if (loginMode === "pos" && posSessionToken) {
       localStorage.setItem(POS_SESSION_KEY, posSessionToken);
     } else {
       localStorage.removeItem(POS_SESSION_KEY);
     }
 
     const fetchedPermissions = await fetchUserPermissions(token);
-    const fallbackPermissions = normalizePermissionPayload(resolvedUser.permissions);
+    const fallbackPermissions = normalizePermissionPayload(
+      resolvedUser.permissions,
+    );
     const finalPermissions = fetchedPermissions || fallbackPermissions;
 
     savePermissions(finalPermissions);
@@ -379,8 +394,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser(sessionData.user);
               localStorage.setItem(USER_KEY, JSON.stringify(sessionData.user));
 
-              const fallbackPermissions = normalizePermissionPayload(sessionData.user.permissions);
-              const finalPermissions = fetchedPermissions || fallbackPermissions;
+              const fallbackPermissions = normalizePermissionPayload(
+                sessionData.user.permissions,
+              );
+              const finalPermissions =
+                fetchedPermissions || fallbackPermissions;
               savePermissions(finalPermissions);
 
               console.log(
@@ -388,7 +406,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               );
             }
           } catch (err) {
-            console.error('[Auth] Failed to refresh permissions:', err);
+            console.error("[Auth] Failed to refresh permissions:", err);
           } finally {
             setPermissionsLoading(false);
           }
@@ -402,7 +420,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         getLandingRoute: () => {
           if (user && !user.onboardingCompleted) {
-            return '/onboarding';
+            return "/onboarding";
           }
           return getLandingPage(permissions, user?.role);
         },
@@ -416,7 +434,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

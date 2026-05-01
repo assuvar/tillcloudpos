@@ -1,7 +1,7 @@
-import axios from 'axios';
+import axios from "axios";
 
 const configuredBaseUrl = import.meta.env.VITE_API_URL?.trim();
-const baseURL = configuredBaseUrl || 'http://localhost:3100';
+const baseURL = configuredBaseUrl || "http://localhost:3100";
 
 const api = axios.create({
   baseURL,
@@ -51,10 +51,15 @@ api.interceptors.response.use(
       url?: string;
     };
 
-    const requestUrl = typeof originalRequest?.url === 'string' ? originalRequest.url : '';
-    const isAuthEndpoint = requestUrl.includes('/auth/');
+    const requestUrl =
+      typeof originalRequest?.url === "string" ? originalRequest.url : "";
+    const isAuthEndpoint = requestUrl.includes("/auth/");
 
-    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthEndpoint) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest?._retry &&
+      !isAuthEndpoint
+    ) {
       originalRequest._retry = true;
 
       if (!authState.refreshPromise) {
@@ -76,22 +81,23 @@ api.interceptors.response.use(
     if (error.response?.status === 403) {
       const data = (error.response.data || {}) as { message?: unknown };
       const rawMessage =
-        typeof data.message === 'string'
+        typeof data.message === "string"
           ? data.message
           : Array.isArray(data.message)
-            ? data.message.join(', ')
-            : '';
+            ? data.message.join(", ")
+            : "";
 
       if (!rawMessage || /forbidden|denied|permission/i.test(rawMessage)) {
         error.response.data = {
           ...error.response.data,
-          message: 'Access denied. You do not have permission to perform this action.',
+          message:
+            "Access denied. You do not have permission to perform this action.",
         };
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

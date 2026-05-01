@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { X, Check } from 'lucide-react';
-import api from '../services/api';
+import { useState } from "react";
+import { X, Check } from "lucide-react";
+import api from "../services/api";
 
 interface AddTableModalProps {
   onClose: () => void;
@@ -8,8 +8,12 @@ interface AddTableModalProps {
   floor: string;
 }
 
-export default function AddTableModal({ onClose, onSuccess, floor }: AddTableModalProps) {
-  const [name, setName] = useState('');
+export default function AddTableModal({
+  onClose,
+  onSuccess,
+  floor,
+}: AddTableModalProps) {
+  const [name, setName] = useState("");
   const [seats, setSeats] = useState(4);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -19,23 +23,24 @@ export default function AddTableModal({ onClose, onSuccess, floor }: AddTableMod
 
     setIsSubmitting(true);
     try {
-      await api.post('/tables', {
+      await api.post("/tables", {
         name,
         seats: Number(seats),
         floor,
-        sortOrder: 0
+        sortOrder: 0,
       });
       onSuccess();
       onClose();
     } catch (err: any) {
       const respData = err?.response?.data;
-      console.error('Failed to create table:', err);
-      console.error('Response data:', JSON.stringify(respData));
-      const message = typeof respData?.message === 'string'
-        ? respData.message
-        : Array.isArray(respData?.message)
-          ? respData.message.join(', ')
-          : 'Failed to create table. Check console for details.';
+      console.error("Failed to create table:", err);
+      console.error("Response data:", JSON.stringify(respData));
+      const message =
+        typeof respData?.message === "string"
+          ? respData.message
+          : Array.isArray(respData?.message)
+            ? respData.message.join(", ")
+            : "Failed to create table. Check console for details.";
       alert(message);
     } finally {
       setIsSubmitting(false);
@@ -47,19 +52,26 @@ export default function AddTableModal({ onClose, onSuccess, floor }: AddTableMod
       <div className="w-full max-w-md rounded-[32px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-black text-[#0c1424]">Add New Table</h2>
+            <h2 className="text-2xl font-black text-[#0c1424]">
+              Add New Table
+            </h2>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
               Adding to {floor.toLowerCase()} floor
             </p>
           </div>
-          <button onClick={onClose} className="rounded-full p-2 hover:bg-slate-100 transition-colors">
+          <button
+            onClick={onClose}
+            className="rounded-full p-2 hover:bg-slate-100 transition-colors"
+          >
             <X size={20} className="text-slate-400" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Table Name / ID</label>
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Table Name / ID
+            </label>
             <input
               type="text"
               required
@@ -71,7 +83,9 @@ export default function AddTableModal({ onClose, onSuccess, floor }: AddTableMod
           </div>
 
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Number of Seats</label>
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Number of Seats
+            </label>
             <input
               type="number"
               required
@@ -88,7 +102,7 @@ export default function AddTableModal({ onClose, onSuccess, floor }: AddTableMod
             className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#0c1424] py-4 text-sm font-black text-white shadow-xl hover:bg-black disabled:opacity-50 transition-all"
           >
             <Check size={20} strokeWidth={3} />
-            {isSubmitting ? 'Adding...' : 'Create Table'}
+            {isSubmitting ? "Adding..." : "Create Table"}
           </button>
         </form>
       </div>

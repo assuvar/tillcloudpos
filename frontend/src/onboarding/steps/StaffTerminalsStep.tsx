@@ -9,7 +9,7 @@ interface StaffTerminalsStepProps {
   isSubmitting: boolean;
 }
 
-type StaffRole = 'MANAGER' | 'CASHIER' | 'KITCHEN';
+type StaffRole = "MANAGER" | "CASHIER" | "KITCHEN";
 
 type CreatedStaff = {
   id: string;
@@ -20,9 +20,9 @@ type CreatedStaff = {
 };
 
 const roleOptions: Array<{ label: string; value: StaffRole }> = [
-  { label: 'Manager', value: 'MANAGER' },
-  { label: 'Cashier', value: 'CASHIER' },
-  { label: 'Kitchen', value: 'KITCHEN' },
+  { label: "Manager", value: "MANAGER" },
+  { label: "Cashier", value: "CASHIER" },
+  { label: "Kitchen", value: "KITCHEN" },
 ];
 
 export function StaffTerminalsStep({
@@ -31,20 +31,20 @@ export function StaffTerminalsStep({
   onSkip,
   isSubmitting,
 }: StaffTerminalsStepProps) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'' | StaffRole>('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"" | StaffRole>("");
   const [isCreating, setIsCreating] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [createdStaff, setCreatedStaff] = useState<CreatedStaff | null>(null);
 
-  const generatedPin = createdStaff?.pin || createdStaff?.generatedPin || '';
+  const generatedPin = createdStaff?.pin || createdStaff?.generatedPin || "";
 
   const resetForm = () => {
-    setName('');
-    setEmail('');
-    setRole('');
+    setName("");
+    setEmail("");
+    setRole("");
   };
 
   const handleCreateStaff = async () => {
@@ -52,43 +52,47 @@ export function StaffTerminalsStep({
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedName || !trimmedEmail || !role) {
-      setError('Name, email, and role are required.');
+      setError("Name, email, and role are required.");
       return;
     }
 
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(trimmedEmail)) {
-      setError('Enter a valid staff email.');
+      setError("Enter a valid staff email.");
       return;
     }
 
     setIsCreating(true);
-    setError('');
-    setSuccessMessage('');
+    setError("");
+    setSuccessMessage("");
 
     try {
-      const response = await api.post('/staff', {
+      const response = await api.post("/staff", {
         name: trimmedName,
         email: trimmedEmail,
         role,
       });
 
       const created = response.data?.staff as CreatedStaff | undefined;
-      const pin = response.data?.pin || response.data?.generatedPin || created?.pin || created?.generatedPin;
+      const pin =
+        response.data?.pin ||
+        response.data?.generatedPin ||
+        created?.pin ||
+        created?.generatedPin;
 
       if (!created || !created.id) {
-        throw new Error('Invalid staff creation response');
+        throw new Error("Invalid staff creation response");
       }
 
       setCreatedStaff({
         ...created,
         pin,
       });
-      setSuccessMessage('Staff created successfully');
+      setSuccessMessage("Staff created successfully");
       resetForm();
     } catch (createError) {
-      console.error('Failed to create staff', createError);
-      setError('Failed to create staff member. Please try again.');
+      console.error("Failed to create staff", createError);
+      setError("Failed to create staff member. Please try again.");
     } finally {
       setIsCreating(false);
     }
@@ -101,9 +105,9 @@ export function StaffTerminalsStep({
 
     try {
       await navigator.clipboard.writeText(generatedPin);
-      setSuccessMessage('PIN copied to clipboard');
+      setSuccessMessage("PIN copied to clipboard");
     } catch {
-      setError('Could not copy PIN. Please copy it manually.');
+      setError("Could not copy PIN. Please copy it manually.");
     }
   };
 
@@ -120,7 +124,9 @@ export function StaffTerminalsStep({
         <div className="p-5 sm:p-6 border-b border-slate-200">
           <div className="flex items-center gap-2 mb-4">
             <BriefcaseBusiness size={16} className="text-[#59c9ef]" />
-            <h2 className="text-[20px] font-bold text-[#111827]">Create Staff Member</h2>
+            <h2 className="text-[20px] font-bold text-[#111827]">
+              Create Staff Member
+            </h2>
           </div>
 
           <div className="grid gap-3 md:grid-cols-[1fr_1fr_220px_auto]">
@@ -129,7 +135,7 @@ export function StaffTerminalsStep({
               value={name}
               onChange={(event) => {
                 setName(event.target.value);
-                setError('');
+                setError("");
               }}
               placeholder="e.g. Alex Rivera"
               className="h-11 rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
@@ -141,7 +147,7 @@ export function StaffTerminalsStep({
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value);
-                setError('');
+                setError("");
               }}
               placeholder="e.g. alex@yourrestaurant.com"
               className="h-11 rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
@@ -151,8 +157,8 @@ export function StaffTerminalsStep({
             <select
               value={role}
               onChange={(event) => {
-                setRole(event.target.value as StaffRole | '');
-                setError('');
+                setRole(event.target.value as StaffRole | "");
+                setError("");
               }}
               className="h-11 rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
               aria-label="Staff role"
@@ -173,7 +179,7 @@ export function StaffTerminalsStep({
               }}
               className="h-11 rounded-full bg-[#07142a] px-5 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isCreating ? 'Creating...' : 'Create Staff'}
+              {isCreating ? "Creating..." : "Create Staff"}
             </button>
           </div>
 
@@ -223,7 +229,11 @@ export function StaffTerminalsStep({
         </button>
 
         <div className="flex items-center gap-5">
-          <button type="button" onClick={onSkip} className="text-[13px] text-slate-700 font-medium">
+          <button
+            type="button"
+            onClick={onSkip}
+            className="text-[13px] text-slate-700 font-medium"
+          >
             Skip for now
           </button>
           <button

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { CheckCircle2, Info } from 'lucide-react';
+import { useState } from "react";
+import { CheckCircle2, Info } from "lucide-react";
 
 interface LoyaltyCustomer {
   name: string;
@@ -15,13 +15,21 @@ interface LoyaltyModalProps {
   onClose: () => void;
 }
 
-export default function LoyaltyModal({ customer, onApplyDiscount, onSkip, onClose }: LoyaltyModalProps) {
+export default function LoyaltyModal({
+  customer,
+  onApplyDiscount,
+  onSkip,
+  onClose,
+}: LoyaltyModalProps) {
   // Generate redemption tiers based on available points
   const tiers = [
     { amount: 5, points: 50 },
     { amount: 10, points: 100 },
-    { amount: Math.floor(customer.loyaltyPoints / 10), points: customer.loyaltyPoints },
-  ].filter(t => t.points <= customer.loyaltyPoints);
+    {
+      amount: Math.floor(customer.loyaltyPoints / 10),
+      points: customer.loyaltyPoints,
+    },
+  ].filter((t) => t.points <= customer.loyaltyPoints);
 
   const [selectedTier, setSelectedTier] = useState(tiers.length > 1 ? 1 : 0);
 
@@ -35,13 +43,15 @@ export default function LoyaltyModal({ customer, onApplyDiscount, onSkip, onClos
       <div
         className="absolute inset-0 bg-[#0c1424]/60 backdrop-blur-md"
         onClick={onClose}
-        style={{ animation: 'fadeIn 0.3s ease-out' }}
+        style={{ animation: "fadeIn 0.3s ease-out" }}
       />
 
       {/* Modal Card */}
       <div
         className="bg-white w-full max-w-[620px] rounded-[36px] shadow-2xl relative z-10 overflow-hidden"
-        style={{ animation: 'scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
+        style={{
+          animation: "scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+        }}
       >
         {/* Notch */}
         <div className="flex justify-center pt-4">
@@ -54,14 +64,21 @@ export default function LoyaltyModal({ customer, onApplyDiscount, onSkip, onClos
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 rounded-full bg-[#0c1424] flex items-center justify-center overflow-hidden shadow-xl shadow-black/10">
                 <span className="text-xl font-black text-white">
-                  {customer.name.split(' ').map(n => n[0]).join('')}
+                  {customer.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
                 </span>
               </div>
               <div>
-                <h3 className="text-xl font-black text-[#0c1424]">{customer.name}</h3>
+                <h3 className="text-xl font-black text-[#0c1424]">
+                  {customer.name}
+                </h3>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="h-2 w-2 rounded-full bg-[#5dc7ec]" />
-                  <span className="text-sm font-bold text-slate-500">{customer.loyaltyPoints} points available</span>
+                  <span className="text-sm font-bold text-slate-500">
+                    {customer.loyaltyPoints} points available
+                  </span>
                 </div>
               </div>
             </div>
@@ -72,7 +89,9 @@ export default function LoyaltyModal({ customer, onApplyDiscount, onSkip, onClos
 
           {/* Redemption Amount Selection */}
           <div className="mb-8">
-            <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-5">Select Redemption Amount</h4>
+            <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-5">
+              Select Redemption Amount
+            </h4>
             <div className="grid grid-cols-3 gap-4">
               {tiers.map((tier, index) => (
                 <button
@@ -80,17 +99,23 @@ export default function LoyaltyModal({ customer, onApplyDiscount, onSkip, onClos
                   onClick={() => setSelectedTier(index)}
                   className={`relative h-28 rounded-[20px] border-2 flex flex-col items-center justify-center gap-1.5 transition-all ${
                     selectedTier === index
-                      ? 'bg-[#0c1424] border-[#0c1424] text-white shadow-xl shadow-black/15'
-                      : 'bg-white border-slate-100 text-[#0c1424] hover:border-slate-200'
+                      ? "bg-[#0c1424] border-[#0c1424] text-white shadow-xl shadow-black/15"
+                      : "bg-white border-slate-100 text-[#0c1424] hover:border-slate-200"
                   }`}
                 >
                   <span className="text-3xl font-black">${tier.amount}</span>
-                  <span className={`text-xs font-bold ${selectedTier === index ? 'text-[#5dc7ec]' : 'text-slate-400'}`}>
+                  <span
+                    className={`text-xs font-bold ${selectedTier === index ? "text-[#5dc7ec]" : "text-slate-400"}`}
+                  >
                     {tier.points} pts
                   </span>
                   {selectedTier === index && (
                     <div className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-[#5dc7ec] flex items-center justify-center shadow-lg">
-                      <CheckCircle2 size={14} className="text-white" strokeWidth={3} />
+                      <CheckCircle2
+                        size={14}
+                        className="text-white"
+                        strokeWidth={3}
+                      />
                     </div>
                   )}
                 </button>
@@ -106,11 +131,16 @@ export default function LoyaltyModal({ customer, onApplyDiscount, onSkip, onClos
 
           {/* Apply Button */}
           <button
-            onClick={() => currentTier && onApplyDiscount(currentTier.amount, currentTier.points)}
+            onClick={() =>
+              currentTier &&
+              onApplyDiscount(currentTier.amount, currentTier.points)
+            }
             className="w-full h-16 rounded-2xl bg-[#0c1424] text-white flex items-center justify-center gap-3 font-black text-[15px] shadow-xl shadow-black/15 hover:bg-black transition-all active:scale-[0.98]"
           >
             Apply Discount
-            <span className="text-[#5dc7ec] font-bold">(-${currentTier?.amount.toFixed(2)})</span>
+            <span className="text-[#5dc7ec] font-bold">
+              (-${currentTier?.amount.toFixed(2)})
+            </span>
           </button>
 
           {/* Skip Link */}

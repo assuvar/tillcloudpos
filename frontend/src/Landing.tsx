@@ -8,9 +8,9 @@ export default function Landing() {
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-slate-100 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-          <div 
+          <div
             className="text-xl font-black tracking-tight text-[#0b1b3d] sm:text-2xl cursor-pointer"
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
           >
             TILLCLOUD
           </div>
@@ -33,13 +33,13 @@ export default function Landing() {
           </div>
           <div className="flex items-center justify-between gap-4 text-[14px] font-bold sm:gap-6 sm:text-[15px]">
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate("/login")}
               className="text-slate-600 hover:text-slate-900 transition-colors"
             >
               Sign in
             </button>
             <button
-              onClick={() => navigate('/register')}
+              onClick={() => navigate("/register")}
               className="bg-[#0b1b3d] text-white px-7 py-2.5 rounded-full hover:bg-[#152a55] transition-all shadow-lg shadow-blue-900/10"
             >
               Get Started
@@ -49,7 +49,10 @@ export default function Landing() {
       </nav>
 
       {/* Hero Section */}
-      <section id="home" className="overflow-hidden bg-white pt-36 pb-20 sm:pt-40">
+      <section
+        id="home"
+        className="overflow-hidden bg-white pt-36 pb-20 sm:pt-40"
+      >
         <div className="mx-auto max-w-[1240px] px-4 text-center sm:px-6">
           <h1 className="mb-6 text-4xl font-[950] tracking-[-0.04em] leading-[1.08] text-[#0b1b3d] sm:text-5xl md:text-[84px]">
             Modern Billing for
@@ -67,21 +70,28 @@ export default function Landing() {
           <div className="mt-10 rounded-[2rem] border border-slate-100 bg-white p-8 text-left shadow-[0_20px_60px_-20px_rgba(0,0,0,0.08)] sm:mt-14 sm:p-10">
             <div className="grid gap-6 sm:grid-cols-3">
               <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4fc3f7]">POS</div>
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4fc3f7]">
+                  POS
+                </div>
                 <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
                   Fast billing, split payments, and table-aware checkout.
                 </p>
               </div>
               <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4fc3f7]">Kitchen</div>
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4fc3f7]">
+                  Kitchen
+                </div>
                 <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
                   Live order flow from cashier to kitchen display.
                 </p>
               </div>
               <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4fc3f7]">Reports</div>
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4fc3f7]">
+                  Reports
+                </div>
                 <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-                  Track sales, inventory, and staff activity from the real system.
+                  Track sales, inventory, and staff activity from the real
+                  system.
                 </p>
               </div>
             </div>
@@ -227,8 +237,8 @@ export default function Landing() {
             <div className="w-full lg:w-1/2 rounded-[2rem] bg-white p-3 shadow-2xl shadow-blue-900/5 rotate-0 sm:rounded-[3rem] sm:p-4 lg:rotate-1">
               <div className="rounded-[2.5rem] overflow-hidden border border-slate-100">
                 <div className="bg-slate-50 h-80 flex items-center justify-center text-slate-200 text-sm font-semibold uppercase tracking-[0.2em]">
-                    No demo data
-                  </div>
+                  No demo data
+                </div>
               </div>
             </div>
           </div>
@@ -265,8 +275,8 @@ export default function Landing() {
             <div className="w-full lg:w-1/2 rounded-[2rem] bg-white p-3 shadow-2xl shadow-blue-900/5 rotate-0 sm:rounded-[3rem] sm:p-4 lg:-rotate-1">
               <div className="rounded-[2.5rem] overflow-hidden border border-slate-100">
                 <div className="bg-slate-50 h-80 flex items-center justify-center text-slate-200 text-sm font-semibold uppercase tracking-[0.2em]">
-                    No demo data
-                  </div>
+                  No demo data
+                </div>
               </div>
             </div>
           </div>
@@ -274,7 +284,10 @@ export default function Landing() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="relative overflow-hidden bg-white py-20 sm:py-32">
+      <section
+        id="pricing"
+        className="relative overflow-hidden bg-white py-20 sm:py-32"
+      >
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
           <div className="mb-16 text-center sm:mb-20">
             <h2 className="mb-4 text-3xl font-black tracking-tight text-[#0b1b3d] sm:text-4xl lg:text-5xl">
@@ -301,8 +314,8 @@ export default function Landing() {
                 <li>Digital Invoicing</li>
                 <li>Basic Reports</li>
               </ul>
-              <button 
-                onClick={() => navigate('/register')}
+              <button
+                onClick={() => navigate("/register")}
                 className="w-full py-4 rounded-full border border-slate-200 font-bold hover:bg-slate-50 transition-colors"
               >
                 Start Free Plan
@@ -328,8 +341,8 @@ export default function Landing() {
                 <li>Online Ordering (Web)</li>
                 <li>Real-time CRM tools</li>
               </ul>
-              <button 
-                onClick={() => navigate('/register')}
+              <button
+                onClick={() => navigate("/register")}
                 className="w-full py-4 rounded-full bg-[#4fc3f7] text-white font-bold hover:bg-[#3db0e4] transition-colors shadow-lg shadow-blue-400/20"
               >
                 Get Basic Plan
@@ -352,8 +365,8 @@ export default function Landing() {
                 <li>Multi-outlet Support</li>
                 <li>High Priority Support</li>
               </ul>
-              <button 
-                onClick={() => navigate('/register')}
+              <button
+                onClick={() => navigate("/register")}
                 className="w-full py-4 rounded-full border border-slate-200 font-bold hover:bg-slate-50 transition-colors"
               >
                 Get Premium Plan
@@ -380,7 +393,7 @@ export default function Landing() {
             </p>
             <div className="flex flex-col items-center justify-center gap-4 md:flex-row md:gap-6">
               <button
-                onClick={() => navigate('/register')}
+                onClick={() => navigate("/register")}
                 className="bg-white text-[#0b1b3d] px-12 py-5 rounded-full font-black text-lg hover:bg-white/90 transition-all shadow-xl shadow-black/20"
               >
                 Get Started Now
@@ -394,13 +407,16 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer id="contact" className="border-t border-slate-100 bg-white py-16 sm:py-20">
+      <footer
+        id="contact"
+        className="border-t border-slate-100 bg-white py-16 sm:py-20"
+      >
         <div className="mx-auto max-w-[1240px] px-4 sm:px-6">
           <div className="mb-16 grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-5 sm:mb-20 sm:gap-12">
             <div className="col-span-2">
-              <div 
+              <div
                 className="text-2xl font-black tracking-tight text-[#0b1b3d] mb-6 cursor-pointer"
-                onClick={() => navigate('/')}
+                onClick={() => navigate("/")}
               >
                 TILLCLOUD
               </div>
@@ -414,7 +430,9 @@ export default function Landing() {
                 Company
               </h5>
               <ul className="space-y-4 text-slate-500 font-medium text-[13px]">
-                <li className="hover:text-[#4fc3f7] cursor-pointer">About Us</li>
+                <li className="hover:text-[#4fc3f7] cursor-pointer">
+                  About Us
+                </li>
                 <li className="hover:text-[#4fc3f7] cursor-pointer">Careers</li>
                 <li className="hover:text-[#4fc3f7] cursor-pointer">Blog</li>
               </ul>
@@ -424,7 +442,9 @@ export default function Landing() {
                 Product
               </h5>
               <ul className="space-y-4 text-slate-500 font-medium text-[13px]">
-                <li className="hover:text-[#4fc3f7] cursor-pointer">Features</li>
+                <li className="hover:text-[#4fc3f7] cursor-pointer">
+                  Features
+                </li>
                 <li className="hover:text-[#4fc3f7] cursor-pointer">Pricing</li>
                 <li className="hover:text-[#4fc3f7] cursor-pointer">KDS</li>
               </ul>
@@ -434,7 +454,9 @@ export default function Landing() {
                 Support
               </h5>
               <ul className="space-y-4 text-slate-500 font-medium text-[13px]">
-                <li className="hover:text-[#4fc3f7] cursor-pointer">Help Center</li>
+                <li className="hover:text-[#4fc3f7] cursor-pointer">
+                  Help Center
+                </li>
                 <li className="hover:text-[#4fc3f7] cursor-pointer">Status</li>
                 <li className="hover:text-[#4fc3f7] cursor-pointer">Contact</li>
               </ul>
@@ -445,8 +467,12 @@ export default function Landing() {
               © 2026 TillCloud Billing. All rights reserved.
             </div>
             <div className="flex space-x-8 mt-6 md:mt-0 text-[11px] text-slate-400 font-bold uppercase tracking-widest">
-              <span className="hover:text-[#0b1b3d] cursor-pointer">Privacy Policy</span>
-              <span className="hover:text-[#0b1b3d] cursor-pointer">Terms of Service</span>
+              <span className="hover:text-[#0b1b3d] cursor-pointer">
+                Privacy Policy
+              </span>
+              <span className="hover:text-[#0b1b3d] cursor-pointer">
+                Terms of Service
+              </span>
             </div>
           </div>
         </div>

@@ -1,6 +1,13 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import api from '../services/api';
-import { useAuth } from './AuthContext';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import api from "../services/api";
+import { useAuth } from "./AuthContext";
 
 export interface MenuCategory {
   id: string;
@@ -51,7 +58,7 @@ export interface DrawerFormState {
   isActive: boolean;
 }
 
-type DrawerMode = 'add' | 'edit';
+type DrawerMode = "add" | "edit";
 
 interface MenuManagementContextType {
   categories: MenuCategory[];
@@ -75,7 +82,10 @@ interface MenuManagementContextType {
   openAddDrawer: () => void;
   openEditDrawer: (itemId: string) => void;
   closeDrawer: () => void;
-  updateDrawerField: <K extends keyof DrawerFormState>(field: K, value: DrawerFormState[K]) => void;
+  updateDrawerField: <K extends keyof DrawerFormState>(
+    field: K,
+    value: DrawerFormState[K],
+  ) => void;
   saveDrawerItem: () => Promise<boolean>;
   deleteItem: (itemId: string) => Promise<void>;
   toggleItemActive: (itemId: string) => Promise<void>;
@@ -86,33 +96,44 @@ interface MenuManagementContextType {
 }
 
 const initialDrawerForm: DrawerFormState = {
-  name: '',
-  image: '',
+  name: "",
+  image: "",
   imageFile: null,
-  price: '',
-  categoryId: '',
-  description: '',
+  price: "",
+  categoryId: "",
+  description: "",
   trackInventory: true,
-  recipeItems: [{ ingredientId: '', quantity: '1' }],
+  recipeItems: [{ ingredientId: "", quantity: "1" }],
   isActive: true,
 };
 
-const MenuManagementContext = createContext<MenuManagementContextType | undefined>(undefined);
+const MenuManagementContext = createContext<
+  MenuManagementContextType | undefined
+>(undefined);
 
-export function MenuManagementProvider({ children }: { children: React.ReactNode }) {
+export function MenuManagementProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user, accessToken } = useAuth();
   const apiBaseUrl = import.meta.env.VITE_API_URL;
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
-  const [ingredientOptions, setIngredientOptions] = useState<IngredientOption[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [ingredientOptions, setIngredientOptions] = useState<
+    IngredientOption[]
+  >([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerMode, setDrawerMode] = useState<DrawerMode>('add');
-  const [drawerEditingItemId, setDrawerEditingItemId] = useState<string | null>(null);
-  const [drawerForm, setDrawerForm] = useState<DrawerFormState>(initialDrawerForm);
-  const [toastMessage, setToastMessage] = useState('');
+  const [drawerMode, setDrawerMode] = useState<DrawerMode>("add");
+  const [drawerEditingItemId, setDrawerEditingItemId] = useState<string | null>(
+    null,
+  );
+  const [drawerForm, setDrawerForm] =
+    useState<DrawerFormState>(initialDrawerForm);
+  const [toastMessage, setToastMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,15 +147,15 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
     if (toastTimerRef.current) {
       window.clearTimeout(toastTimerRef.current);
     }
-    toastTimerRef.current = window.setTimeout(() => setToastMessage(''), 2400);
+    toastTimerRef.current = window.setTimeout(() => setToastMessage(""), 2400);
   };
 
   const resolveImageUrl = (value?: string | null) => {
     if (!value) {
-      return '';
+      return "";
     }
 
-    if (value.startsWith('/uploads/')) {
+    if (value.startsWith("/uploads/")) {
       return `${apiBaseUrl}${value}`;
     }
 
@@ -156,15 +177,20 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       setError(null);
 
       // Fetch categories and products in parallel
-      const [categoriesResponse, productsResponse, ingredientsResponse] = await Promise.all([
-        api.get(`/categories`),
-        api.get(`/products`),
-        api.get('/inventory/ingredients'),
-      ]);
+      const [categoriesResponse, productsResponse, ingredientsResponse] =
+        await Promise.all([
+          api.get(`/categories`),
+          api.get(`/products`),
+          api.get("/inventory/ingredients"),
+        ]);
 
       // Validate responses are arrays
-      const categoriesArray = Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [];
-      const productsArray = Array.isArray(productsResponse.data) ? productsResponse.data : [];
+      const categoriesArray = Array.isArray(categoriesResponse.data)
+        ? categoriesResponse.data
+        : [];
+      const productsArray = Array.isArray(productsResponse.data)
+        ? productsResponse.data
+        : [];
       const ingredientsArray = Array.isArray(ingredientsResponse.data)
         ? ingredientsResponse.data
         : [];
@@ -178,7 +204,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       const productsData = productsArray.map((product: any) => ({
         id: product.id,
         name: product.name,
-        description: product.description || '',
+        description: product.description || "",
         price: product.priceInCents / 100, // Convert cents to dollars
         categoryId: product.categoryId,
         image: resolveImageUrl(product.imageUrl),
@@ -186,8 +212,9 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
         recipeItems: Array.isArray(product.recipeItems)
           ? product.recipeItems.map((recipeItem: any) => ({
               ingredientId: recipeItem.ingredientId,
-              ingredientName: recipeItem.ingredient?.name || 'Unknown ingredient',
-              unit: recipeItem.ingredient?.unit || 'units',
+              ingredientName:
+                recipeItem.ingredient?.name || "Unknown ingredient",
+              unit: recipeItem.ingredient?.unit || "units",
               quantity: Number(recipeItem.quantity || 0),
             }))
           : [],
@@ -207,9 +234,12 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       setIngredientOptions(ingredientsData);
       setError(null);
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to load menu data';
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to load menu data";
       setError(errorMsg);
-      console.error('Failed to load menu data:', err);
+      console.error("Failed to load menu data:", err);
       setCategories([]);
       setItems([]);
       setIngredientOptions([]);
@@ -228,7 +258,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
     }
 
     if (!user?.restaurantId || !accessToken) {
-      setError('Restaurant ID not available');
+      setError("Restaurant ID not available");
       return;
     }
 
@@ -237,7 +267,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       setError(null);
 
       // POST to backend to create category
-      const response = await api.post('/categories', {
+      const response = await api.post("/categories", {
         name,
         isActive: true,
       });
@@ -250,12 +280,13 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       };
 
       setCategories((currentCategories) => [...currentCategories, newCategory]);
-      setNewCategoryName('');
+      setNewCategoryName("");
       setIsCreatingCategory(false);
       setSelectedCategoryId(newCategory.id);
-      showToast('Category added successfully');
+      showToast("Category added successfully");
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || 'Failed to create category';
+      const errorMsg =
+        err?.response?.data?.message || "Failed to create category";
       setError(errorMsg);
       showToast(errorMsg);
     } finally {
@@ -267,15 +298,15 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
    * Open add item drawer
    */
   const openAddDrawer = () => {
-    setDrawerMode('add');
+    setDrawerMode("add");
     setDrawerEditingItemId(null);
     setDrawerForm({
       ...initialDrawerForm,
       categoryId:
-        selectedCategoryId === 'all'
-          ? categories[0]?.id || ''
+        selectedCategoryId === "all"
+          ? categories[0]?.id || ""
           : selectedCategoryId,
-      recipeItems: [{ ingredientId: '', quantity: '1' }],
+      recipeItems: [{ ingredientId: "", quantity: "1" }],
     });
     setDrawerOpen(true);
   };
@@ -289,7 +320,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       return;
     }
 
-    setDrawerMode('edit');
+    setDrawerMode("edit");
     setDrawerEditingItemId(item.id);
     setDrawerForm({
       name: item.name,
@@ -306,7 +337,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
               quantity: recipeItem.quantity.toString(),
               unit: recipeItem.unit,
             }))
-          : [{ ingredientId: '', quantity: '1' }],
+          : [{ ingredientId: "", quantity: "1" }],
       isActive: item.isActive,
     });
     setDrawerOpen(true);
@@ -327,7 +358,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
    */
   const updateDrawerField = <K extends keyof DrawerFormState>(
     field: K,
-    value: DrawerFormState[K]
+    value: DrawerFormState[K],
   ) => {
     setDrawerForm((currentForm) => ({ ...currentForm, [field]: value }));
   };
@@ -341,7 +372,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
     const price = Number.parseFloat(drawerForm.price);
 
     if (!name || !categoryId || Number.isNaN(price) || price < 0) {
-      setError('Please fill in all required fields');
+      setError("Please fill in all required fields");
       return false;
     }
 
@@ -354,12 +385,19 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       }));
 
     if (drawerForm.trackInventory && normalizedRecipeItems.length === 0) {
-      setError('Tracked inventory items must have at least one ingredient recipe');
+      setError(
+        "Tracked inventory items must have at least one ingredient recipe",
+      );
       return false;
     }
 
-    if (normalizedRecipeItems.some((recipeItem) => Number.isNaN(recipeItem.quantity) || recipeItem.quantity <= 0)) {
-      setError('Recipe ingredient quantities must be greater than 0');
+    if (
+      normalizedRecipeItems.some(
+        (recipeItem) =>
+          Number.isNaN(recipeItem.quantity) || recipeItem.quantity <= 0,
+      )
+    ) {
+      setError("Recipe ingredient quantities must be greater than 0");
       return false;
     }
 
@@ -369,21 +407,24 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
 
       const priceInCents = Math.round(price * 100);
       const formData = new FormData();
-      formData.append('name', name);
-      formData.append('description', drawerForm.description.trim());
-      formData.append('priceInCents', String(priceInCents));
-      formData.append('categoryId', categoryId);
-      formData.append('trackInventory', String(drawerForm.trackInventory));
-      formData.append('isActive', String(drawerForm.isActive));
-      formData.append('recipeItems', JSON.stringify(normalizedRecipeItems));
+      formData.append("name", name);
+      formData.append("description", drawerForm.description.trim());
+      formData.append("priceInCents", String(priceInCents));
+      formData.append("categoryId", categoryId);
+      formData.append("trackInventory", String(drawerForm.trackInventory));
+      formData.append("isActive", String(drawerForm.isActive));
+      formData.append("recipeItems", JSON.stringify(normalizedRecipeItems));
 
       if (drawerForm.imageFile) {
-        formData.append('image', drawerForm.imageFile);
+        formData.append("image", drawerForm.imageFile);
       }
 
-      if (drawerMode === 'edit' && drawerEditingItemId) {
+      if (drawerMode === "edit" && drawerEditingItemId) {
         // Update existing item
-        const response = await api.patch(`/products/${drawerEditingItemId}`, formData);
+        const response = await api.patch(
+          `/products/${drawerEditingItemId}`,
+          formData,
+        );
 
         // Update local state
         setItems((currentItems) =>
@@ -398,24 +439,26 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
                   image: resolveImageUrl(response.data.imageUrl),
                   trackInventory: drawerForm.trackInventory,
                   recipeItems: normalizedRecipeItems.map((recipeItem) => {
-                    const ingredient = ingredientOptions.find((option) => option.id === recipeItem.ingredientId);
+                    const ingredient = ingredientOptions.find(
+                      (option) => option.id === recipeItem.ingredientId,
+                    );
                     return {
                       ingredientId: recipeItem.ingredientId,
-                      ingredientName: ingredient?.name || 'Unknown ingredient',
-                      unit: ingredient?.unit || 'units',
+                      ingredientName: ingredient?.name || "Unknown ingredient",
+                      unit: ingredient?.unit || "units",
                       quantity: recipeItem.quantity,
                     };
                   }),
                   isActive: drawerForm.isActive,
                 }
-              : item
-          )
+              : item,
+          ),
         );
 
-        showToast('Item updated successfully');
+        showToast("Item updated successfully");
       } else {
         // Create new item
-        const response = await api.post('/products', formData);
+        const response = await api.post("/products", formData);
 
         // Add to local state
         const newItem: MenuItem = {
@@ -427,11 +470,13 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
           image: resolveImageUrl(response.data.imageUrl),
           trackInventory: drawerForm.trackInventory,
           recipeItems: normalizedRecipeItems.map((recipeItem) => {
-            const ingredient = ingredientOptions.find((option) => option.id === recipeItem.ingredientId);
+            const ingredient = ingredientOptions.find(
+              (option) => option.id === recipeItem.ingredientId,
+            );
             return {
               ingredientId: recipeItem.ingredientId,
-              ingredientName: ingredient?.name || 'Unknown ingredient',
-              unit: ingredient?.unit || 'units',
+              ingredientName: ingredient?.name || "Unknown ingredient",
+              unit: ingredient?.unit || "units",
               quantity: recipeItem.quantity,
             };
           }),
@@ -439,14 +484,13 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
         };
 
         setItems((currentItems) => [...currentItems, newItem]);
-        showToast('Item added successfully');
+        showToast("Item added successfully");
       }
 
       closeDrawer();
       return true;
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message || 'Failed to save item';
+      const errorMsg = err?.response?.data?.message || "Failed to save item";
       setError(errorMsg);
       showToast(errorMsg);
       return false;
@@ -459,8 +503,8 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
    * Delete item
    */
   const deleteItem = async (itemId: string) => {
-    if (!itemId || itemId === ':id') {
-      setError('Cannot delete item: invalid item ID loaded from the server.');
+    if (!itemId || itemId === ":id") {
+      setError("Cannot delete item: invalid item ID loaded from the server.");
       return;
     }
 
@@ -473,17 +517,16 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
 
       // Remove from current list view to match delete intent in UI.
       setItems((currentItems) =>
-        currentItems.filter((item) => item.id !== itemId)
+        currentItems.filter((item) => item.id !== itemId),
       );
 
       showToast(
         archivedItem?.name
           ? `${archivedItem.name} archived successfully`
-          : 'Item archived successfully',
+          : "Item archived successfully",
       );
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message || 'Failed to delete item';
+      const errorMsg = err?.response?.data?.message || "Failed to delete item";
       setError(errorMsg);
       showToast(errorMsg);
     } finally {
@@ -509,14 +552,11 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
       // Update local state
       setItems((currentItems) =>
         currentItems.map((item) =>
-          item.id === itemId
-            ? { ...item, isActive: !item.isActive }
-            : item
-        )
+          item.id === itemId ? { ...item, isActive: !item.isActive } : item,
+        ),
       );
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message || 'Failed to update item';
+      const errorMsg = err?.response?.data?.message || "Failed to update item";
       setError(errorMsg);
       showToast(errorMsg);
     } finally {
@@ -532,7 +572,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
     if (!item) return;
 
     if (!item.trackInventory && item.recipeItems.length === 0) {
-      showToast('Add a recipe before enabling inventory tracking');
+      showToast("Add a recipe before enabling inventory tracking");
       return;
     }
 
@@ -549,12 +589,11 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
         currentItems.map((item) =>
           item.id === itemId
             ? { ...item, trackInventory: !item.trackInventory }
-            : item
-        )
+            : item,
+        ),
       );
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message || 'Failed to update item';
+      const errorMsg = err?.response?.data?.message || "Failed to update item";
       setError(errorMsg);
       showToast(errorMsg);
     } finally {
@@ -574,7 +613,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
    */
   const toggleCategoryActive = async (categoryId: string) => {
     if (!user?.restaurantId || !accessToken) {
-      setError('Restaurant ID not available');
+      setError("Restaurant ID not available");
       return;
     }
 
@@ -595,14 +634,14 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
         currentCategories.map((category) =>
           category.id === categoryId
             ? { ...category, isActive: !category.isActive }
-            : category
-        )
+            : category,
+        ),
       );
 
-      showToast(`Category ${!category.isActive ? 'activated' : 'deactivated'}`);
+      showToast(`Category ${!category.isActive ? "activated" : "deactivated"}`);
     } catch (err: any) {
       const errorMsg =
-        err?.response?.data?.message || 'Failed to update category';
+        err?.response?.data?.message || "Failed to update category";
       setError(errorMsg);
       showToast(errorMsg);
     } finally {
@@ -614,7 +653,7 @@ export function MenuManagementProvider({ children }: { children: React.ReactNode
    * Memoized filtered items
    */
   const filteredItems = useMemo(() => {
-    if (selectedCategoryId === 'all') {
+    if (selectedCategoryId === "all") {
       return items;
     }
 
@@ -682,7 +721,7 @@ export function useMenuManagement() {
   const context = useContext(MenuManagementContext);
   if (!context) {
     throw new Error(
-      'useMenuManagement must be used within a MenuManagementProvider'
+      "useMenuManagement must be used within a MenuManagementProvider",
     );
   }
 
@@ -695,7 +734,7 @@ export function getCategoryItemCount(items: MenuItem[], categoryId: string) {
 
 export function getCategoryEffectiveActive(
   categories: MenuCategory[],
-  categoryId: string
+  categoryId: string,
 ) {
   return (
     categories.find((category) => category.id === categoryId)?.isActive ?? false
@@ -704,21 +743,18 @@ export function getCategoryEffectiveActive(
 
 export function getCategoryLabel(
   categories: MenuCategory[],
-  categoryId: string
+  categoryId: string,
 ) {
-  if (categoryId === 'all') {
-    return 'All Items';
+  if (categoryId === "all") {
+    return "All Items";
   }
 
   return getCategoryNameById(categories, categoryId);
 }
 
-function getCategoryNameById(
-  categories: MenuCategory[],
-  categoryId: string
-) {
+function getCategoryNameById(categories: MenuCategory[], categoryId: string) {
   return (
     categories.find((category) => category.id === categoryId)?.name ||
-    'Uncategorized'
+    "Uncategorized"
   );
 }

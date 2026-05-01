@@ -1,11 +1,16 @@
 import { useState, useEffect } from "react";
-import { Eye, Loader2, MessageSquare, Mail, Smartphone, ArrowLeft } from "lucide-react";
+import {
+  Eye,
+  Loader2,
+  MessageSquare,
+  Mail,
+  Smartphone,
+  ArrowLeft,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import api from "./services/api";
 import { getLandingPage } from "./permissions";
-
-
 
 type LoginMethod = "password" | "otp";
 type OtpStep = "request" | "verify";
@@ -13,16 +18,16 @@ type OtpStep = "request" | "verify";
 export default function Login() {
   const [method, setMethod] = useState<LoginMethod>("password");
   const [otpStep, setOtpStep] = useState<OtpStep>("request");
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [countdown, setCountdown] = useState(0);
-  
+
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -39,15 +44,17 @@ export default function Login() {
     setError("");
     setIsSubmitting(true);
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post("/auth/login", { email, password });
       await login(response.data.access_token, response.data.user);
       navigate(
         response.data.user.onboardingCompleted
           ? getLandingPage(null, response.data.user.role)
-          : '/onboarding',
+          : "/onboarding",
       );
     } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid credentials. Please try again.");
+      setError(
+        err.response?.data?.message || "Invalid credentials. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -58,11 +65,13 @@ export default function Login() {
     setError("");
     setIsSubmitting(true);
     try {
-      await api.post('/auth/otp/send', { email });
+      await api.post("/auth/otp/send", { email });
       setOtpStep("verify");
       setCountdown(60);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to send OTP. Please try again.");
+      setError(
+        err.response?.data?.message || "Failed to send OTP. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -73,13 +82,13 @@ export default function Login() {
     setError("");
     setIsSubmitting(true);
     try {
-      const response = await api.post('/auth/verify-otp', { email, otp });
+      const response = await api.post("/auth/verify-otp", { email, otp });
       if (response.data?.access_token && response.data?.user) {
         await login(response.data.access_token, response.data.user);
         navigate(
           response.data.user.onboardingCompleted
             ? getLandingPage(null, response.data.user.role)
-            : '/onboarding',
+            : "/onboarding",
         );
       }
     } catch (err: any) {
@@ -112,7 +121,8 @@ export default function Login() {
             {method === "password" ? "Login to your Billing" : "Login with OTP"}
           </h1>
           <p className="text-base font-medium text-slate-500 sm:text-lg">
-            Welcome back! Access your workspace via {method === "password" ? "password" : "secure code"}
+            Welcome back! Access your workspace via{" "}
+            {method === "password" ? "password" : "secure code"}
           </p>
         </div>
 
@@ -168,7 +178,12 @@ export default function Login() {
               <div className="space-y-3">
                 <label className="text-[13px] font-black text-slate-800 uppercase tracking-wider ml-1 flex justify-between">
                   <span>Password</span>
-                  <Link to="/forgot" className="text-sky-600 normal-case font-bold hover:underline">Forgot?</Link>
+                  <Link
+                    to="/forgot"
+                    className="text-sky-600 normal-case font-bold hover:underline"
+                  >
+                    Forgot?
+                  </Link>
                 </label>
                 <div className="relative">
                   <input
@@ -184,7 +199,9 @@ export default function Login() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    <Eye className={`w-5 h-5 ${showPassword ? "text-sky-500" : ""}`} />
+                    <Eye
+                      className={`w-5 h-5 ${showPassword ? "text-sky-500" : ""}`}
+                    />
                   </button>
                 </div>
               </div>
@@ -194,7 +211,11 @@ export default function Login() {
                 disabled={isSubmitting}
                 className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-[#0b1b3d] text-sm font-[950] uppercase tracking-[0.1em] text-white shadow-2xl shadow-blue-900/30 transition-all active:scale-[0.98] hover:bg-[#152a55] disabled:opacity-70 sm:h-[72px]"
               >
-                {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "LOGIN TO DASHBOARD"}
+                {isSubmitting ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  "LOGIN TO DASHBOARD"
+                )}
               </button>
             </form>
           ) : (
@@ -218,7 +239,8 @@ export default function Login() {
                       />
                     </div>
                     <p className="text-[11px] text-slate-400 ml-1">
-                      We'll send a 6-digit verification code to this {email.includes("@") ? "email address" : "device"}.
+                      We'll send a 6-digit verification code to this{" "}
+                      {email.includes("@") ? "email address" : "device"}.
                     </p>
                   </div>
 
@@ -227,26 +249,32 @@ export default function Login() {
                     disabled={isSubmitting || !email}
                     className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-[#0b1b3d] text-sm font-[950] uppercase tracking-[0.1em] text-white shadow-2xl shadow-blue-900/30 transition-all active:scale-[0.98] hover:bg-[#152a55] disabled:opacity-70 sm:h-[72px]"
                   >
-                    {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "SEND VERIFICATION CODE"}
+                    {isSubmitting ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      "SEND VERIFICATION CODE"
+                    )}
                   </button>
                 </form>
               ) : (
                 <form className="space-y-8" onSubmit={handleVerifyOtp}>
                   <div className="space-y-6">
                     <div className="flex items-center gap-2 mb-2">
-                       <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => {
                           setOtpStep("request");
                           setOtp("");
                         }}
                         className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-all"
-                       >
-                         <ArrowLeft size={16} />
-                       </button>
-                       <span className="text-sm font-bold text-slate-600">Verification for {email}</span>
+                      >
+                        <ArrowLeft size={16} />
+                      </button>
+                      <span className="text-sm font-bold text-slate-600">
+                        Verification for {email}
+                      </span>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <label className="text-[13px] font-black text-slate-800 uppercase tracking-wider ml-1">
                         Enter 6-digit Code
@@ -263,14 +291,13 @@ export default function Login() {
                           value={otp}
                           autoFocus
                           onChange={(e) => {
-                            setOtp(e.target.value.replace(/\D/g, ''));
-                            setError('');
+                            setOtp(e.target.value.replace(/\D/g, ""));
+                            setError("");
                           }}
                           placeholder="0 0 0 0 0 0"
                           className="w-full h-14 pl-14 pr-6 bg-[#f8fafc] border border-slate-100 rounded-2xl text-[20px] font-black tracking-[0.35em] placeholder:text-slate-200 placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-sky-400/20 focus:bg-white transition-all text-center sm:h-[72px] sm:text-[24px] sm:tracking-[0.5em]"
                         />
                       </div>
-
                     </div>
 
                     <div className="flex justify-center flex-col items-center gap-2">
@@ -285,7 +312,9 @@ export default function Login() {
                         }}
                         className={`text-[13px] font-black uppercase tracking-wider ${countdown > 0 ? "text-slate-300" : "text-sky-600 hover:text-sky-700"}`}
                       >
-                        {countdown > 0 ? `Resend Code in ${countdown}s` : "Resend Code Now"}
+                        {countdown > 0
+                          ? `Resend Code in ${countdown}s`
+                          : "Resend Code Now"}
                       </button>
                     </div>
                   </div>
@@ -295,7 +324,11 @@ export default function Login() {
                     disabled={isSubmitting || otp.length !== 6}
                     className="w-full h-[72px] bg-[#0b1b3d] text-white rounded-full font-[950] text-sm uppercase tracking-[0.1em] hover:bg-[#152a55] transition-all shadow-2xl shadow-blue-900/30 mt-4 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center"
                   >
-                    {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "VERIFY & LOGIN"}
+                    {isSubmitting ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      "VERIFY & LOGIN"
+                    )}
                   </button>
                 </form>
               )}
