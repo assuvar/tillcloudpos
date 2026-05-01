@@ -60,6 +60,7 @@ export interface BillRecord {
   pickupName?: string | null;
   pickupPhone?: string | null;
   deliveryName?: string | null;
+  deliveryPhone?: string | null;
   items: BillItem[];
 }
 
@@ -261,6 +262,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       pickupName: bill.pickupName || null,
       pickupPhone: bill.pickupPhone || null,
       deliveryName: bill.deliveryName || null,
+      deliveryPhone: bill.deliveryPhone || null,
       items,
     };
   };
