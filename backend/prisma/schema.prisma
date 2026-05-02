@@ -53,6 +53,9 @@ model Restaurant {
   tableGroups      TableGroup[]
   tables           Table[]
   reservations     Reservation[]
+  printerSettings  PrinterSettings[]
+  kotSettings      KotSettings?
+  billSettings     BillSettings?
 
   @@map("restaurants")
 }
@@ -487,6 +490,8 @@ enum OrderType {
 enum BillStatus {
   OPEN
   KOT_SENT
+  PREPARING
+  READY
   AWAITING_PAYMENT
   PAID
   VOIDED
@@ -495,8 +500,10 @@ enum BillStatus {
 
 enum KotStatus {
   SENT
-  BUMPED
+  PREPARING
   READY
+  COMPLETED
+  BUMPED
   UPDATED
 }
 
@@ -647,4 +654,68 @@ enum ReservationStatus {
   SEATED
   CANCELLED
   NOSHOW
+}
+
+model PrinterSettings {
+  id           String      @id @default(cuid())
+  restaurantId String
+  name         String
+  type         PrinterType @default(THERMAL)
+  interface    String      @default("NETWORK") // NETWORK, USB, BLUETOOTH
+  ipAddress    String?
+  port         Int?        @default(9100)
+  isBilling    Boolean     @default(false)
+  isKitchen    Boolean     @default(false)
+  paperSize    String      @default("80mm") // 58mm, 80mm, A4
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("printer_settings")
+}
+
+enum PrinterType {
+  THERMAL
+  A4
+}
+
+model KotSettings {
+  id                String     @id @default(cuid())
+  restaurantId      String     @unique
+  mode              KotMode    @default(BOTH)
+  enablePrinting    Boolean    @default(true)
+  showTableNumber   Boolean    @default(true)
+  showCustomerName  Boolean    @default(true)
+  showNotes         Boolean    @default(true)
+  showOrderType     Boolean    @default(true)
+  restaurant        Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("kot_settings")
+}
+
+enum KotMode {
+  DISPLAY
+  PRINT
+  BOTH
+}
+
+model BillSettings {
+  id              String     @id @default(cuid())
+  restaurantId    String     @unique
+  logoUrl         String?
+  showLogo        Boolean    @default(true)
+  restaurantName  String
+  address         String
+  gstNumber       String?
+  contactNumber   String?
+  footerText      String?
+  showQrCode      Boolean    @default(false)
+  qrCodeData      String?
+  paperSize       String     @default("80mm")
+  fontSize        Int        @default(12)
+  alignment       String     @default("LEFT")
+  restaurant      Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("bill_settings")
 }

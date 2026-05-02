@@ -18,6 +18,7 @@ import {
   PaymentStatus,
   TaxMode,
   TableStatus,
+  KotStatus,
 } from '../../generated/prisma';
 import {
   normalizeIngredientUnit,
@@ -250,6 +251,8 @@ export class OrdersService {
               in: [
                 BillStatus.OPEN,
                 BillStatus.KOT_SENT,
+                BillStatus.PREPARING,
+                BillStatus.READY,
                 BillStatus.AWAITING_PAYMENT,
               ],
             },
@@ -282,6 +285,8 @@ export class OrdersService {
       // Map internal BillStatus to User-requested status strings
       let statusString = 'CREATED';
       if (bill.status === BillStatus.KOT_SENT) statusString = 'IN_PROGRESS';
+      if (bill.status === BillStatus.PREPARING) statusString = 'PREPARING';
+      if (bill.status === BillStatus.READY) statusString = 'READY';
       if (bill.status === BillStatus.AWAITING_PAYMENT) statusString = 'BILLING';
       if (bill.status === BillStatus.PAID) statusString = 'COMPLETED';
       if (bill.status === BillStatus.CLOSED) statusString = 'CLOSED';
@@ -396,6 +401,15 @@ export class OrdersService {
         data: {
           status: BillStatus.CLOSED,
           paidAt: bill.paidAt || new Date(),
+        },
+      });
+
+      // Also mark all kitchen orders as BUMPED to stop timers on KDS
+      await tx.kitchenOrder.updateMany({
+        where: { billId: id },
+        data: {
+          status: KotStatus.BUMPED,
+          bumpedAt: new Date(),
         },
       });
 

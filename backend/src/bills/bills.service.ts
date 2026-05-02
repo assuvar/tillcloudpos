@@ -26,6 +26,8 @@ import {
   UpdateBillItemDto,
 } from './dto/create-bill.dto';
 import { CashPaymentDto } from './dto/cash-payment.dto';
+import { PrintingService } from '../settings/printing.service';
+import { KotMode } from '../../generated/prisma';
 
 type BillItemSnapshot = {
   id: string;
@@ -78,7 +80,10 @@ type KitchenOrderView = {
 
 @Injectable()
 export class BillsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly printingService: PrintingService,
+  ) {}
 
   private toClosedDate(date: Date): Date {
     return new Date(
@@ -489,6 +494,8 @@ export class BillsService {
                 in: [
                   BillStatus.OPEN,
                   BillStatus.KOT_SENT,
+                  BillStatus.PREPARING,
+                  BillStatus.READY,
                   BillStatus.AWAITING_PAYMENT,
                 ],
               },
@@ -753,6 +760,21 @@ export class BillsService {
         });
       }
 
+      // Requirement: Handle KOT Mode (Print/Display)
+      const kotSettings = await tx.kotSettings.findUnique({
+        where: { restaurantId },
+      });
+
+      const mode = kotSettings?.mode || 'BOTH';
+      const enablePrinting = kotSettings?.enablePrinting ?? true;
+
+      // Trigger Print if enabled (Non-blocking)
+      if (enablePrinting && (mode === 'PRINT' || mode === 'BOTH')) {
+        this.printingService
+          .triggerKotPrint(restaurantId, kitchenOrder.id)
+          .catch((err) => console.error('KOT Print failed', err));
+      }
+
       return {
         bill: this.normalizeBill(updatedBill),
         kitchenOrder: {
@@ -788,6 +810,113 @@ export class BillsService {
     });
 
     return this.normalizeKitchenOrders(kitchenOrders);
+  }
+
+  async updateKitchenOrderStatus(
+    restaurantId: string,
+    orderId: string,
+    status: string,
+  ) {
+    const kitchenOrder = await this.prisma.kitchenOrder.findFirst({
+      where: {
+        id: orderId,
+        bill: {
+          restaurantId,
+        },
+      },
+    });
+
+    if (!kitchenOrder) {
+      throw new NotFoundException('Kitchen order not found');
+    }
+
+    const nextStatus = status as KotStatus;
+    const data: Prisma.KitchenOrderUpdateInput = { status: nextStatus };
+
+    if (nextStatus === KotStatus.READY) {
+      data.readyAt = new Date();
+    } else if (
+      nextStatus === KotStatus.BUMPED ||
+      nextStatus === KotStatus.COMPLETED
+    ) {
+      data.bumpedAt = new Date();
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.kitchenOrder.update({
+        where: { id: orderId },
+        data,
+        include: {
+          bill: {
+            include: {
+              items: true,
+            },
+          },
+        },
+      });
+
+      // Synchronize with Bill status if not already PAID or CLOSED
+      const currentBillStatus = updatedOrder.bill.status;
+      if (
+        currentBillStatus !== BillStatus.PAID &&
+        currentBillStatus !== BillStatus.CLOSED &&
+        currentBillStatus !== BillStatus.VOIDED
+      ) {
+        let newBillStatus: BillStatus | undefined;
+
+        if (nextStatus === KotStatus.PREPARING) {
+          newBillStatus = BillStatus.PREPARING;
+        } else if (nextStatus === KotStatus.READY) {
+          newBillStatus = BillStatus.READY;
+        } else if (
+          nextStatus === KotStatus.COMPLETED ||
+          nextStatus === KotStatus.BUMPED
+        ) {
+          // Check if all other kitchen orders for this bill are also done
+          const allKots = await tx.kitchenOrder.findMany({
+            where: { billId: updatedOrder.billId },
+          });
+          const allDone = allKots.every(
+            (k) =>
+              k.status === KotStatus.COMPLETED || k.status === KotStatus.BUMPED,
+          );
+
+          if (allDone && updatedOrder.bill.status === BillStatus.PAID) {
+            await tx.bill.update({
+              where: { id: updatedOrder.billId },
+              data: {
+                status: BillStatus.CLOSED,
+                paidAt: updatedOrder.bill.paidAt || new Date(),
+              },
+            });
+
+            if (updatedOrder.bill.tableId) {
+              await tx.table.update({
+                where: {
+                  id: updatedOrder.bill.tableId,
+                  restaurantId: updatedOrder.bill.restaurantId,
+                },
+                data: {
+                  status: TableStatus.AVAILABLE,
+                  activeBillId: null,
+                  currentOrderId: null,
+                  startedAt: null,
+                },
+              });
+            }
+          }
+        }
+
+        if (newBillStatus && newBillStatus !== currentBillStatus) {
+          await tx.bill.update({
+            where: { id: updatedOrder.billId },
+            data: { status: newBillStatus },
+          });
+        }
+      }
+
+      return updatedOrder;
+    });
   }
 
   async processCashPayment(restaurantId: string, dto: CashPaymentDto) {
@@ -887,8 +1016,39 @@ export class BillsService {
         },
       });
 
-      // For Dine-In/In-Store: NOW create KOT after payment is recorded
-      if (isDineInOrInStore && updatedBill.kitchenOrders.length === 0) {
+      const allDone =
+        updatedBill.kitchenOrders.length > 0 &&
+        updatedBill.kitchenOrders.every(
+          (k) =>
+            k.status === KotStatus.COMPLETED || k.status === KotStatus.BUMPED,
+        );
+
+      if (allDone) {
+        updatedBill = await tx.bill.update({
+          where: { id: bill.id },
+          data: {
+            status: BillStatus.CLOSED,
+          },
+          include: {
+            items: true,
+            kitchenOrders: true,
+            payments: true,
+          },
+        });
+
+        if (updatedBill.tableId) {
+          await tx.table.update({
+            where: { id: updatedBill.tableId, restaurantId },
+            data: {
+              status: TableStatus.AVAILABLE,
+              activeBillId: null,
+              currentOrderId: null,
+              startedAt: null,
+            },
+          });
+        }
+      } else if (isDineInOrInStore && updatedBill.kitchenOrders.length === 0) {
+        // For Dine-In/In-Store: NOW create KOT after payment is recorded
         await this.createKotForBill(tx, updatedBill);
         updatedBill = await tx.bill.findFirstOrThrow({
           where: { id: bill.id, restaurantId },
@@ -898,6 +1058,15 @@ export class BillsService {
             payments: true,
           },
         });
+
+        // Trigger KOT Print for Dine-In/In-Store (Non-blocking)
+        if (updatedBill.kitchenOrders.length > 0) {
+          const lastKot =
+            updatedBill.kitchenOrders[updatedBill.kitchenOrders.length - 1];
+          this.printingService
+            .triggerKotPrint(restaurantId, lastKot.id)
+            .catch((err) => console.error('KOT Print failed', err));
+        }
       }
 
       // Inventory Deduction (CRITICAL Requirement)
@@ -915,6 +1084,11 @@ export class BillsService {
           },
         });
       }
+
+      // Trigger Bill Print (Non-blocking)
+      this.printingService
+        .triggerBillPrint(restaurantId, updatedBill.id)
+        .catch((err) => console.error('Bill Print failed', err));
 
       return {
         bill: this.normalizeBill(updatedBill),

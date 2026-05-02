@@ -20,6 +20,7 @@ import {
   ChevronDown,
   TrendingUp,
   Bell,
+  Printer,
 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { FRONTEND_PERMISSIONS } from "./permissions";
@@ -29,6 +30,7 @@ import {
   SERVICE_MODEL_LABELS,
   type ServiceModel,
 } from "./serviceModels";
+import PrinterDocketSettings from "./components/PrinterDocketSettings";
 
 /* --- Sub-Components --- */
 
@@ -1179,7 +1181,8 @@ type SettingType =
   | "payment"
   | "loyalty"
   | "sms"
-  | "terminals";
+  | "terminals"
+  | "printer";
 
 export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState<SettingType>("profile");
@@ -1199,6 +1202,7 @@ export default function SettingsPage() {
     { id: "loyalty", label: "Loyalty Program", icon: Star },
     { id: "sms", label: "SMS Credits", icon: MessageSquare },
     { id: "terminals", label: "Terminals", icon: Monitor },
+    { id: "printer", label: "Printer / Docket", icon: Printer },
   ];
 
   const isAdmin = user?.role === "ADMIN";
@@ -1231,6 +1235,9 @@ export default function SettingsPage() {
     }
     if (item.id === "terminals") {
       return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_TERMINALS);
+    }
+    if (item.id === "printer") {
+      return true; // For now allow all who can see settings, can refine later
     }
 
     return false;
@@ -1284,6 +1291,7 @@ export default function SettingsPage() {
           {activeSetting === "payment" && <PaymentMethods />}
           {activeSetting === "loyalty" && <LoyaltyProgram />}
           {activeSetting === "sms" && <SMSCredits />}
+          {activeSetting === "printer" && <PrinterDocketSettings />}
         </div>
       </div>
     </div>
