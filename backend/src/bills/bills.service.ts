@@ -862,7 +862,7 @@ export class BillsService {
         currentBillStatus !== BillStatus.CLOSED &&
         currentBillStatus !== BillStatus.VOIDED
       ) {
-        let newBillStatus: BillStatus | undefined;
+        let newBillStatus: BillStatus = undefined as any;
 
         if (nextStatus === KotStatus.PREPARING) {
           newBillStatus = BillStatus.PREPARING;
