@@ -8,6 +8,7 @@ import {
   Phone,
   MapPin,
   CreditCard,
+  CheckCircle2,
 } from "lucide-react";
 import ServiceModeModal from "./components/ServiceModeModal";
 import { useAuth } from "./context/AuthContext";
@@ -76,10 +77,25 @@ export default function POSEntryScreen() {
           label: "BILLING",
           classes: "bg-sky-50 text-sky-600 border-sky-100",
         };
+      case "PREPARING":
+        return {
+          label: "PREPARING",
+          classes: "bg-orange-50 text-orange-600 border-orange-100",
+        };
+      case "READY":
+        return {
+          label: "READY",
+          classes: "bg-emerald-50 text-emerald-600 border-emerald-100 font-black",
+        };
       case "COMPLETED":
         return {
           label: "PAID",
           classes: "bg-emerald-50 text-emerald-600 border-emerald-100",
+        };
+      case "CLOSED":
+        return {
+          label: "FINALIZED",
+          classes: "bg-slate-50 text-slate-400 border-slate-100 italic",
         };
       default:
         return {
@@ -167,16 +183,14 @@ export default function POSEntryScreen() {
             <div className="rounded-2xl bg-rose-50 p-6 text-rose-700">
               {error}
             </div>
-          ) : openBills.filter((b) => b.status !== "CLOSED").length === 0 ? (
+          ) : openBills.length === 0 ? (
             <div className="flex h-64 flex-col items-center justify-center rounded-[32px] border-2 border-dashed border-slate-200 bg-white text-center text-slate-400">
               <ShoppingBag size={48} className="mb-4 opacity-20" />
               <p className="text-lg font-bold">No bills yet today</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {openBills
-                .filter((b) => b.status !== "CLOSED")
-                .map((bill) => {
+              {openBills.map((bill) => {
                   const typeTag = getOrderTypeTag(bill.orderType);
                   const statusTag = getStatusDisplay(bill.status);
 
@@ -254,37 +268,34 @@ export default function POSEntryScreen() {
                         </p>
                       </div>
 
-                      <div className="mb-6 space-y-1 border-t border-slate-50 pt-4">
-                        <div className="flex justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                          <span>Total</span>
-                          <span className="text-[#0c1424]">
-                            {formatCurrency(bill.totalAmount)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-[11px] font-bold text-emerald-500 uppercase tracking-wider">
-                          <span>Paid</span>
-                          <span>{formatCurrency(bill.paidAmount || 0)}</span>
-                        </div>
-                        <div className="flex justify-between text-[11px] font-black text-rose-500 uppercase tracking-wider">
-                          <span>Balance</span>
-                          <span>
-                            {formatCurrency(bill.remainingAmount || 0)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3">
-                        <button
-                          onClick={handleCloseOrder}
-                          className="flex-1 rounded-xl bg-slate-50 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500"
-                        >
-                          {bill.status === "COMPLETED"
-                            ? "Dismiss Order"
-                            : "Close Order"}
-                        </button>
-                        <div className="text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest group-hover:translate-x-1 transition-transform">
-                          Details →
-                        </div>
+                      <div className="mt-auto pt-6 border-t border-slate-50 flex items-center justify-between">
+                         <div>
+                            <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Bill Total</div>
+                            <div className="text-lg font-black text-sky-600">{formatCurrency(bill.totalAmount)}</div>
+                         </div>
+                         {bill.status === "CLOSED" ? (
+                           <div className="h-11 px-5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-slate-50 text-slate-300 flex items-center justify-center gap-2 border border-slate-100">
+                             <CheckCircle2 size={14} /> Finalized
+                           </div>
+                         ) : (
+                           <button
+                             onClick={handleCloseOrder}
+                             className={`h-11 px-5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                               bill.status === "COMPLETED"
+                                 ? "bg-[#0c1424] text-white shadow-xl shadow-black/10 hover:scale-105 active:scale-95"
+                                 : "bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500"
+                             }`}
+                           >
+                              {bill.status === "COMPLETED" ? (
+                                <>
+                                  <CheckCircle2 size={14} strokeWidth={3} />
+                                  Complete & Clear
+                                </>
+                              ) : (
+                                "Close Order"
+                              )}
+                           </button>
+                         )}
                       </div>
                     </div>
                   );

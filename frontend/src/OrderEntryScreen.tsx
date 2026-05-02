@@ -625,14 +625,28 @@ export default function OrderEntryScreen() {
                 </div>
               </div>
               <div
-                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${activeBill?.status === "KOT_SENT" ? "border-blue-100 bg-blue-50 text-blue-600" : activeBill?.status === "AWAITING_PAYMENT" ? "border-emerald-100 bg-emerald-50 text-emerald-600" : "border-amber-100 bg-amber-50 text-amber-500"}`}
+                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
+                  activeBill?.status === "READY"
+                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    : activeBill?.status === "PREPARING"
+                      ? "border-orange-100 bg-orange-50 text-orange-600"
+                      : activeBill?.status === "KOT_SENT"
+                        ? "border-blue-100 bg-blue-50 text-blue-600"
+                        : activeBill?.status === "AWAITING_PAYMENT"
+                          ? "border-emerald-100 bg-emerald-50 text-emerald-600"
+                          : "border-amber-100 bg-amber-50 text-amber-500"
+                }`}
               >
                 <CheckCircle2 size={12} strokeWidth={3} />
-                {activeBill?.status === "KOT_SENT"
-                  ? "IN PROGRESS"
-                  : activeBill?.status === "AWAITING_PAYMENT"
-                    ? "BILLING"
-                    : "CREATED"}
+                {activeBill?.status === "READY"
+                  ? "ORDER READY"
+                  : activeBill?.status === "PREPARING"
+                    ? "PREPARING"
+                    : activeBill?.status === "KOT_SENT"
+                      ? "IN PROGRESS"
+                      : activeBill?.status === "AWAITING_PAYMENT"
+                        ? "BILLING"
+                        : "CREATED"}
               </div>
             </div>
 

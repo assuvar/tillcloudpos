@@ -8,4 +8,12 @@ export class KitchenService {
   getOrders(restaurantId: string) {
     return this.billsService.getKitchenOrders(restaurantId);
   }
+
+  updateOrderStatus(restaurantId: string, orderId: string, status: string) {
+    return this.billsService.updateKitchenOrderStatus(
+      restaurantId,
+      orderId,
+      status,
+    );
+  }
 }
