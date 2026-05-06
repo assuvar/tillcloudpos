@@ -3,7 +3,6 @@ import { Bell, HelpCircle, LogOut, ClipboardList, LayoutGrid, UtensilsCrossed } 
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { usePosCart } from "../context/PosCartContext";
-import { useOutlets } from "../context/OutletContext";
 import Clock from "./Clock";
 
 interface POSTopBarProps {
@@ -14,7 +13,6 @@ interface POSTopBarProps {
 const POSTopBar: React.FC<POSTopBarProps> = ({ activeView, onViewChange }) => {
   const { user, setMode, logout } = useAuth();
   const { clearBill } = usePosCart();
-  const { activeOutlet, availableOutlets, switchOutlet } = useOutlets();
   const navigate = useNavigate();
 
   const handleExit = () => {
