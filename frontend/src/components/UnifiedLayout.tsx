@@ -8,12 +8,12 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  Search,
   Bell,
   HelpCircle,
   LayoutGrid,
   LucideIcon,
   ShieldAlert,
+  Plus,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -21,7 +21,6 @@ import { useAuth } from "../context/AuthContext";
 import { DASHBOARD_VIEWS } from "../dashboardNavigation";
 import { FRONTEND_PERMISSIONS } from "../permissions";
 import POSTopBar from "./POSTopBar";
-import POSBottomNav from "./POSBottomNav";
 import Clock from "./Clock";
 import { useOutlets } from "../context/OutletContext";
 
@@ -143,9 +142,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
   if (fullScreen) {
     return (
       <div className="min-h-screen bg-[#f8fafc] font-sans text-[14px] text-slate-900 flex flex-col h-screen overflow-hidden">
-        <POSTopBar />
-        <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
-        <POSBottomNav
+        <POSTopBar
           activeView={
             currentView === "orders" ||
             currentView === "tables" ||
@@ -157,6 +154,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
             if (onViewChange) onViewChange(view);
           }}
         />
+        <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
       </div>
     );
   }
@@ -214,13 +212,10 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       <main className="mx-auto min-w-0 w-full max-w-[1600px] px-4 pb-24 pt-4 sm:px-6 lg:ml-0 lg:pl-[100px] lg:pr-8 xl:pl-[108px] lg:py-8">
         <header className="mb-6 flex flex-col gap-4 lg:mb-8 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-black text-[#0c1424]">
-                {user?.businessName || "TillCloud POS"}
+            <div className="flex flex-col gap-0.5">
+              <h2 className="text-[20px] font-[950] tracking-tight text-[#0c1424] leading-none">
+                TillCloud POS
               </h2>
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[9px] font-black uppercase text-[#0c1424]">
-                {user?.role || "User"}
-              </span>
             </div>
             {availableOutlets.length > 0 && (
               <div className="relative">
@@ -244,20 +239,30 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
             )}
           </div>
 
-          <div className="group relative mx-auto w-full max-w-[400px] flex-1">
-            <Search
-              size={14}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0c1424] transition-colors"
-            />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full h-10 pl-11 pr-6 rounded-xl bg-white border border-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0c1424]/5 transition-all text-[13px]"
-            />
-          </div>
+          {/* New Order Button */}
+          <button
+            onClick={() => navigate("/pos")}
+            className="flex items-center gap-2 h-10 px-5 rounded-xl bg-[#0c1424] text-white text-[12px] font-black uppercase tracking-widest shadow-lg shadow-black/10 hover:bg-black transition-all active:scale-95 flex-shrink-0"
+          >
+            <Plus size={15} strokeWidth={3} />
+            New Order
+          </button>
 
           <div className="flex items-center gap-4 self-end lg:self-auto">
-            <Clock />
+            <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-2.5 shadow-sm select-none">
+              <div className="flex flex-col border-r border-slate-200 pr-4">
+                <span className="text-[13px] font-[900] text-slate-800 uppercase tracking-wide leading-none">
+                  {user?.businessName || "Restaurant"}
+                </span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
+                  {user?.role || "User"}
+                  {user?.fullName ? (
+                    <span className="normal-case tracking-normal font-semibold text-slate-500"> · {user.fullName}</span>
+                  ) : null}
+                </span>
+              </div>
+              <Clock />
+            </div>
             <div className="h-6 w-[1px] bg-slate-100 hidden sm:block mx-1"></div>
             <button className="text-slate-400 hover:text-[#0c1424] transition-colors relative">
               <Bell size={18} />

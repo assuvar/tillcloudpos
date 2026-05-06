@@ -35,6 +35,7 @@ type AuthenticatedUser = {
   restaurantId: string;
   onboardingCompleted: boolean;
   permissions: string[];
+  businessName?: string | null;
 };
 
 type RestaurantOnboardingSnapshot = {
@@ -265,6 +266,7 @@ export class AuthService {
         Boolean(user.restaurant?.onboardingCompleted) ||
         restaurantSetupComplete,
       permissions: [], // Will be populated by the caller if async context allows
+      businessName: user.restaurant?.name || (user as any).businessName || null,
     };
   }
 

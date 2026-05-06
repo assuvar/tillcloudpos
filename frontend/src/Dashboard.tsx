@@ -149,7 +149,6 @@ export default function Dashboard({
   const canExportReports = hasPermission(FRONTEND_PERMISSIONS.REPORTS_EXPORT);
   const canViewDashboard = hasPermission(FRONTEND_PERMISSIONS.DASHBOARD_VIEW);
 
-  const isAdmin = user?.role === "ADMIN";
   const isCashier = user?.role === "CASHIER";
   const canLoadDashboardData = !isCashier && canViewDashboard && canUseReports;
 
@@ -352,11 +351,11 @@ export default function Dashboard({
               <div className="h-24 w-24 rounded-[32px] bg-gradient-to-br from-[#0c1424] to-[#1e293b] text-[#5dc7ec] flex items-center justify-center shadow-2xl mb-8">
                 <Cloud size={48} strokeWidth={2.5} />
               </div>
-              <h1 className="text-[42px] font-[1000] text-[#0c1424] leading-none tracking-tighter mb-4">
-                Home
+              <h1 className="text-[42px] font-[1000] text-[#0c1424] leading-none tracking-tighter mb-2">
+                {user?.businessName || "TillCloud POS"}
               </h1>
-              <p className="text-slate-500 text-xl font-medium">
-                Welcome to Cloud POS Software. You are signed in as a Cashier.
+              <p className="text-slate-400 text-[13px] font-bold uppercase tracking-widest mt-1">
+                {user?.role || "Cashier"} · {user?.fullName || ""}
               </p>
             </div>
           ) : canViewDashboard ? (
@@ -364,15 +363,14 @@ export default function Dashboard({
               {/* Dash Title */}
               <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between lg:mb-10">
                 <div>
-                  <h1 className="text-[34px] font-[1000] text-[#0c1424] leading-none tracking-tight">
-                    {isAdmin ? "Admin Dashboard" : "Dashboard"}
+                  <h1 className="text-[38px] font-[1000] text-[#0c1424] leading-none tracking-tight">
+                    {user?.businessName || "TillCloud POS"}
                   </h1>
-                  <p className="text-slate-500 mt-3 font-medium text-[15px]">
-                    Welcome back,{" "}
-                    <span className="text-[#0c1424] font-bold">
-                      {user?.fullName?.split(" ")[0]}
-                    </span>
-                    . Here's the performance overview for today.
+                  <p className="text-slate-400 mt-2 font-bold text-[12px] uppercase tracking-widest">
+                    {user?.role || "Admin"}
+                    {user?.fullName ? (
+                      <span className="normal-case tracking-normal font-semibold text-slate-500"> · {user.fullName}</span>
+                    ) : null}
                   </p>
                 </div>
 

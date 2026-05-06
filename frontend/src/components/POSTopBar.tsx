@@ -1,12 +1,17 @@
 import React from "react";
-import { Bell, HelpCircle, LogOut } from "lucide-react";
+import { Bell, HelpCircle, LogOut, ClipboardList, LayoutGrid, UtensilsCrossed } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { usePosCart } from "../context/PosCartContext";
 import { useOutlets } from "../context/OutletContext";
 import Clock from "./Clock";
 
-const POSTopBar: React.FC = () => {
+interface POSTopBarProps {
+  activeView?: "orders" | "tables" | "menu";
+  onViewChange?: (view: "orders" | "tables" | "menu") => void;
+}
+
+const POSTopBar: React.FC<POSTopBarProps> = ({ activeView, onViewChange }) => {
   const { user, setMode, logout } = useAuth();
   const { clearBill } = usePosCart();
   const { activeOutlet, availableOutlets, switchOutlet } = useOutlets();
@@ -30,37 +35,72 @@ const POSTopBar: React.FC = () => {
   return (
     <header className="flex h-16 items-center justify-between border-b border-slate-100 bg-white px-8 shadow-sm">
       <div className="flex items-center gap-4">
-        <h1 className="flex items-center gap-2.5 text-2xl font-[1000] tracking-tighter text-[#0c1424]">
-          <img src="/logo.png" alt="TillCloud Logo" className="w-8 h-8 object-contain" />
-          TILLCLOUD
-        </h1>
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="TillCloud Logo" className="w-8 h-8 object-contain flex-shrink-0" />
+          <h1 className="text-[17px] font-[1000] tracking-tight text-[#0c1424] leading-none">
+            TillCloud POS
+          </h1>
+        </div>
+
+        <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
+
+        {/* Compact Combined Restaurant & Timer Badge next to POS name */}
+        <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5 shadow-sm select-none">
+          <div className="flex flex-col border-r border-slate-200 pr-3">
+            <span className="text-[11px] font-[900] text-slate-700 uppercase tracking-wider leading-none">
+              {user?.businessName || "Restaurant"}
+            </span>
+            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">
+              {user?.role || "STAFF"}
+              {user?.fullName ? (
+                <span className="normal-case tracking-normal font-semibold text-slate-500"> · {user.fullName}</span>
+              ) : null}
+            </span>
+          </div>
+          <Clock />
+        </div>
       </div>
 
-      <div className="flex items-center gap-6 justify-center">
-        {/* Interactive Premium Outlet Switcher */}
-        {availableOutlets.length > 0 && (
-          <div className="relative group">
-            <select
-              value={activeOutlet?.id || ""}
-              onChange={(e) => switchOutlet(e.target.value)}
-              className="h-10 px-4 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 text-xs font-black text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0c1424] cursor-pointer transition-all appearance-none pr-8"
-            >
-              {availableOutlets.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name} (#{o.outletNumber})
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-              </svg>
-            </div>
-          </div>
-        )}
-        <div className="h-6 w-[1px] bg-slate-100 hidden sm:block"></div>
-        <Clock />
-      </div>
+      {/* Central Segmented Control for POS Screen Navigation */}
+      {onViewChange && (
+        <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 p-1 rounded-2xl select-none">
+          <button
+            onClick={() => onViewChange("orders")}
+            className={`flex items-center gap-2 h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+              activeView === "orders"
+                ? "bg-[#0c1424] text-white shadow-md shadow-black/10"
+                : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/50"
+            }`}
+          >
+            <ClipboardList size={15} strokeWidth={activeView === "orders" ? 2.5 : 2} />
+            Orders
+          </button>
+
+          <button
+            onClick={() => onViewChange("tables")}
+            className={`flex items-center gap-2 h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+              activeView === "tables"
+                ? "bg-[#0c1424] text-white shadow-md shadow-black/10"
+                : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/50"
+            }`}
+          >
+            <LayoutGrid size={15} strokeWidth={activeView === "tables" ? 2.5 : 2} />
+            Tables
+          </button>
+
+          <button
+            onClick={() => onViewChange("menu")}
+            className={`flex items-center gap-2 h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+              activeView === "menu"
+                ? "bg-[#0c1424] text-white shadow-md shadow-black/10"
+                : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/50"
+            }`}
+          >
+            <UtensilsCrossed size={15} strokeWidth={activeView === "menu" ? 2.5 : 2} />
+            Menu
+          </button>
+        </div>
+      )}
 
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-3">
