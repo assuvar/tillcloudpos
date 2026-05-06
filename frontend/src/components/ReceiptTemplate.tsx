@@ -13,7 +13,10 @@ export interface ReceiptBill {
   tableNumber?: string;
   orderType?: string;
   totalAmount?: number;
+  subtotalAmount?: number;
   taxAmount?: number;
+  taxMode?: "INCLUSIVE" | "EXCLUSIVE" | "NONE";
+  taxRate?: number;
   items?: ReceiptItem[];
   pickupName?: string | null;
   deliveryName?: string | null;
@@ -63,17 +66,28 @@ export default function ReceiptTemplate({
 }: ReceiptTemplateProps) {
   const receiptDate = bill?.createdAt ? new Date(bill.createdAt) : new Date();
 
-  // Calculate totals if bill items exist
-  let subtotal = 0;
-  if (bill?.items && bill.items.length > 0) {
-    subtotal = bill.items.reduce((acc, item) => {
-      const line = Number(item.lineTotal ?? item.price * item.quantity);
-      return acc + line;
-    }, 0);
-  }
-
+  // Use the bill's server-computed subtotal/tax/total — these are already correct
+  // for all tax modes (INCLUSIVE extracts tax from price, EXCLUSIVE adds on top, NONE = 0 tax)
+  const taxMode = bill?.taxMode || "INCLUSIVE";
+  const taxRate = Number(bill?.taxRate ?? 10);
   const tax = Number(bill?.taxAmount || 0);
-  const total = bill?.totalAmount !== undefined ? Number(bill.totalAmount) : subtotal + tax;
+  const total = bill?.totalAmount !== undefined ? Number(bill.totalAmount) : 0;
+
+  // For INCLUSIVE: subtotalAmount is the net pre-tax amount (items sum minus embedded tax)
+  // For EXCLUSIVE: subtotalAmount is the items sum (tax is separate)
+  // For NONE: subtotalAmount equals total
+  // Fall back to computing from items only when subtotalAmount is not provided
+  let subtotal = bill?.subtotalAmount !== undefined
+    ? Number(bill.subtotalAmount)
+    : bill?.items?.reduce((acc, item) => acc + Number(item.lineTotal ?? item.price * item.quantity), 0) ?? 0;
+
+  // Derive the GST line label
+  const taxLabel =
+    taxMode === "INCLUSIVE"
+      ? `Inc. GST (${taxRate}%)`
+      : taxMode === "EXCLUSIVE"
+        ? `GST (${taxRate}%)`
+        : "No Tax";
   const paidAmount = Number(payment?.paidAmount ?? payment?.amount ?? total);
   const changeAmount = Number(
     payment?.changeAmount ?? Math.max(paidAmount - total, 0)
@@ -180,18 +194,37 @@ export default function ReceiptTemplate({
       </div>
 
       <div className="space-y-1 mb-4 text-[12px] font-bold">
-        <div className="flex justify-between text-slate-500">
-          <span>Subtotal</span>
-          <span>{formatCurrency(subtotal)}</span>
-        </div>
-        <div className="flex justify-between text-slate-500">
-          <span>Tax</span>
-          <span>{formatCurrency(tax)}</span>
-        </div>
+        {taxMode === "EXCLUSIVE" ? (
+          // EXCLUSIVE: subtotal + GST added on top + total
+          <>
+            <div className="flex justify-between text-slate-500">
+              <span>Subtotal</span>
+              <span>{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-slate-500">
+              <span>{taxLabel}</span>
+              <span>+{formatCurrency(tax)}</span>
+            </div>
+          </>
+        ) : taxMode === "INCLUSIVE" ? (
+          // INCLUSIVE: just total — GST is embedded in price
+          null
+        ) : (
+          // fallback: show subtotal
+          <div className="flex justify-between text-slate-500">
+            <span>Subtotal</span>
+            <span>{formatCurrency(subtotal)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-[16px] font-[900] mt-2 pt-2 border-t border-slate-200">
           <span>Total</span>
           <span>{formatCurrency(total)}</span>
         </div>
+        {taxMode === "INCLUSIVE" && (
+          <div className="text-[10px] text-slate-400 italic">
+            * GST included in price
+          </div>
+        )}
       </div>
 
       {payment && (

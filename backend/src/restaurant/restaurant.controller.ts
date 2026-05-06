@@ -6,10 +6,13 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { RestaurantService } from './restaurant.service';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 type AuthenticatedRequest = {
   user?: {
@@ -74,5 +77,31 @@ export class RestaurantController {
       taxMode: body?.taxMode,
       taxRate: body?.taxRate,
     });
+  }
+
+  @Post('logo')
+  @UseInterceptors(
+    FileInterceptor('logo', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+    }),
+  )
+  async uploadLogo(@UploadedFile() logoFile: any) {
+    console.log('[RestaurantController] uploadLogo received file:', logoFile ? {
+      originalname: logoFile.originalname,
+      mimetype: logoFile.mimetype,
+      size: logoFile.size,
+      hasBuffer: !!logoFile.buffer,
+    } : 'undefined');
+
+    try {
+      const result = await this.restaurantService.uploadLogo(logoFile);
+      console.log('[RestaurantController] uploadLogo success result:', result);
+      return result;
+    } catch (error) {
+      console.error('[RestaurantController] uploadLogo failed error:', error);
+      throw error;
+    }
   }
 }

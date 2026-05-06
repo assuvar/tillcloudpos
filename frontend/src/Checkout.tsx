@@ -53,9 +53,9 @@ export default function Checkout() {
     [activeBill?.items, locationState.billItems],
   );
 
-  const subtotal = activeBill?.totalAmount ?? locationState.billTotal ?? 0;
-  const taxAmount = locationState.taxAmount ?? 0;
-  const totalDue = subtotal;
+  const subtotal = activeBill ? activeBill.subtotalAmount : (locationState.billTotal ?? 0);
+  const taxAmount = activeBill ? activeBill.taxAmount : (locationState.taxAmount ?? 0);
+  const totalDue = activeBill ? activeBill.totalAmount : (locationState.totalDue ?? subtotal);
   const customer = locationState.customer ?? null;
 
   const formatCurrency = (value: number) =>
@@ -186,14 +186,30 @@ export default function Checkout() {
               </div>
 
               <div className="mt-8 space-y-4 border-t border-slate-100 pt-8">
-                <div className="flex items-center justify-between text-sm font-bold text-slate-500">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(subtotal)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm font-bold text-slate-500">
-                  <span>Tax</span>
-                  <span>{formatCurrency(taxAmount)}</span>
-                </div>
+                {activeBill?.taxMode === "INCLUSIVE" ? (
+                  /* INCLUSIVE: just total + badge — no subtotal breakdown */
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#5cc7eb] bg-[#e8f9ff] px-3 py-1 rounded-full">
+                      ✓ GST Included in price
+                    </span>
+                  </div>
+                ) : activeBill?.taxMode === "EXCLUSIVE" ? (
+                  <>
+                    <div className="flex items-center justify-between text-sm font-bold text-slate-500">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm font-bold text-slate-500">
+                      <span>GST ({activeBill?.taxRate ?? 10}%)</span>
+                      <span>+{formatCurrency(taxAmount)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between text-sm font-bold text-slate-500">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                )}
                 <div className="rounded-3xl bg-[#f0f9ff] p-5">
                   <div className="text-[10px] font-black uppercase tracking-widest text-sky-400">
                     Total Due

@@ -1,48 +1,40 @@
 import {
   Building2,
-  ChevronDown,
   ShieldCheck,
-  UserCog,
-  UtensilsCrossed,
   Eye,
   EyeOff,
   ArrowLeft,
   Mail,
+  Menu,
+  X,
+  Loader2,
 } from "lucide-react";
 import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "./services/api";
 import { useAuth } from "./context/AuthContext";
-import { Loader2 } from "lucide-react";
 import {
   calculatePasswordStrength,
   isValidEmail,
   isValidPhone,
 } from "./onboarding/validation";
-import {
-  ALLOWED_SERVICE_MODELS,
-  SERVICE_MODEL_LABELS,
-  type ServiceModel,
-} from "./serviceModels";
 
 const OTP_LENGTH = 6;
 
 const registrationSteps = [
-  { id: 1, label: "Business Info", icon: Building2 },
-  { id: 2, label: "Admin Account", icon: UserCog },
-  { id: 3, label: "Restaurant Type", icon: UtensilsCrossed },
-  { id: 4, label: "Verification", icon: ShieldCheck },
+  { id: 1, label: "Business Setup", icon: Building2 },
+  { id: 2, label: "Verification", icon: ShieldCheck },
 ];
 
 export default function Register() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [adminAcceptedTerms, setAdminAcceptedTerms] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [mobileError, setMobileError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -60,7 +52,7 @@ export default function Register() {
 
   const [formData, setFormData] = useState({
     businessName: "",
-    country: "",
+    country: "AU", // defaulted to Australia to preserve backend validation
     fullName: "",
     mobile: "",
     email: "",
@@ -68,10 +60,10 @@ export default function Register() {
     confirmPassword: "",
     businessType: "",
     outlets: "",
-    serviceModels: [] as ServiceModel[],
+    serviceModels: [] as string[],
   });
 
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));
+  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 2));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const handleInputChange = (
@@ -154,29 +146,31 @@ export default function Register() {
     [formData.password],
   );
 
-  const isBusinessInfoValid = useMemo(() => {
-    return (
-      formData.businessName.trim() !== "" && formData.country.trim() !== ""
-    );
-  }, [formData.businessName, formData.country]);
+  const isStep1Valid = useMemo(() => {
+    // 1. Business Profile
+    const hasBusinessName = formData.businessName.trim() !== "";
 
-  const isAdminStepValid = useMemo(() => {
-    const hasRequiredFields =
+    // 2. Owner Details
+    const hasOwnerFields =
       formData.fullName.trim() &&
       formData.mobile.trim() &&
       formData.email.trim() &&
       formData.password &&
       formData.confirmPassword;
 
-    const valuesValid =
+    const ownerFieldsValid =
       isValidPhone(formData.mobile) &&
       isValidEmail(formData.email) &&
       formData.password.length >= 8 &&
       formData.password === formData.confirmPassword &&
       !emailError;
 
-    return Boolean(hasRequiredFields && valuesValid && adminAcceptedTerms);
-  }, [formData, emailError, adminAcceptedTerms]);
+    return Boolean(
+      hasBusinessName &&
+      hasOwnerFields &&
+      ownerFieldsValid
+    );
+  }, [formData, emailError]);
 
   const safeEmailDestination = formData.email.trim().toLowerCase();
 
@@ -211,6 +205,7 @@ export default function Register() {
       );
     }
   }
+
   async function verifyOtp() {
     const code = emailOtp.join("");
     const email = formData.email.trim().toLowerCase();
@@ -315,7 +310,7 @@ export default function Register() {
   };
 
   useEffect(() => {
-    if (currentStep !== 4) {
+    if (currentStep !== 2) {
       return;
     }
 
@@ -346,14 +341,6 @@ export default function Register() {
     setError("");
   }, [currentStep]);
 
-  const handleCheckboxChange = (model: ServiceModel) => {
-    setFormData((prev) => ({
-      ...prev,
-      serviceModels: prev.serviceModels.includes(model)
-        ? prev.serviceModels.filter((m) => m !== model)
-        : [...prev.serviceModels, model],
-    }));
-  };
 
   const handleSubmit = async () => {
     if (isSubmitting) {
@@ -372,7 +359,7 @@ export default function Register() {
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
-      setCurrentStep(2);
+      setCurrentStep(1);
       return;
     }
 
@@ -407,7 +394,7 @@ export default function Register() {
         finalMessage.toLowerCase().includes("already exists")
       ) {
         setEmailError("Email already exists. Please use another email.");
-        setCurrentStep(2);
+        setCurrentStep(1);
       }
     } finally {
       setIsSubmitting(false);
@@ -415,19 +402,20 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#eef4f8] text-slate-900 font-sans">
-      <main className="px-3 py-3 sm:px-4 sm:py-4">
-        <div className="min-h-[calc(100vh-24px)] border border-slate-200 bg-white grid grid-cols-1 lg:grid-cols-[280px_1fr] sm:min-h-[calc(100vh-32px)]">
-          {/* Sidebar */}
-          <aside className="border-r border-slate-200 bg-white hidden lg:block">
-            <div className="px-6 py-5 text-[30px] font-black tracking-tight text-[#0b1731]">
+    <div className="min-h-screen lg:h-screen bg-[#eef4f8] text-slate-900 font-sans lg:overflow-hidden">
+      <main className="px-3 py-3 sm:px-4 sm:py-4 lg:h-full">
+        <div className="min-h-[calc(100vh-24px)] border border-slate-200 bg-white grid grid-cols-1 lg:grid-cols-[280px_1fr] sm:min-h-[calc(100vh-32px)] lg:h-full">
+          {/* Constant Left Sidebar (Desktop Only) */}
+          <aside className="border-r border-slate-200 bg-white hidden lg:block flex-shrink-0 h-full">
+            <div className="px-6 py-5 text-[30px] font-black tracking-tight text-[#0b1731] flex items-center gap-2.5">
+              <img src="/logo.png" alt="TillCloud Logo" className="w-8 h-8 object-contain" />
               TILLCLOUD
             </div>
 
             <div className="px-6 pt-6 pb-4 border-b border-slate-100">
               <p className="text-2xl font-black text-[#0b1731]">Registration</p>
               <p className="text-sm text-slate-500 mt-1">
-                Step {currentStep} of 4
+                Step {currentStep} of 2
               </p>
             </div>
 
@@ -463,116 +451,63 @@ export default function Register() {
             </nav>
           </aside>
 
-          {/* Form Content */}
-          <section className="relative overflow-hidden flex flex-col">
+          {/* Form Content Panel */}
+          <section className="relative overflow-hidden flex flex-col lg:h-full">
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white via-[#f4fbff] to-[#edf5fa]" />
 
-            <div className="relative h-full px-6 py-6 sm:px-10 sm:py-10 lg:px-16 lg:py-12 flex flex-col">
-              <div className="flex justify-between items-center mb-10">
-                <div className="lg:hidden text-xl font-black text-[#0b1731]">
+            <div className="relative flex-1 px-6 py-6 sm:px-10 sm:py-8 lg:px-16 lg:py-10 flex flex-col min-h-0">
+              <div className="flex justify-between items-center mb-5 flex-shrink-0">
+                <div className="flex items-center gap-2.5 lg:hidden text-2xl font-[950] tracking-tighter text-[#0b1731]">
+                  <img src="/logo.png" alt="TillCloud Logo" className="w-8 h-8 object-contain" />
                   TILLCLOUD
                 </div>
+                {/* Mobile Hamburger menu */}
                 <button
-                  onClick={() => navigate("/login")}
-                  className="rounded-full bg-[#0b1731] px-8 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-white hover:bg-[#162a4d] transition-colors ml-auto"
+                  type="button"
+                  onClick={() => setShowMobileMenu(true)}
+                  className="lg:hidden p-2 rounded-xl bg-slate-50 border border-slate-100 hover:bg-slate-100 text-[#0b1731] transition-all flex items-center justify-center shadow-sm"
+                  aria-label="Toggle Steps Menu"
                 >
-                  Login
+                  <Menu size={20} />
                 </button>
               </div>
 
-              <div className="mx-auto max-w-[720px] w-full flex-1">
+              {/* Title & Description Stuck to the Top (Pinned / Constant) */}
+              <div className="mx-auto max-w-[1200px] w-full flex-shrink-0 mb-4">
                 {currentStep === 1 && (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <h1 className="text-4xl sm:text-5xl font-black leading-tight text-[#0b1731]">
-                      Tell us about your
-                      <br />
-                      Establishment
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-300">
+                    <h1 className="text-2xl sm:text-3xl font-black leading-tight text-[#0b1731] tracking-tight">
+                      Register your Business
                     </h1>
-                    <p className="mt-4 text-lg text-slate-600 max-w-[560px] leading-relaxed">
-                      Start your journey with TILLCLOUD by providing the
-                      foundational details of your business.
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-[640px]">
+                      Enter your business profile, administrator account, and venue setup to get started with TILLCLOUD.
                     </p>
-
-                    <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
-                      <form
-                        className="space-y-8"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (!isBusinessInfoValid) {
-                            setError(
-                              "Please complete business name and country.",
-                            );
-                            return;
-                          }
-                          setError("");
-                          nextStep();
-                        }}
-                      >
-                        <div className="space-y-3">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                            Business Name
-                          </label>
-                          <input
-                            type="text"
-                            name="businessName"
-                            required
-                            value={formData.businessName}
-                            onChange={handleInputChange}
-                            placeholder="e.g. The Sapphire Bistro"
-                            className="h-14 w-full rounded-2xl border border-slate-100 bg-slate-50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all font-medium"
-                          />
-                        </div>
-
-                        <div className="space-y-3">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                            Country of Operation
-                          </label>
-                          <div className="relative group">
-                            <select
-                              name="country"
-                              required
-                              value={formData.country}
-                              onChange={handleInputChange}
-                              className="h-14 w-full appearance-none rounded-2xl border border-slate-100 bg-slate-50 px-6 text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all font-medium cursor-pointer"
-                            >
-                              <option value="">Select your country</option>
-                              <option value="AU">Australia</option>
-                              <option value="NZ">New Zealand</option>
-                            </select>
-                            <ChevronDown className="pointer-events-none absolute right-6 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-300 transition-colors group-hover:text-slate-400" />
-                          </div>
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={!isBusinessInfoValid}
-                          className="h-14 w-full rounded-full bg-[#020c24] text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-[#0d1b3f] transition-all shadow-xl shadow-blue-900/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Next Step
-                        </button>
-                      </form>
-                    </div>
                   </div>
                 )}
-
                 {currentStep === 2 && (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <h1 className="text-4xl sm:text-5xl font-black leading-tight text-[#0b1731]">
-                      Create Admin Profile
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-300">
+                    <h1 className="text-2xl sm:text-3xl font-black leading-tight text-[#0b1731] tracking-tight">
+                      Verify Identity
                     </h1>
-                    <p className="mt-4 text-lg text-slate-600 max-w-[560px] leading-relaxed">
-                      Set up the primary administrative credentials for your
-                      restaurant's digital atrium.
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-[560px]">
+                      Complete the final security check to activate your TILLCLOUD dashboard. We've sent a code to your registered email.
                     </p>
+                  </div>
+                )}
+              </div>
 
-                    <div className="mt-10 rounded-[2.5rem] border border-slate-100 bg-white p-8 sm:p-12 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.05)]">
+              {/* Independently Scrollable Form viewport */}
+              <div className="mx-auto max-w-[1200px] w-full flex-1 lg:overflow-y-auto lg:pr-2 min-h-0 flex flex-col">
+                {currentStep === 1 && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.03)] mb-4">
                       <form
-                        className="space-y-8"
+                        className="space-y-6"
                         onSubmit={(e) => {
                           e.preventDefault();
-                          if (!isAdminStepValid) {
+                          if (!isStep1Valid) {
                             setError(
-                              "Please fix all required fields before continuing.",
+                              "Please complete all mandatory fields and fix errors before continuing.",
                             );
                             return;
                           }
@@ -581,200 +516,219 @@ export default function Register() {
                         }}
                       >
                         {error && (
-                          <div className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-xs font-bold mb-6">
+                          <div className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-2.5 rounded-lg text-xs font-bold">
                             {error}
                           </div>
                         )}
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                          <div className="space-y-3">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                              Owner Name
+
+                        {/* SECTION 1: BUSINESS PROFILE */}
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-bold text-[#0b1731] border-b border-slate-100 pb-1.5 flex items-center gap-2">
+                            <span className="flex items-center justify-center w-5 h-5 rounded bg-[#f0f7ff] text-[#0b1731] text-[10px] font-black">
+                              1
+                            </span>
+                            Business Profile
+                          </h3>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 ml-0.5">
+                              Business Name <span className="text-rose-500">*</span>
                             </label>
                             <input
                               type="text"
-                              name="fullName"
+                              name="businessName"
                               required
-                              value={formData.fullName}
+                              value={formData.businessName}
                               onChange={handleInputChange}
-                              placeholder="Alexander Reed"
-                              className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all"
+                              placeholder="e.g. The Sapphire Bistro"
+                              className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all text-xs font-medium"
                             />
                           </div>
-                          <div className="space-y-3">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                              Owner Mobile Number
+                        </div>
+
+                        {/* SECTION 2: OWNER DETAILS */}
+                        <div className="space-y-3 pt-2">
+                          <h3 className="text-sm font-bold text-[#0b1731] border-b border-slate-100 pb-1.5 flex items-center gap-2">
+                            <span className="flex items-center justify-center w-5 h-5 rounded bg-[#f0f7ff] text-[#0b1731] text-[10px] font-black">
+                              2
+                            </span>
+                            Administrator Profile
+                          </h3>
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 ml-0.5">
+                                Owner Name <span className="text-rose-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                name="fullName"
+                                required
+                                value={formData.fullName}
+                                onChange={handleInputChange}
+                                placeholder="Alexander Reed"
+                                className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all text-xs font-medium"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 ml-0.5">
+                                Owner Mobile Number <span className="text-rose-500">*</span>
+                              </label>
+                              <input
+                                type="tel"
+                                name="mobile"
+                                required
+                                value={formData.mobile}
+                                onChange={handleInputChange}
+                                onBlur={() => {
+                                  if (
+                                    formData.mobile &&
+                                    !isValidPhone(formData.mobile)
+                                  ) {
+                                    setMobileError(
+                                      "Enter a valid mobile number.",
+                                    );
+                                  }
+                                }}
+                                placeholder="+61 400 000 000"
+                                className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all text-xs font-medium"
+                              />
+                              {mobileError && (
+                                <p className="text-[10px] font-semibold text-rose-600 mt-1">
+                                  {mobileError}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 ml-0.5">
+                              Email ID <span className="text-rose-500">*</span>
                             </label>
                             <input
-                              type="tel"
-                              name="mobile"
+                              type="email"
+                              name="email"
                               required
-                              value={formData.mobile}
+                              value={formData.email}
                               onChange={handleInputChange}
-                              onBlur={() => {
-                                if (
-                                  formData.mobile &&
-                                  !isValidPhone(formData.mobile)
-                                ) {
-                                  setMobileError(
-                                    "Enter a valid mobile number.",
-                                  );
-                                }
-                              }}
-                              placeholder="+91 9874563210"
-                              className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all"
+                              onBlur={handleEmailBlur}
+                              placeholder="owner@restaurant.com"
+                              className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all text-xs font-medium"
                             />
-                            {mobileError && (
-                              <p className="text-xs font-semibold text-rose-600">
-                                {mobileError}
+                            {emailChecking && (
+                              <p className="text-[10px] font-semibold text-slate-400 mt-1 animate-pulse">
+                                Checking email...
+                              </p>
+                            )}
+                            {emailError && (
+                              <p className="text-[10px] font-semibold text-rose-600 mt-1">
+                                {emailError}
                               </p>
                             )}
                           </div>
-                        </div>
 
-                        <div className="space-y-3">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                            Email ID
-                          </label>
-                          <input
-                            type="email"
-                            name="email"
-                            required
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            onBlur={handleEmailBlur}
-                            placeholder="owner@restaurant.com"
-                            className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all"
-                          />
-                          {emailChecking && (
-                            <p className="text-xs font-semibold text-slate-500">
-                              Checking email...
-                            </p>
-                          )}
-                          {emailError && (
-                            <p className="text-xs font-semibold text-rose-600">
-                              {emailError}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="relative grid grid-cols-1 gap-6 md:grid-cols-2">
-                          <div className="space-y-3">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                              Enter Password
-                            </label>
-                            <div className="relative">
-                              <input
-                                type={showPassword ? "text" : "password"}
-                                name="password"
-                                required
-                                value={formData.password}
-                                onChange={handleInputChange}
-                                placeholder="••••••••"
-                                className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all tracking-widest"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
-                              >
-                                {showPassword ? (
-                                  <EyeOff size={18} />
-                                ) : (
-                                  <Eye size={18} />
-                                )}
-                              </button>
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 ml-0.5">
+                                Enter Password <span className="text-rose-500">*</span>
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type={showPassword ? "text" : "password"}
+                                  name="password"
+                                  required
+                                  value={formData.password}
+                                  onChange={handleInputChange}
+                                  placeholder="••••••••"
+                                  className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all text-xs font-medium tracking-wider"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-600 hover:text-cyan-700 bg-cyan-50 hover:bg-cyan-100 p-1 rounded-md transition-all duration-200 shadow-sm flex items-center justify-center"
+                                  aria-label="Toggle password visibility"
+                                >
+                                  {showPassword ? (
+                                    <EyeOff size={14} />
+                                  ) : (
+                                    <Eye size={14} />
+                                  )}
+                                </button>
+                              </div>
+                              {passwordError && (
+                                <p className="text-[10px] font-semibold text-rose-600 mt-1">
+                                  {passwordError}
+                                </p>
+                              )}
+                              {!!formData.password && (
+                                <p className="text-[10px] font-semibold text-slate-500 mt-1">
+                                  Strength:{" "}
+                                  <span className="text-slate-700 font-bold">
+                                    {passwordStrength}
+                                  </span>
+                                </p>
+                              )}
                             </div>
-                            {passwordError && (
-                              <p className="text-xs font-semibold text-rose-600">
-                                {passwordError}
-                              </p>
-                            )}
-                            {!!formData.password && (
-                              <p
-                                className="text-xs font-semibold text-slate-500"
-                                aria-live="polite"
-                              >
-                                Password strength:{" "}
-                                <span className="text-slate-700">
-                                  {passwordStrength}
-                                </span>
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-3">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                              Confirm Password
-                            </label>
-                            <div className="relative">
-                              <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                name="confirmPassword"
-                                required
-                                value={formData.confirmPassword}
-                                onChange={handleInputChange}
-                                placeholder="••••••••"
-                                className="h-14 w-full rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all tracking-widest"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setShowConfirmPassword(!showConfirmPassword)
-                                }
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
-                              >
-                                {showConfirmPassword ? (
-                                  <EyeOff size={18} />
-                                ) : (
-                                  <Eye size={18} />
-                                )}
-                              </button>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 ml-0.5">
+                                Confirm Password <span className="text-rose-500">*</span>
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type={showConfirmPassword ? "text" : "password"}
+                                  name="confirmPassword"
+                                  required
+                                  value={formData.confirmPassword}
+                                  onChange={handleInputChange}
+                                  placeholder="••••••••"
+                                  className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:bg-white transition-all text-xs font-medium tracking-wider"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setShowConfirmPassword(!showConfirmPassword)
+                                  }
+                                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-600 hover:text-cyan-700 bg-cyan-50 hover:bg-cyan-100 p-1 rounded-md transition-all duration-200 shadow-sm flex items-center justify-center"
+                                  aria-label="Toggle confirm password visibility"
+                                >
+                                  {showConfirmPassword ? (
+                                    <EyeOff size={14} />
+                                  ) : (
+                                    <Eye size={14} />
+                                  )}
+                                </button>
+                              </div>
+                              {confirmPasswordError && (
+                                <p className="text-[10px] font-semibold text-rose-600 mt-1">
+                                  {confirmPasswordError}
+                                </p>
+                              )}
                             </div>
-                            {confirmPasswordError && (
-                              <p className="text-xs font-semibold text-rose-600">
-                                {confirmPasswordError}
-                              </p>
-                            )}
                           </div>
-                          <p className="absolute -bottom-6 left-1 text-[10px] text-slate-400 font-medium">
-                            Must contain 8 characters, one special symbol
+                          <p className="text-[9px] text-slate-400 font-medium">
+                            Must contain 8 characters, one special symbol.
                           </p>
                         </div>
 
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            checked={adminAcceptedTerms}
-                            onChange={(event) =>
-                              setAdminAcceptedTerms(event.target.checked)
-                            }
-                            className="h-4 w-4 rounded border-slate-300"
-                            aria-label="Agree to registration terms"
-                          />
-                          <span className="text-sm font-semibold text-slate-600 group-hover:text-slate-800">
-                            I agree to the terms and confirm all registration
-                            details are correct.
-                          </span>
-                        </label>
 
-                        <div className="flex items-center justify-between pt-6">
-                          <button
-                            type="button"
-                            onClick={prevStep}
-                            className="flex items-center gap-2 text-slate-400 hover:text-[#0b1731] font-bold text-sm transition-colors group"
-                          >
-                            <ArrowLeft
-                              size={16}
-                              className="transition-transform group-hover:-translate-x-1"
-                            />
-                            <span>Back</span>
-                          </button>
+
+                        {/* Continue Button */}
+                        <div className="pt-4 flex flex-col gap-3">
                           <button
                             type="submit"
-                            disabled={!isAdminStepValid}
-                            className="h-14 px-12 rounded-full bg-[#0b1731] text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-xl shadow-blue-900/20 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={!isStep1Valid}
+                            className="h-11 w-full rounded-xl bg-[#0b1731] text-xs font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-md active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <span>Next Step</span>
-                            <span className="text-lg">→</span>
+                            Continue to Verification
+                          </button>
+
+                          {/* Exit Button below registration form */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigate("/");
+                            }}
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 transition-all text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm"
+                          >
+                            <span>Do it Later / Exit Registration</span>
                           </button>
                         </div>
                       </form>
@@ -782,166 +736,22 @@ export default function Register() {
                   </div>
                 )}
 
-                {currentStep === 3 && (
+                {currentStep === 2 && (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <h1 className="text-4xl sm:text-5xl font-black leading-tight text-[#0b1731]">
-                      Define your Venue
-                    </h1>
-                    <p className="mt-4 text-lg text-slate-600 max-w-[560px] leading-relaxed">
-                      Tell us about the structure and service model of your
-                      restaurant to help us tailor your experience.
-                    </p>
-
-                    <div className="mt-10 rounded-[2.5rem] border border-slate-100 bg-white p-8 sm:p-12 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.05)]">
-                      <form
-                        className="space-y-8"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          const isStep3Valid =
-                            formData.businessType.trim() !== "" &&
-                            formData.outlets.trim() !== "" &&
-                            formData.serviceModels.length > 0;
-
-                          if (!isStep3Valid) {
-                            setError(
-                              "Please select business type, number of outlets, and at least one service model.",
-                            );
-                            return;
-                          }
-                          setError("");
-                          nextStep();
-                        }}
-                      >
-                        <div className="space-y-3">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                            Business Type
-                          </label>
-                          <div className="relative group">
-                            <select
-                              name="businessType"
-                              required
-                              value={formData.businessType}
-                              onChange={handleInputChange}
-                              className="h-14 w-full appearance-none rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all font-medium cursor-pointer"
-                            >
-                              <option value="">Cafe | Restaurant</option>
-                              <option value="cafe">Cafe</option>
-                              <option value="restaurant">Restaurant</option>
-                              <option value="bar">Bar</option>
-                            </select>
-                            <ChevronDown className="pointer-events-none absolute right-6 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-300 group-hover:text-slate-500" />
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                            Number of Outlets
-                          </label>
-                          <div className="relative group">
-                            <select
-                              name="outlets"
-                              required
-                              value={formData.outlets}
-                              onChange={handleInputChange}
-                              className="h-14 w-full appearance-none rounded-2xl border border-slate-50 bg-slate-50/50 px-6 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:bg-white transition-all font-medium cursor-pointer"
-                            >
-                              <option value="">1 | 2 | 3</option>
-                              <option value="1">1 Outlet</option>
-                              <option value="2">2 Outlets</option>
-                              <option value="3">3+ Outlets</option>
-                            </select>
-                            <ChevronDown className="pointer-events-none absolute right-6 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-300 group-hover:text-slate-500" />
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-slate-800 ml-1">
-                            Service Model
-                          </label>
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            {ALLOWED_SERVICE_MODELS.map((model) => (
-                              <label
-                                key={model}
-                                className="flex items-center gap-3 p-4 rounded-xl border border-slate-50 bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors group"
-                              >
-                                <div className="relative flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.serviceModels.includes(
-                                      model,
-                                    )}
-                                    onChange={() => handleCheckboxChange(model)}
-                                    className="peer w-5 h-5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer"
-                                  />
-                                  <div className="absolute inset-0 bg-[#0b1731] rounded opacity-0 peer-checked:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
-                                    <span className="text-white text-[10px]">
-                                      ✓
-                                    </span>
-                                  </div>
-                                </div>
-                                <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900 transition-colors">
-                                  {SERVICE_MODEL_LABELS[model]}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-6">
-                          <button
-                            type="button"
-                            onClick={prevStep}
-                            className="flex items-center gap-2 text-slate-400 hover:text-[#0b1731] font-bold text-sm transition-colors group"
-                          >
-                            <ArrowLeft
-                              size={16}
-                              className="transition-transform group-hover:-translate-x-1"
-                            />
-                            <span>Back</span>
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={
-                              formData.businessType.trim() === "" ||
-                              formData.outlets.trim() === "" ||
-                              formData.serviceModels.length === 0
-                            }
-                            className="h-14 px-12 rounded-full bg-[#0b1731] text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-xl shadow-blue-900/20 active:scale-[0.98] flex items-center justify-center gap-3"
-                          >
-                            <span>Next Step</span>
-                            <span className="text-lg">→</span>
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                )}
-
-                {currentStep === 4 && (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <h1 className="text-4xl sm:text-5xl font-black leading-tight text-[#0b1731]">
-                      Verify Identity
-                    </h1>
-                    <p className="mt-4 text-lg text-slate-600 max-w-[560px] leading-relaxed">
-                      Complete the final security check to activate your
-                      TILLCLOUD dashboard. We've sent a code to your registered
-                      email.
-                    </p>
-
                     {error && (
-                      <div className="mt-6 bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-sm font-bold">
+                      <div className="mb-4 bg-rose-50 border border-rose-100 text-rose-600 px-4 py-2.5 rounded-lg text-xs font-bold">
                         {error}
                       </div>
                     )}
 
-                    <div className="mt-10 max-w-[520px] mx-auto">
-                      <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.05)] flex flex-col items-center">
-                        <div className="flex items-center gap-3 w-full mb-6">
-                          <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                            <Mail size={20} />
+                    <div className="max-w-[480px] mx-auto">
+                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.03)] flex flex-col items-center">
+                        <div className="flex items-center gap-3 w-full mb-4">
+                          <div className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                            <Mail size={18} />
                           </div>
                           <div>
-                            <p className="text-sm font-black text-[#0b1731]">
+                            <p className="text-xs font-black text-[#0b1731]">
                               Email OTP
                             </p>
                             <p className="text-[10px] text-slate-400 font-medium">
@@ -950,10 +760,10 @@ export default function Register() {
                             </p>
                           </div>
                         </div>
-                        <p className="w-full text-[11px] font-semibold text-slate-500 -mt-2 mb-4">
+                        <p className="w-full text-[10px] font-semibold text-slate-400 -mt-2 mb-3">
                           Check your email inbox for the verification code.
                         </p>
-                        <div className="flex gap-2 mb-6">
+                        <div className="flex gap-2 mb-4">
                           {emailOtp.map((digit, index) => (
                             <input
                               key={index}
@@ -979,7 +789,7 @@ export default function Register() {
                                 );
                               }}
                               onFocus={() => setEmailOtpError("")}
-                              className="w-10 h-12 rounded-xl bg-[#f0f7ff] border-none text-center font-bold text-[#0b1731] focus:ring-2 focus:ring-cyan-300 focus:bg-white transition-all shadow-inner"
+                              className="w-9 h-11 rounded-lg bg-[#f0f7ff] border-none text-center font-bold text-[#0b1731] focus:ring-2 focus:ring-cyan-300 focus:bg-white transition-all shadow-inner"
                             />
                           ))}
                         </div>
@@ -994,7 +804,7 @@ export default function Register() {
                             onClick={() => {
                               void verifyOtp();
                             }}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
                               emailOtpVerified
                                 ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
                                 : "bg-[#0b1731] text-white hover:bg-[#162a4d] shadow-sm"
@@ -1007,13 +817,13 @@ export default function Register() {
                                 : "Verify Email OTP"}
                           </button>
                           {emailOtpMessage && (
-                            <span className="text-[10px] font-semibold text-emerald-600">
+                            <span className="text-[9px] font-semibold text-emerald-600">
                               {emailOtpMessage}
                             </span>
                           )}
                         </div>
                         {emailOtpError && (
-                          <p className="w-full text-[10px] font-semibold text-rose-600 mb-2">
+                          <p className="w-full text-[9px] font-semibold text-rose-600 mb-2">
                             {emailOtpError}
                           </p>
                         )}
@@ -1024,7 +834,7 @@ export default function Register() {
                             setEmailResendCountdown(60);
                             sendOtp();
                           }}
-                          className="text-xs font-bold text-cyan-500 hover:text-cyan-600 transition-colors uppercase tracking-wider ml-auto disabled:text-slate-400 disabled:cursor-not-allowed"
+                          className="text-[10px] font-bold text-cyan-500 hover:text-cyan-600 transition-colors uppercase tracking-wider ml-auto disabled:text-slate-400 disabled:cursor-not-allowed"
                         >
                           {emailResendCountdown > 0
                             ? `Resend in ${emailResendCountdown}s`
@@ -1033,8 +843,8 @@ export default function Register() {
                       </div>
                     </div>
 
-                    <div className="mt-10 flex flex-col items-center space-y-4">
-                      <label className="flex items-center gap-4 cursor-pointer group">
+                    <div className="mt-6 flex flex-col items-center space-y-3">
+                      <label className="flex items-center gap-3 cursor-pointer group">
                         <div className="relative flex items-center">
                           <input
                             type="checkbox"
@@ -1042,17 +852,17 @@ export default function Register() {
                             onChange={(event) =>
                               setAcceptedTerms(event.target.checked)
                             }
-                            className="peer w-5 h-5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer"
+                            className="peer w-4.5 h-4.5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer"
                           />
                           <div className="absolute inset-0 bg-[#0b1731] rounded opacity-0 peer-checked:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
-                            <span className="text-white text-[10px]">✓</span>
+                            <span className="text-white text-[8px] font-black">✓</span>
                           </div>
                         </div>
-                        <span className="text-sm font-bold text-slate-500 group-hover:text-slate-700 transition-colors">
+                        <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors leading-tight">
                           I agree to the Terms of Service and Privacy Policy
                         </span>
                       </label>
-                      <label className="flex items-center gap-4 cursor-pointer group">
+                      <label className="flex items-center gap-3 cursor-pointer group">
                         <div className="relative flex items-center">
                           <input
                             type="checkbox"
@@ -1060,50 +870,61 @@ export default function Register() {
                             onChange={(event) =>
                               setAcceptedComms(event.target.checked)
                             }
-                            className="peer w-5 h-5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer"
+                            className="peer w-4.5 h-4.5 rounded border-slate-200 text-[#0b1731] focus:ring-0 cursor-pointer"
                           />
                           <div className="absolute inset-0 bg-[#0b1731] rounded opacity-0 peer-checked:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
-                            <span className="text-white text-[10px]">✓</span>
+                            <span className="text-white text-[8px] font-black">✓</span>
                           </div>
                         </div>
-                        <span className="text-sm font-bold text-slate-500 group-hover:text-slate-700 transition-colors">
-                          I consent to receiving electronic communications
-                          regarding my account
+                        <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors leading-tight">
+                          I consent to receiving electronic communications regarding my account
                         </span>
                       </label>
                     </div>
 
-                    <div className="mt-10 flex items-center justify-center gap-6">
+                    <div className="mt-8 flex flex-col items-center gap-3">
+                      <div className="flex items-center justify-center gap-4 w-full">
+                        <button
+                          type="button"
+                          onClick={prevStep}
+                          className="h-11 px-6 rounded-xl border border-slate-100 bg-[#f4faff] text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-1.5 group"
+                        >
+                          <ArrowLeft
+                            size={14}
+                            className="transition-transform group-hover:-translate-x-0.5"
+                          />
+                          <span>Back</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            isSubmitting ||
+                            !emailOtpVerified ||
+                            !acceptedTerms ||
+                            !acceptedComms
+                          }
+                          onClick={handleSubmit}
+                          className="h-11 px-8 rounded-xl bg-[#0b1731] text-xs font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-md active:scale-[0.99] flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                          {isSubmitting ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <span>Finish Registration</span>
+                              <span className="text-sm">→</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
                       <button
                         type="button"
-                        onClick={prevStep}
-                        className="h-14 px-10 rounded-full border border-slate-100 bg-[#f4faff] text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2 group"
+                        onClick={() => {
+                          navigate("/");
+                        }}
+                        className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors mt-1"
                       >
-                        <ArrowLeft
-                          size={16}
-                          className="transition-transform group-hover:-translate-x-1"
-                        />
-                        <span>Back</span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={
-                          isSubmitting ||
-                          !emailOtpVerified ||
-                          !acceptedTerms ||
-                          !acceptedComms
-                        }
-                        onClick={handleSubmit}
-                        className="h-14 px-12 rounded-full bg-[#0b1731] text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-[#162a4d] transition-all shadow-2xl shadow-blue-900/30 active:scale-[0.98] flex items-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                        {isSubmitting ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                          <>
-                            <span>Finish Registration</span>
-                            <span className="text-lg">→</span>
-                          </>
-                        )}
+                        Verify Later & Exit
                       </button>
                     </div>
                   </div>
@@ -1113,6 +934,86 @@ export default function Register() {
           </section>
         </div>
       </main>
+
+      {/* Mobile Sidebar Slide-Over Drawer Overlay */}
+      {showMobileMenu && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowMobileMenu(false)}
+          />
+
+          {/* Sidebar Slide-over Panel */}
+          <div className="fixed inset-y-0 left-0 w-[280px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <div className="flex items-center gap-2.5 text-2xl font-[950] tracking-tighter text-[#0b1731]">
+                <img src="/logo.png" alt="TillCloud Logo" className="w-8 h-8 object-contain" />
+                TILLCLOUD
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMobileMenu(false)}
+                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-all"
+                aria-label="Close Steps Menu"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-6 py-6 border-b border-slate-100">
+              <p className="text-xl font-black text-[#0b1731]">Registration</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Step {currentStep} of 2
+              </p>
+            </div>
+
+            <nav className="py-2 flex-1">
+              {registrationSteps.map((step) => {
+                const Icon = step.icon;
+                const isActive = currentStep === step.id;
+                const isCompleted = currentStep > step.id;
+                return (
+                  <div
+                    key={step.id}
+                    className={`flex items-center gap-3 px-6 py-4 text-sm font-semibold transition-all ${
+                      isActive
+                        ? "bg-[#f3f6fb] text-[#0b1731] border-r-2 border-r-cyan-400"
+                        : isCompleted
+                          ? "text-cyan-600"
+                          : "text-slate-400"
+                    }`}
+                  >
+                    <div
+                      className={`flex items-center justify-center w-5 h-5 rounded-full border ${isActive ? "border-cyan-400" : isCompleted ? "bg-cyan-400 border-cyan-400 text-white" : "border-slate-200"}`}
+                    >
+                      {isCompleted ? (
+                        <span className="text-[10px]">✓</span>
+                      ) : (
+                        <Icon className="h-3 w-3" />
+                      )}
+                    </div>
+                    <span>{step.label}</span>
+                  </div>
+                );
+              })}
+            </nav>
+
+            <div className="p-6 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  navigate("/");
+                }}
+                className="w-full py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-500 hover:text-slate-800 transition-all text-center uppercase tracking-wider"
+              >
+                Exit Registration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

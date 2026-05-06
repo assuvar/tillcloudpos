@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Building2,
   Receipt,
@@ -17,10 +17,12 @@ import {
   Zap,
   Info,
   CheckCircle2,
-  ChevronDown,
   TrendingUp,
   Bell,
   Printer,
+  Lock,
+  X,
+  Check,
 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { FRONTEND_PERMISSIONS } from "./permissions";
@@ -38,6 +40,9 @@ const isServiceModel = (value: string): value is ServiceModel =>
   ALLOWED_SERVICE_MODELS.includes(value as ServiceModel);
 
 const RestaurantProfile = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [serviceModels, setServiceModels] = useState<ServiceModel[]>([
     "DINE_IN",
   ]);
@@ -45,27 +50,61 @@ const RestaurantProfile = () => {
   const [savingModels, setSavingModels] = useState(false);
   const [modelMessage, setModelMessage] = useState("");
 
-  useEffect(() => {
-    const loadRestaurant = async () => {
-      try {
-        const response = await api.get("/restaurant");
-        const models = Array.isArray(response.data?.serviceModels)
-          ? response.data.serviceModels.filter(
-              (value: string): value is ServiceModel => isServiceModel(value),
-            )
-          : [];
-        setServiceModels(models.length > 0 ? models : ["DINE_IN"]);
-      } catch {
-        setModelMessage("Unable to load service models");
-      } finally {
-        setLoadingModels(false);
-      }
-    };
+  // Restaurant profile fields
+  const [name, setName] = useState("");
+  const [abn, setAbn] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [suburb, setSuburb] = useState("");
+  const [state, setState] = useState("NSW");
+  const [postcode, setPostcode] = useState("");
+  const [phone, setPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [timezone, setTimezone] = useState("Australia/Sydney");
 
+  const [profileMessage, setProfileMessage] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadRestaurant = async () => {
+    try {
+      const response = await api.get("/restaurant");
+      const data = response.data || {};
+
+      const models = Array.isArray(data.serviceModels)
+        ? data.serviceModels.filter(
+            (value: string): value is ServiceModel => isServiceModel(value),
+          )
+        : [];
+      setServiceModels(models.length > 0 ? models : ["DINE_IN"]);
+
+      setName(data.name || "");
+      setAbn(data.abn || "");
+      setStreetAddress(data.streetAddress || "");
+      setSuburb(data.suburb || "");
+      setState(data.state || "NSW");
+      setPostcode(data.postcode || "");
+      setPhone(data.phone || "");
+      setContactEmail(data.contactEmail || "");
+      setLogoUrl(data.logoUrl || "");
+      setTimezone(data.timezone || "Australia/Sydney");
+    } catch (err) {
+      console.error("Failed to load restaurant profile", err);
+      setModelMessage("Unable to load restaurant profile details");
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  useEffect(() => {
     void loadRestaurant();
   }, []);
 
   const toggleServiceModel = (model: ServiceModel) => {
+    if (!isAdmin) return;
     setModelMessage("");
     setServiceModels((prev) => {
       if (prev.includes(model)) {
@@ -78,6 +117,7 @@ const RestaurantProfile = () => {
   };
 
   const saveServiceModels = async () => {
+    if (!isAdmin) return;
     setSavingModels(true);
     setModelMessage("");
     try {
@@ -90,18 +130,104 @@ const RestaurantProfile = () => {
     }
   };
 
+  const saveProfileChanges = async () => {
+    if (!isAdmin) return;
+    setSavingProfile(true);
+    setProfileMessage("");
+    try {
+      await api.patch("/restaurant", {
+        name: name.trim(),
+        abn: abn.trim() || null,
+        streetAddress: streetAddress.trim(),
+        suburb: suburb.trim(),
+        state: state,
+        postcode: postcode.trim(),
+        timezone: timezone,
+        logoUrl: logoUrl.trim() || null,
+      });
+      setProfileMessage("Profile updated successfully!");
+      setIsEditing(false);
+    } catch (err: any) {
+      console.error("Failed to update profile", err);
+      const msg = err?.response?.data?.message || "Failed to update restaurant profile";
+      setProfileMessage(typeof msg === "string" ? msg : JSON.stringify(msg));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setProfileMessage("");
+    void loadRestaurant();
+  };
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileMessage("Logo size must be under 5MB");
+      return;
+    }
+
+    setLogoUploading(true);
+    setProfileMessage("");
+
+    const formData = new FormData();
+    formData.append("logo", file);
+
+    try {
+      const response = await api.post("/restaurant/logo", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const logoUrlPath = response.data.url;
+      setLogoUrl(logoUrlPath);
+      setProfileMessage("Logo uploaded successfully. Click Save to apply changes!");
+    } catch (err: any) {
+      console.error("Logo upload failed", err);
+      setProfileMessage("Logo upload failed. Please try again.");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col">
-        <h2 className="text-[32px] font-black text-[#0c1424] tracking-tight leading-none">
-          Restaurant Profile
-        </h2>
-        <p className="text-[14px] text-slate-400 font-medium mt-2">
-          Manage your business details and branding for receipts and customer
-          interactions.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col">
+          <h2 className="text-[32px] font-black text-[#0c1424] tracking-tight leading-none">
+            Restaurant Profile
+          </h2>
+          <p className="text-[14px] text-slate-400 font-medium mt-2">
+            Manage your venue branding, localization, and general business identity.
+          </p>
+        </div>
       </div>
 
+      {!isAdmin && (
+        <div className="rounded-2xl px-6 py-4 text-[13px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100 flex items-center gap-2">
+          <Info size={16} />
+          Viewing only. Editing and saving is restricted to administrators.
+        </div>
+      )}
+
+      {profileMessage && (
+        <div className={`rounded-2xl px-6 py-4 text-[13px] font-black uppercase tracking-wider ${
+          profileMessage.includes("successfully") || profileMessage.includes("uploaded")
+            ? "bg-emerald-50 text-emerald-600 border border-emerald-100" 
+            : "bg-rose-50 text-rose-600 border border-rose-100"
+        }`}>
+          {profileMessage}
+        </div>
+      )}
+
+      {/* Service Models Section */}
       <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -112,27 +238,29 @@ const RestaurantProfile = () => {
               Select the order modes enabled for this venue.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void saveServiceModels()}
-            disabled={loadingModels || savingModels}
-            className="h-11 px-6 rounded-full bg-[#0c1424] text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
-          >
-            {savingModels ? "Saving..." : "Save Models"}
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => void saveServiceModels()}
+              disabled={loadingModels || savingModels}
+              className="h-11 px-6 rounded-full bg-[#0c1424] text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-50 transition-all hover:bg-opacity-95"
+            >
+              {savingModels ? "Saving..." : "Save Models"}
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[...ALLOWED_SERVICE_MODELS].map((model) => (
             <label
               key={model}
-              className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/40 cursor-pointer"
+              className={`flex items-center gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/40 ${isAdmin ? 'cursor-pointer' : 'cursor-not-allowed'}`}
             >
               <input
                 type="checkbox"
                 checked={serviceModels.includes(model)}
                 onChange={() => toggleServiceModel(model)}
-                disabled={loadingModels}
+                disabled={loadingModels || !isAdmin}
                 className="h-4 w-4"
               />
               <span className="text-[13px] font-bold text-[#0c1424]">
@@ -149,199 +277,365 @@ const RestaurantProfile = () => {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
-        {/* Branding */}
-        <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
-          <div className="flex items-center gap-3">
-            <Edit3 size={18} className="text-[#5dc7ec]" />
-            <h3 className="text-[16px] font-black text-[#0c1424]">Branding</h3>
-          </div>
-          <div className="flex flex-col items-center gap-6">
-            <div className="h-32 w-32 rounded-[24px] bg-[#f8fafc] border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-slate-300">
-                <Upload size={20} />
-              </div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Upload Logo
-              </span>
-            </div>
-            <div className="space-y-2 text-center">
-              <h4 className="text-[13px] font-black text-[#0c1424]">
-                Business Logo
-              </h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed px-4">
-                This logo will appear on your digital receipts, POS login
-                screen, and customer portal. Recommended size: 512x512px.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <span className="px-3 py-1 bg-slate-50 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                PNG / JPG
-              </span>
-              <span className="px-3 py-1 bg-slate-50 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                Max 5MB
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Business Info */}
-        <div className="col-span-2 space-y-8">
-          <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm space-y-8">
-            <div className="flex items-center gap-3">
-              <Building2 size={18} className="text-[#5dc7ec]" />
-              <h3 className="text-[16px] font-black text-[#0c1424]">
-                Business Info
+      {/* Integrated Unified Business Profile Sheet */}
+      <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+        {/* Header of the sheet */}
+        <div className="p-8 border-b border-slate-50 flex items-center justify-between gap-4 bg-slate-50/20">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[#5dc7ec] animate-pulse" />
+              <h3 className="text-[18px] font-black text-[#0c1424]">
+                Business Profile Sheet
               </h3>
             </div>
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                  Restaurant Name <span className="text-rose-500">*</span>
-                </label>
-                <div className="h-14 rounded-2xl bg-[#f0f7ff] border border-transparent px-6 flex items-center">
-                  <input
-                    type="text"
-                    defaultValue="The Azure Bistro"
-                    className="bg-transparent w-full text-[14px] font-bold text-[#0c1424] outline-none"
-                  />
-                </div>
-                <p className="text-[10px] italic text-slate-400 ml-1">
-                  Shown on receipts and POS login screen
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                  ABN
-                </label>
-                <div className="h-14 rounded-2xl bg-slate-50 border border-slate-100 px-6 flex items-center">
-                  <input
-                    type="text"
-                    placeholder="XX XXX XXX XXX"
-                    className="bg-transparent w-full text-[14px] font-bold text-[#0c1424] outline-none"
-                  />
-                </div>
-                <p className="text-[10px] italic text-slate-400 ml-1">
-                  Required on receipts over $82.50
-                </p>
-              </div>
-              <div className="col-span-2 space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                  Physical Address
-                </label>
-                <div className="h-28 rounded-[24px] bg-slate-50 border border-slate-100 p-6">
-                  <textarea
-                    defaultValue="122 Harbor Way, Sydney NSW 2000, Australia"
-                    className="bg-transparent w-full h-full text-[14px] font-bold text-[#0c1424] outline-none resize-none"
-                  />
-                </div>
-                <p className="text-[10px] italic text-slate-400 ml-1">
-                  Displayed on receipt footer
-                </p>
-              </div>
-            </div>
+            <p className="text-[12px] text-slate-400 font-medium mt-1">
+              Unified business profile card containing branding and official details.
+            </p>
           </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
-        {/* Communication */}
-        <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-xl bg-blue-50 flex items-center justify-center text-[#5dc7ec]">
-              <MessageSquare size={16} />
+          {isAdmin && (
+            <div className="flex gap-2">
+              {isEditing ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="h-10 px-5 rounded-full border border-slate-200 text-slate-600 text-[11px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all"
+                  >
+                    <X size={14} /> Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveProfileChanges()}
+                    disabled={savingProfile}
+                    className="h-10 px-6 rounded-full bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md shadow-emerald-500/10 hover:bg-emerald-600 transition-all disabled:opacity-50"
+                  >
+                    <Check size={14} /> {savingProfile ? "Saving..." : "Save Changes"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="h-10 px-6 rounded-full bg-[#0c1424] text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all shadow-md shadow-[#0c1424]/5"
+                >
+                  <Edit3 size={14} /> Edit Details
+                </button>
+              )}
             </div>
-            <h3 className="text-[16px] font-black text-[#0c1424]">
-              Communication
-            </h3>
-          </div>
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                Phone Number
-              </label>
-              <div className="h-14 rounded-2xl bg-[#f0f7ff] border border-transparent px-6 flex items-center gap-4">
-                <Phone size={14} className="text-[#0c1424]" />
-                <input
-                  type="text"
-                  defaultValue="+61 2 9876 5432"
-                  className="bg-transparent w-full text-[14px] font-bold text-[#0c1424] outline-none"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                Email Address
-              </label>
-              <div className="h-14 rounded-2xl bg-[#f0f7ff] border border-transparent px-6 flex items-center gap-4">
-                <Mail size={14} className="text-[#0c1424]" />
-                <input
-                  type="text"
-                  defaultValue="manager@azurebistro.com.au"
-                  className="bg-transparent w-full text-[14px] font-bold text-[#0c1424] outline-none"
-                />
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Localization */}
-        <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
-              <Zap size={16} />
-            </div>
-            <h3 className="text-[16px] font-black text-[#0c1424]">
-              Localization
-            </h3>
-          </div>
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                Timezone
-              </label>
-              <div className="h-14 rounded-2xl bg-slate-50 border border-slate-100 px-6 flex items-center justify-between">
-                <span className="text-[14px] font-bold text-[#0c1424]">
-                  (GMT+10:00) Sydney, Melbourne, Canberra
-                </span>
-                <ChevronDown size={14} className="text-slate-400" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                Currency
-              </label>
-              <div className="h-14 rounded-2xl bg-[#f0f7ff] border border-transparent px-6 flex items-center">
-                <span className="text-[14px] font-black text-[#0c1424]">
-                  AUD ($)
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        {/* Content of the sheet */}
+        <div className="p-8 lg:p-10">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+            {/* Left Column: Branding Logo */}
+            <div className="flex flex-col items-center text-center space-y-4 lg:border-r lg:border-slate-100 lg:pr-10">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Logo Branding
+              </span>
 
-      {/* Customer Experience */}
-      <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm space-y-8">
-        <div className="flex items-center gap-3">
-          <Star size={18} className="text-[#5dc7ec]" />
-          <h3 className="text-[16px] font-black text-[#0c1424]">
-            Customer Experience
-          </h3>
-        </div>
-        <div className="space-y-2">
-          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
-            Custom Thank-You Message
-          </label>
-          <div className="h-28 rounded-[24px] bg-[#f0f7ff] border border-transparent p-6">
-            <textarea
-              defaultValue="Thank you for dining at The Azure Bistro. We hope you enjoyed your meal and look forward to welcoming you back soon!"
-              className="bg-transparent w-full h-full text-[14px] font-bold text-[#0c1424] outline-none resize-none leading-relaxed"
-            />
+              <div 
+                onClick={() => isEditing && isAdmin && fileInputRef.current?.click()}
+                className={`relative h-40 w-40 rounded-[32px] bg-[#f8fafc] border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 transition-all overflow-hidden ${isEditing ? 'cursor-pointer hover:bg-slate-50 ring-4 ring-[#5dc7ec]/5' : 'cursor-default'}`}
+              >
+                {logoUrl ? (
+                  <img 
+                    src={logoUrl.startsWith("http") ? logoUrl : `${import.meta.env.VITE_API_URL || "http://localhost:3100"}${logoUrl}`} 
+                    alt="Business Logo" 
+                    className="h-full w-full object-contain p-3"
+                  />
+                ) : (
+                  <>
+                    <div className="h-12 w-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-slate-300">
+                      <Upload size={22} />
+                    </div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      Upload Logo
+                    </span>
+                  </>
+                )}
+
+                {isEditing && (
+                  <div className="absolute inset-0 bg-[#0c1424]/70 opacity-0 hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-2">
+                    <Upload size={18} />
+                    <span className="text-[9px] font-black uppercase tracking-wider">Change Logo</span>
+                  </div>
+                )}
+
+                {logoUploading && (
+                  <div className="absolute inset-0 bg-white/95 flex items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#5dc7ec]" />
+                  </div>
+                )}
+              </div>
+
+              {isEditing && logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setLogoUrl("")}
+                  className="text-[10px] font-black uppercase text-rose-500 tracking-wider hover:underline"
+                >
+                  Remove Logo
+                </button>
+              )}
+
+              <div className="space-y-1 text-center">
+                <p className="text-[11px] text-slate-400 leading-relaxed max-w-[200px]">
+                  Recommended size: 512x512px. Supports PNG/JPG up to 5MB.
+                </p>
+              </div>
+
+              <input 
+                type="file"
+                ref={fileInputRef}
+                onChange={handleLogoFileChange}
+                accept="image/*"
+                className="hidden"
+              />
+            </div>
+
+            {/* Right Columns: Fields list */}
+            <div className="lg:col-span-3 space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Restaurant Name */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                    Restaurant Name
+                  </label>
+                  {isEditing ? (
+                    <div className="h-12 rounded-xl bg-slate-50 border border-slate-200/80 px-4 flex items-center focus-within:ring-2 focus-within:ring-[#5dc7ec]/25 transition-all">
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="bg-transparent w-full text-[13px] font-bold text-[#0c1424] outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-12 bg-slate-50/50 rounded-xl px-4 flex items-center">
+                      <span className="text-[13px] font-bold text-[#0c1424]">
+                        {name || <span className="text-slate-300 italic">Not Specified</span>}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* ABN */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                    ABN (Australian Business Number)
+                  </label>
+                  {isEditing ? (
+                    <div className="h-12 rounded-xl bg-slate-50 border border-slate-200/80 px-4 flex items-center focus-within:ring-2 focus-within:ring-[#5dc7ec]/25 transition-all">
+                      <input
+                        type="text"
+                        placeholder="XX XXX XXX XXX"
+                        value={abn}
+                        onChange={(e) => setAbn(e.target.value)}
+                        className="bg-transparent w-full text-[13px] font-bold text-[#0c1424] outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-12 bg-slate-50/50 rounded-xl px-4 flex items-center">
+                      <span className="text-[13px] font-bold text-[#0c1424]">
+                        {abn || <span className="text-slate-300 italic">Not Specified</span>}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Street Address */}
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                    Street Address
+                  </label>
+                  {isEditing ? (
+                    <div className="h-12 rounded-xl bg-slate-50 border border-slate-200/80 px-4 flex items-center focus-within:ring-2 focus-within:ring-[#5dc7ec]/25 transition-all">
+                      <input
+                        type="text"
+                        placeholder="e.g. 122 Harbor Way"
+                        value={streetAddress}
+                        onChange={(e) => setStreetAddress(e.target.value)}
+                        className="bg-transparent w-full text-[13px] font-bold text-[#0c1424] outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-12 bg-slate-50/50 rounded-xl px-4 flex items-center">
+                      <span className="text-[13px] font-bold text-[#0c1424]">
+                        {streetAddress || <span className="text-slate-300 italic">Not Specified</span>}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Suburb */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                    Suburb
+                  </label>
+                  {isEditing ? (
+                    <div className="h-12 rounded-xl bg-slate-50 border border-slate-200/80 px-4 flex items-center focus-within:ring-2 focus-within:ring-[#5dc7ec]/25 transition-all">
+                      <input
+                        type="text"
+                        placeholder="e.g. Sydney"
+                        value={suburb}
+                        onChange={(e) => setSuburb(e.target.value)}
+                        className="bg-transparent w-full text-[13px] font-bold text-[#0c1424] outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-12 bg-slate-50/50 rounded-xl px-4 flex items-center">
+                      <span className="text-[13px] font-bold text-[#0c1424]">
+                        {suburb || <span className="text-slate-300 italic">Not Specified</span>}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* State & Postcode */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                      State
+                    </label>
+                    {isEditing ? (
+                      <div className="h-12 rounded-xl bg-slate-50 border border-slate-200/80 px-3 flex items-center focus-within:ring-2 focus-within:ring-[#5dc7ec]/25 transition-all">
+                        <select
+                          value={state}
+                          onChange={(e) => setState(e.target.value)}
+                          className="bg-transparent w-full text-[13px] font-bold text-[#0c1424] outline-none select-clean cursor-pointer"
+                        >
+                          <option value="NSW">NSW</option>
+                          <option value="VIC">VIC</option>
+                          <option value="QLD">QLD</option>
+                          <option value="WA">WA</option>
+                          <option value="SA">SA</option>
+                          <option value="TAS">TAS</option>
+                          <option value="ACT">ACT</option>
+                          <option value="NT">NT</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="h-12 bg-slate-50/50 rounded-xl px-4 flex items-center">
+                        <span className="text-[13px] font-bold text-[#0c1424]">{state}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                      Postcode
+                    </label>
+                    {isEditing ? (
+                      <div className="h-12 rounded-xl bg-slate-50 border border-slate-200/80 px-4 flex items-center focus-within:ring-2 focus-within:ring-[#5dc7ec]/25 transition-all">
+                        <input
+                          type="text"
+                          placeholder="2000"
+                          value={postcode}
+                          onChange={(e) => setPostcode(e.target.value)}
+                          className="bg-transparent w-full text-[13px] font-bold text-[#0c1424] outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-12 bg-slate-50/50 rounded-xl px-4 flex items-center">
+                        <span className="text-[13px] font-bold text-[#0c1424]">
+                          {postcode || <span className="text-slate-300 italic">None</span>}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Primary Phone Number (Locked) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                      Phone Number
+                    </label>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[8px] font-black uppercase tracking-wider">
+                      <Lock size={8} /> Read Only
+                    </span>
+                  </div>
+                  <div className="h-12 bg-slate-100/50 border border-slate-200/20 rounded-xl px-4 flex items-center gap-3 text-slate-500">
+                    <Phone size={14} className="text-slate-400" />
+                    <span className="text-[13px] font-bold">
+                      {phone || <span className="text-slate-300 italic">Not Available</span>}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Contact Email (Locked) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                      Email Address
+                    </label>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[8px] font-black uppercase tracking-wider">
+                      <Lock size={8} /> Read Only
+                    </span>
+                  </div>
+                  <div className="h-12 bg-slate-100/50 border border-slate-200/20 rounded-xl px-4 flex items-center gap-3 text-slate-500">
+                    <Mail size={14} className="text-slate-400" />
+                    <span className="text-[13px] font-bold">
+                      {contactEmail || <span className="text-slate-300 italic">Not Available</span>}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Timezone */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                    Timezone
+                  </label>
+                  {isEditing ? (
+                    <div className="h-12 rounded-xl bg-slate-50 border border-slate-200/80 px-3 flex items-center focus-within:ring-2 focus-within:ring-[#5dc7ec]/25 transition-all">
+                      <select
+                        value={timezone}
+                        onChange={(e) => setTimezone(e.target.value)}
+                        className="bg-transparent w-full text-[13px] font-bold text-[#0c1424] outline-none select-clean cursor-pointer"
+                      >
+                        <option value="Australia/Sydney">(GMT+10:00) Sydney</option>
+                        <option value="Australia/Melbourne">(GMT+10:00) Melbourne</option>
+                        <option value="Australia/Brisbane">(GMT+10:00) Brisbane</option>
+                        <option value="Australia/Adelaide">(GMT+09:30) Adelaide</option>
+                        <option value="Australia/Perth">(GMT+08:00) Perth</option>
+                        <option value="Australia/Hobart">(GMT+10:00) Hobart</option>
+                        <option value="Australia/Darwin">(GMT+09:30) Darwin</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="h-12 bg-slate-50/50 rounded-xl px-4 flex items-center">
+                      <span className="text-[13px] font-bold text-[#0c1424]">
+                        {timezone === "Australia/Sydney" && "Sydney (GMT+10)"}
+                        {timezone === "Australia/Melbourne" && "Melbourne (GMT+10)"}
+                        {timezone === "Australia/Brisbane" && "Brisbane (GMT+10)"}
+                        {timezone === "Australia/Adelaide" && "Adelaide (GMT+9:30)"}
+                        {timezone === "Australia/Perth" && "Perth (GMT+8)"}
+                        {timezone === "Australia/Hobart" && "Hobart (GMT+10)"}
+                        {timezone === "Australia/Darwin" && "Darwin (GMT+9:30)"}
+                        {!["Australia/Sydney", "Australia/Melbourne", "Australia/Brisbane", "Australia/Adelaide", "Australia/Perth", "Australia/Hobart", "Australia/Darwin"].includes(timezone) && timezone}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Currency */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                    Currency
+                  </label>
+                  <div className="h-12 bg-slate-100/30 rounded-xl px-4 flex items-center">
+                    <span className="text-[13px] font-black text-slate-400">
+                      AUD ($)
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
           </div>
-          <p className="text-[10px] italic text-slate-400 ml-1">
-            Printed at the bottom of every receipt
-          </p>
         </div>
       </div>
     </div>
@@ -530,207 +824,260 @@ const TerminalManagement = () => (
   </div>
 );
 
-const TaxConfiguration = () => (
-  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <div className="flex flex-col">
-      <h2 className="text-[32px] font-black text-[#0c1424] tracking-tight leading-none">
-        Tax Configuration
-      </h2>
-      <p className="text-[14px] text-slate-400 font-medium mt-2">
-        Control how GST is applied to your prices and receipts.
-      </p>
-    </div>
+const TaxConfiguration = () => {
+  const [taxMode, setTaxMode] = useState<"INCLUSIVE" | "EXCLUSIVE">("INCLUSIVE");
+  const [taxRate, setTaxRate] = useState("10");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-    <div className="grid grid-cols-12 gap-12">
-      <div className="col-span-12 lg:col-span-8 space-y-12">
-        <div className="space-y-6">
-          <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
-            Select Tax Mode
-          </h3>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {[
-              {
-                id: "inc",
-                label: "GST Included",
-                desc: "The price already includes GST.",
-                active: true,
-                tag: "Most Common",
-                example: "Example: $11.00 total -> GST $1.00",
-              },
-              {
-                id: "top",
-                label: "GST Added on Top",
-                desc: "GST is added at checkout.",
-                active: false,
-                example: "Example: $10.00 + $1.00 GST = $11.00",
-              },
-              {
-                id: "no",
-                label: "No Tax",
-                desc: "No GST applied.",
-                active: false,
-                example: "GST is zeroed out for all items.",
-              },
-            ].map((mode, i) => (
-              <div
-                key={mode.id}
-                className={`p-8 rounded-[32px] border-2 transition-all cursor-pointer relative flex flex-col gap-6 ${mode.active ? "border-[#5dc7ec] bg-white" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50"}`}
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.get("/restaurant");
+        const raw = res.data?.taxMode as string;
+        setTaxMode(raw === "EXCLUSIVE" ? "EXCLUSIVE" : "INCLUSIVE");
+        setTaxRate(String(res.data?.taxRate ?? "10"));
+      } catch {
+        // keep defaults
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void load();
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveMsg(null);
+    try {
+      await api.patch("/restaurant", { taxMode, taxRate: parseFloat(taxRate) });
+      setSaveMsg({ type: "success", text: "Tax settings saved successfully." });
+    } catch {
+      setSaveMsg({ type: "error", text: "Failed to save tax settings." });
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveMsg(null), 4000);
+    }
+  };
+
+  const rate = parseFloat(taxRate) || 0;
+  const exclusiveGst = (10 * rate) / 100;
+  const exclusiveTotal = 10 + exclusiveGst;
+
+  if (isLoading) {
+    return <div className="p-12 text-center text-slate-400 font-bold">Loading tax settings…</div>;
+  }
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col">
+        <h2 className="text-[32px] font-black text-[#0c1424] tracking-tight leading-none">
+          Tax Configuration
+        </h2>
+        <p className="text-[14px] text-slate-400 font-medium mt-2">
+          Control how GST is applied to your prices and receipts.
+        </p>
+      </div>
+
+      {saveMsg && (
+        <div className={`flex items-center gap-3 p-4 rounded-2xl border ${saveMsg.type === "success" ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-rose-50 border-rose-100 text-rose-700"}`}>
+          {saveMsg.type === "success" ? <CheckCircle2 size={16} /> : <Info size={16} />}
+          <span className="text-sm font-bold">{saveMsg.text}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-12 gap-12">
+        <div className="col-span-12 lg:col-span-8 space-y-8">
+          {/* Tax Mode Selection */}
+          <div className="space-y-6">
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
+              Select Tax Mode
+            </h3>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Option 1 — GST Included */}
+              <button
+                type="button"
+                onClick={() => setTaxMode("INCLUSIVE")}
+                className={`p-8 rounded-[32px] border-2 transition-all text-left relative flex flex-col gap-6 ${taxMode === "INCLUSIVE" ? "border-[#5dc7ec] bg-white shadow-sm" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
               >
                 <div className="flex justify-between items-start">
-                  <div
-                    className={`h-10 w-10 rounded-xl flex items-center justify-center ${mode.active ? "bg-blue-50 text-[#5dc7ec]" : "text-slate-300 bg-white shadow-sm"}`}
-                  >
-                    {i === 0 ? (
-                      <CheckCircle2 size={20} />
-                    ) : i === 1 ? (
-                      <Plus size={20} />
-                    ) : (
-                      <Trash2 size={20} />
-                    )}
+                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${taxMode === "INCLUSIVE" ? "bg-blue-50 text-[#5dc7ec]" : "text-slate-300 bg-white shadow-sm"}`}>
+                    <CheckCircle2 size={20} />
                   </div>
-                  {mode.tag && (
-                    <span className="px-3 py-1 bg-[#0c1424] rounded-lg text-[9px] font-black text-white uppercase tracking-widest">
-                      {mode.tag}
-                    </span>
-                  )}
+                  <span className="px-3 py-1 bg-[#0c1424] rounded-lg text-[9px] font-black text-white uppercase tracking-widest">
+                    Most Common
+                  </span>
                 </div>
                 <div>
-                  <h4 className="text-[16px] font-black text-[#0c1424] mb-2">
-                    {mode.label}
-                  </h4>
+                  <h4 className="text-[16px] font-black text-[#0c1424] mb-2">GST Included</h4>
                   <p className="text-[12px] text-slate-500 leading-relaxed">
-                    {mode.desc}
+                    The price already includes GST. Nothing extra is added at checkout.
                   </p>
                 </div>
-                <div className="mt-auto bg-slate-50 rounded-2xl p-6 text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest leading-relaxed">
-                  {mode.example}
+                <div className="mt-auto bg-slate-50 rounded-2xl p-4 text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest leading-relaxed">
+                  Example: $11.00 total → GST $1.00 already inside
+                </div>
+              </button>
+
+              {/* Option 2 — GST Added on Top */}
+              <button
+                type="button"
+                onClick={() => setTaxMode("EXCLUSIVE")}
+                className={`p-8 rounded-[32px] border-2 transition-all text-left relative flex flex-col gap-6 ${taxMode === "EXCLUSIVE" ? "border-[#5dc7ec] bg-white shadow-sm" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
+              >
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${taxMode === "EXCLUSIVE" ? "bg-blue-50 text-[#5dc7ec]" : "text-slate-300 bg-white shadow-sm"}`}>
+                  <Plus size={20} />
+                </div>
+                <div>
+                  <h4 className="text-[16px] font-black text-[#0c1424] mb-2">GST Added on Top</h4>
+                  <p className="text-[12px] text-slate-500 leading-relaxed">
+                    GST is calculated separately and added to the price at checkout.
+                  </p>
+                </div>
+                <div className="mt-auto bg-slate-50 rounded-2xl p-4 text-[10px] font-black text-[#5dc7ec] uppercase tracking-widest leading-relaxed">
+                  Example: $10.00 + ${(10 * rate / 100).toFixed(2)} GST ({rate}%) = ${(10 + 10 * rate / 100).toFixed(2)}
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Tax Rate — only for EXCLUSIVE */}
+          {taxMode === "EXCLUSIVE" && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
+                GST Rate (%)
+              </h3>
+              <div className="flex items-center gap-4 max-w-[280px]">
+                <div className="h-14 rounded-2xl bg-white border-2 border-slate-100 px-6 flex items-center justify-between flex-1 focus-within:border-[#5dc7ec] transition-colors">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(e.target.value)}
+                    className="bg-transparent w-full text-[20px] font-black text-[#0c1424] outline-none"
+                    placeholder="10"
+                  />
+                  <span className="text-[18px] font-black text-[#0c1424]">%</span>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
-            Tax Rate (%)
-          </h3>
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <div className="space-y-4">
-              <div className="h-14 rounded-2xl bg-white border border-slate-100 px-6 flex items-center justify-between">
-                <input
-                  type="text"
-                  defaultValue="10"
-                  className="bg-transparent w-32 text-[20px] font-black text-[#0c1424] outline-none"
-                />
-                <span className="text-[18px] font-black text-[#0c1424]">%</span>
-              </div>
               <p className="text-[12px] text-slate-400 font-medium ml-1">
-                Standard domestic GST rate is usually 10%.
+                Standard Australian GST is <strong>10%</strong>.
               </p>
             </div>
+          )}
+
+          {/* Compliance Note */}
+          <div className="bg-[#f0f9ff] rounded-[32px] border border-blue-100 p-8 flex gap-6">
+            <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-[#5dc7ec] flex-shrink-0">
+              <Info size={20} />
+            </div>
+            <div className="space-y-4 flex-1">
+              <div className="space-y-2">
+                <h4 className="text-[14px] font-black text-[#0c1424]">
+                  Important Compliance Warning
+                </h4>
+                <p className="text-[12px] text-slate-500 leading-relaxed font-medium">
+                  Tax regulations vary by jurisdiction. Ensure your settings comply with local legislation.
+                  Changes take effect on new bills immediately.
+                </p>
+              </div>
+            </div>
           </div>
+
+          {/* Save Button */}
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="h-12 px-10 rounded-full bg-[#0c1424] text-white text-[12px] font-black uppercase tracking-widest shadow-lg shadow-black/10 hover:bg-black transition-all disabled:opacity-50"
+          >
+            {isSaving ? "Saving…" : "Save Tax Settings"}
+          </button>
         </div>
 
-        <div className="bg-[#f0f9ff] rounded-[32px] border border-blue-100 p-8 flex gap-6">
-          <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-[#5dc7ec] flex-shrink-0">
-            <Info size={20} />
-          </div>
-          <div className="space-y-4 flex-1">
-            <div className="space-y-2">
-              <h4 className="text-[14px] font-black text-[#0c1424]">
-                Important Compliance Warning
+        {/* Live Receipt Preview */}
+        <div className="col-span-12 lg:col-span-4 space-y-8">
+          <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
+            Live Receipt Preview
+          </h3>
+          <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl overflow-hidden flex flex-col p-8">
+            <div className="flex flex-col items-center gap-2 mb-8">
+              <h4 className="text-[15px] font-black text-[#0c1424] uppercase tracking-widest">
+                TillCloud Store #42
               </h4>
-              <p className="text-[12px] text-slate-500 leading-relaxed font-medium">
-                Tax regulations vary by jurisdiction. Please ensure your tax
-                rates and modes comply with local legislation.
-              </p>
-            </div>
-            <button
-              onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("switchSetting", { detail: "payment" }),
-                )
-              }
-              className="h-11 px-6 bg-[#0c1424] text-white rounded-xl text-[11px] font-black uppercase tracking-widest"
-            >
-              Configure Payment Methods
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="col-span-12 lg:col-span-4 space-y-8">
-        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
-          Live Receipt Preview
-        </h3>
-        <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl overflow-hidden flex flex-col p-8">
-          <div className="flex flex-col items-center gap-2 mb-8">
-            <h4 className="text-[15px] font-black text-[#0c1424] uppercase tracking-widest">
-              TillCloud Store #42
-            </h4>
-            <span className="text-[10px] font-bold text-slate-400 uppercase">
-              Sydney, NSW 2000
-            </span>
-          </div>
-
-          <div className="space-y-6 pt-6 border-t border-dashed border-slate-200">
-            <div className="flex justify-between items-center">
-              <span className="text-[13px] font-bold text-slate-400">
-                Cloud Coffee Medium
-              </span>
-              <span className="text-[13px] font-black text-[#0c1424]">
-                $11.00
+              <span className="text-[10px] font-bold text-slate-400 uppercase">
+                Sydney, NSW 2000
               </span>
             </div>
-          </div>
 
-          <div className="mt-20 space-y-4 pt-6 border-t border-dashed border-slate-200">
-            <div className="flex justify-between items-center text-[12px] font-bold text-slate-400">
-              <span>Subtotal</span>
-              <span>$10.00</span>
+            <div className="space-y-6 pt-6 border-t border-dashed border-slate-200">
+              <div className="flex justify-between items-center">
+                <span className="text-[13px] font-bold text-slate-400">Cloud Coffee Medium</span>
+                <span className="text-[13px] font-black text-[#0c1424]">
+                  {taxMode === "EXCLUSIVE" ? "$10.00" : "$11.00"}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between items-center text-[12px] font-bold text-slate-400">
-              <span>GST (10%)</span>
-              <span>$1.00</span>
-            </div>
-            <div className="flex justify-between items-center pt-2">
-              <span className="text-[16px] font-black text-[#0c1424]">
-                Total
-              </span>
-              <span className="text-[18px] font-black text-[#5dc7ec]">
-                $11.00
-              </span>
-            </div>
-          </div>
 
-          <div className="mt-12 flex flex-col items-center gap-6">
-            <div className="w-full h-12 bg-slate-100 rounded-lg flex items-center justify-center relative overflow-hidden">
-              <div className="w-[80%] h-full flex gap-1 items-center px-4">
+            <div className="mt-8 space-y-3 pt-6 border-t border-dashed border-slate-200">
+              {taxMode === "EXCLUSIVE" ? (
+                <>
+                  <div className="flex justify-between items-center text-[12px] font-bold text-slate-400">
+                    <span>Subtotal</span>
+                    <span>$10.00</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[12px] font-bold text-slate-400">
+                    <span>GST ({rate}%)</span>
+                    <span>+${exclusiveGst.toFixed(2)}</span>
+                  </div>
+                </>
+              ) : (
+                /* INCLUSIVE: no subtotal/tax lines, just the total */
+                <div className="flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-[#5dc7ec] bg-[#e8f9ff] px-3 py-1 rounded-full">
+                    ✓ GST Included in price
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                <span className="text-[16px] font-black text-[#0c1424]">Total</span>
+                <span className="text-[18px] font-black text-[#5dc7ec]">
+                  {taxMode === "EXCLUSIVE" ? `$${exclusiveTotal.toFixed(2)}` : "$11.00"}
+                </span>
+              </div>
+              {taxMode === "INCLUSIVE" && (
+                <p className="text-[10px] text-slate-400 italic">* GST included in price</p>
+              )}
+            </div>
+
+            <div className="mt-10 flex flex-col items-center gap-6">
+              <div className="w-full h-8 bg-slate-50 rounded-lg flex items-center px-4 gap-1 overflow-hidden">
                 {[...Array(20)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-full bg-slate-400"
-                    style={{ width: i % 3 === 0 ? "4px" : "2px", opacity: 0.5 }}
-                  />
+                  <div key={i} className="h-full bg-slate-300" style={{ width: i % 3 === 0 ? "4px" : "2px", opacity: 0.4 }} />
                 ))}
               </div>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                Thank you for your business
+              </span>
             </div>
-            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
-              Thank you for your business
-            </span>
           </div>
-        </div>
 
-        <div className="bg-[#0c1424] rounded-[32px] p-8 text-white">
-          <p className="text-[12px] text-slate-500 font-medium leading-relaxed">
-            The receipt preview updates in real-time as you switch between modes
-            and adjust rates.
-          </p>
+          <div className="bg-[#0c1424] rounded-[32px] p-6 text-white">
+            <p className="text-[12px] text-slate-400 font-medium leading-relaxed">
+              {taxMode === "INCLUSIVE"
+                ? "GST is already inside every menu price. Customers see one clean total — no extra charges."
+                : `GST at ${rate}% is calculated on the subtotal and added at checkout.`}
+            </p>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
+
+
 
 const PaymentMethods = () => (
   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

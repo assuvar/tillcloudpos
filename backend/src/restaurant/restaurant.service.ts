@@ -3,6 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join, extname } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateRestaurantDto,
@@ -87,6 +90,11 @@ export class RestaurantService {
     const nextState = dto.state?.trim();
     const nextPostcode = dto.postcode?.trim();
     const nextPhone = dto.phone?.trim();
+    const nextBusinessType = dto.businessType?.trim();
+    const nextAbn = dto.abn?.trim();
+    const nextGstNumber = dto.gstNumber?.trim();
+    const nextTaxNumber = dto.taxNumber?.trim();
+    const nextContactEmail = dto.contactEmail?.trim();
 
     // Note: We remove the strict multi-field check here.
     // Data completeness is validated by OnboardingService.getMissingSteps()
@@ -104,7 +112,7 @@ export class RestaurantService {
       );
     }
 
-    return (this.prisma as any).restaurant.update({
+    const updatedRestaurant = await (this.prisma as any).restaurant.update({
       where: { id: restaurantId },
       data: {
         ...(nextName !== undefined ? { name: nextName } : {}),
@@ -115,6 +123,11 @@ export class RestaurantService {
         ...(nextState !== undefined ? { state: nextState } : {}),
         ...(nextPostcode !== undefined ? { postcode: nextPostcode } : {}),
         ...(nextPhone !== undefined ? { phone: nextPhone } : {}),
+        ...(nextBusinessType !== undefined ? { businessType: nextBusinessType } : {}),
+        ...(nextAbn !== undefined ? { abn: nextAbn } : {}),
+        ...(nextGstNumber !== undefined ? { gstNumber: nextGstNumber } : {}),
+        ...(nextTaxNumber !== undefined ? { taxNumber: nextTaxNumber } : {}),
+        ...(nextContactEmail !== undefined ? { contactEmail: nextContactEmail } : {}),
         ...(dto.logoUrl !== undefined
           ? { logoUrl: dto.logoUrl?.trim() || null }
           : {}),
@@ -125,6 +138,51 @@ export class RestaurantService {
           : {}),
       },
     });
+
+    // Check if any outlets exist for this tenant
+    const primaryOutlet = await this.prisma.outlet.findFirst({
+      where: { restaurantId, isPrimary: true },
+    });
+
+    if (!primaryOutlet) {
+      // Auto-create initial primary outlet
+      await this.prisma.outlet.create({
+        data: {
+          restaurantId,
+          outletNumber: '01',
+          name: nextName || 'Main Outlet',
+          phone: nextPhone || null,
+          contactEmail: nextContactEmail || null,
+          abn: nextAbn || null,
+          logoUrl: dto.logoUrl?.trim() || null,
+          streetAddress: nextStreetAddress || null,
+          suburb: nextSuburb || null,
+          state: nextState || 'NSW',
+          postcode: nextPostcode || null,
+          isPrimary: true,
+          isActive: true,
+          serviceModels: (nextServiceModels as any) || ['DINE_IN'],
+        },
+      });
+    } else {
+      // Sync parent updates with primary outlet if it hasn't been individually overridden
+      await this.prisma.outlet.update({
+        where: { id: primaryOutlet.id },
+        data: {
+          ...(nextName !== undefined && primaryOutlet.name === 'Main Outlet' ? { name: nextName } : {}),
+          ...(nextPhone !== undefined && !primaryOutlet.phone ? { phone: nextPhone } : {}),
+          ...(nextContactEmail !== undefined && !primaryOutlet.contactEmail ? { contactEmail: nextContactEmail } : {}),
+          ...(nextAbn !== undefined && !primaryOutlet.abn ? { abn: nextAbn } : {}),
+          ...(dto.logoUrl !== undefined && !primaryOutlet.logoUrl ? { logoUrl: dto.logoUrl.trim() || null } : {}),
+          ...(nextStreetAddress !== undefined && !primaryOutlet.streetAddress ? { streetAddress: nextStreetAddress } : {}),
+          ...(nextSuburb !== undefined && !primaryOutlet.suburb ? { suburb: nextSuburb } : {}),
+          ...(nextState !== undefined && primaryOutlet.state === 'NSW' ? { state: nextState } : {}),
+          ...(nextPostcode !== undefined && !primaryOutlet.postcode ? { postcode: nextPostcode } : {}),
+        },
+      });
+    }
+
+    return updatedRestaurant;
   }
 
   async updateServiceModels(restaurantId: string, serviceModels?: string[]) {
@@ -164,5 +222,23 @@ export class RestaurantService {
         ...(dto.taxRate !== undefined ? { taxRate: dto.taxRate } : {}),
       },
     });
+  }
+
+  async uploadLogo(file?: any) {
+    if (!file) {
+      throw new BadRequestException('No logo file provided');
+    }
+
+    const uploadDir = join(process.cwd(), 'uploads', 'logos');
+    await mkdir(uploadDir, { recursive: true });
+
+    const fileName = `${randomUUID()}${extname(file.originalname || '') || '.jpg'}`;
+    const filePath = join(uploadDir, fileName);
+
+    await writeFile(filePath, file.buffer);
+
+    return {
+      url: `/uploads/logos/${fileName}`,
+    };
   }
 }

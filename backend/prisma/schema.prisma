@@ -13,6 +13,8 @@ model Restaurant {
   serviceModels    ServiceModel[]  @default([DINE_IN])
   businessType     String          @default("Restaurant")
   abn              String?
+  gstNumber        String?
+  taxNumber        String?
   streetAddress    String
   suburb           String
   state            String          @default("NSW")
@@ -34,8 +36,10 @@ model Restaurant {
   tyroConnectedAt  DateTime?
   onboardingCompleted Boolean       @default(false)
   smsCredits       Int             @default(0)
+  allowedOutlets   Int             @default(1)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+  outlets          Outlet[]
   bills            Bill[]
   customers        Customer[]
   ingredients      Ingredient[]
@@ -63,8 +67,11 @@ model Restaurant {
 enum ServiceModel {
   DINE_IN
   IN_STORE
+  TAKEAWAY
   DELIVERY
   PICKUP
+  DRIVE_THROUGH
+  QR_ORDERING
 }
 
 model User {
@@ -350,11 +357,13 @@ model Bill {
   voidReason            String?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  outletId              String?
   items                 BillItem[]
   cashier               User                   @relation("CashierBills", fields: [cashierId], references: [id])
   customer              Customer?              @relation(fields: [customerId], references: [id])
   restaurant            Restaurant             @relation(fields: [restaurantId], references: [id])
   terminal              Terminal?              @relation(fields: [terminalId], references: [id])
+  outlet                Outlet?                @relation("OutletBills", fields: [outletId], references: [id], onDelete: SetNull)
   kitchenOrders         KitchenOrder[]
   payments              Payment[]
   table                 Table?                 @relation(fields: [tableId], references: [id])
@@ -586,7 +595,9 @@ model TableGroup {
   sortOrder    Int        @default(0)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  outletId     String?
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  outlet       Outlet?    @relation("OutletTableGroups", fields: [outletId], references: [id], onDelete: SetNull)
   tables       Table[]
 
   @@unique([restaurantId, name])
@@ -610,8 +621,10 @@ model Table {
   originalTableIds String[]     @default([])
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  outletId       String?
   group          TableGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
   restaurant     Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  outlet         Outlet?      @relation("OutletTables", fields: [outletId], references: [id], onDelete: SetNull)
   bills          Bill[]
   reservations   Reservation[]
 
@@ -718,4 +731,35 @@ model BillSettings {
   restaurant      Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@map("bill_settings")
+}
+
+model Outlet {
+  id               String          @id @default(cuid())
+  restaurantId     String          // Foreign key to Restaurant (Tenant)
+  outletNumber     String          // e.g., "01", "Outlet 1"
+  name             String
+  slug             String?         // URL and QR friendly slug
+  phone            String?
+  contactEmail     String?
+  abn              String?         // Optional. Inherits Tenant ABN if null.
+  logoUrl          String?         // Optional. Inherits Tenant logo if null.
+  streetAddress    String?
+  suburb           String?
+  state            String          @default("NSW")
+  postcode         String?
+  timezone         String?         // Optional. Inherits Tenant timezone if null.
+  currency         String?         @default("AUD")
+  isActive         Boolean         @default(true)
+  isPrimary        Boolean         @default(false)
+  serviceModels    ServiceModel[]  @default([DINE_IN])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  restaurant       Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  bills            Bill[]          @relation("OutletBills")
+  tables           Table[]         @relation("OutletTables")
+  tableGroups      TableGroup[]    @relation("OutletTableGroups")
+
+  @@unique([restaurantId, outletNumber])
+  @@map("outlets")
 }

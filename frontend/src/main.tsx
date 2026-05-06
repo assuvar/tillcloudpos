@@ -5,6 +5,7 @@ import App from "./App";
 import "./index.css";
 import { AuthProvider } from "./context/AuthContext";
 import { PermissionProvider } from "./context/PermissionProvider";
+import { OutletProvider } from "./context/OutletContext";
 import { PosCartProvider } from "./context/PosCartContext";
 
 const rootElement = document.getElementById("root");
@@ -14,9 +15,11 @@ if (rootElement) {
       <BrowserRouter>
         <AuthProvider>
           <PermissionProvider>
-            <PosCartProvider>
-              <App />
-            </PosCartProvider>
+            <OutletProvider>
+              <PosCartProvider>
+                <App />
+              </PosCartProvider>
+            </OutletProvider>
           </PermissionProvider>
         </AuthProvider>
       </BrowserRouter>

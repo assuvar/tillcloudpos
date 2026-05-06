@@ -11,8 +11,10 @@ import {
   LucideIcon,
   Store,
   Users,
+  MapPin,
 } from "lucide-react";
 import { BusinessProfileStep } from "./steps/BusinessProfileStep";
+import { OutletStep } from "./steps/OutletStep";
 import { TaxConfigurationStep } from "./steps/TaxConfigurationStep";
 import { MenuSetupStep } from "./steps/MenuSetupStep";
 import { StaffTerminalsStep } from "./steps/StaffTerminalsStep.tsx";
@@ -26,10 +28,11 @@ interface StepItem {
 
 const stepItems: StepItem[] = [
   { id: 1, label: "Business Profile", icon: Store },
-  { id: 2, label: "Tax Configuration", icon: ClipboardList },
-  { id: 3, label: "Menu Setup", icon: Banknote },
-  { id: 4, label: "Staff", icon: Users },
-  { id: 5, label: "Payment Setup", icon: CreditCard },
+  { id: 2, label: "Outlets", icon: MapPin },
+  { id: 3, label: "Tax Configuration", icon: ClipboardList },
+  { id: 4, label: "Menu Setup", icon: Banknote },
+  { id: 5, label: "Staff", icon: Users },
+  { id: 6, label: "Payment Setup", icon: CreditCard },
 ];
 
 interface StepActions {
@@ -50,10 +53,14 @@ export type BusinessProfileData = {
   logoUrl: string;
   timezone: string;
   currency: string;
+  businessType: string;
+  contactEmail: string;
+  gstNumber: string;
+  taxNumber: string;
 };
 
 export type TaxConfigurationData = {
-  taxMode: "INCLUSIVE" | "EXCLUSIVE" | "NONE";
+  taxMode: "INCLUSIVE" | "EXCLUSIVE";
   taxRate: string;
 };
 
@@ -81,7 +88,8 @@ export type PaymentSetupData = {
 function Sidebar({ currentStep }: { currentStep: number }) {
   return (
     <aside className="hidden lg:block w-[280px] border-r border-slate-200 bg-[#f7f7f8]">
-      <div className="px-7 py-6 text-[24px] font-black tracking-tight text-[#111827]">
+      <div className="flex items-center gap-2.5 px-7 py-6 text-[28px] font-[950] tracking-tighter text-[#111827]">
+        <img src="/logo.png" alt="TillCloud Logo" className="w-9 h-9 object-contain" />
         TILLCLOUD
       </div>
 
@@ -94,7 +102,7 @@ function Sidebar({ currentStep }: { currentStep: number }) {
           Onboarding
         </div>
         <div className="text-[12px] text-slate-500 mt-1">
-          Step {currentStep} of 5
+          Step {currentStep} of 6
         </div>
       </div>
 
@@ -153,6 +161,10 @@ export default function OnboardingFlow() {
     logoUrl: "",
     timezone: "(GMT+10:00) Sydney",
     currency: "AUD",
+    businessType: "Restaurant",
+    contactEmail: "",
+    gstNumber: "",
+    taxNumber: "",
   });
   const [taxConfig, setTaxConfig] = useState<TaxConfigurationData>({
     taxMode: "INCLUSIVE",
@@ -174,7 +186,7 @@ export default function OnboardingFlow() {
     const query = new URLSearchParams(location.search);
     const stepParam = query.get("step");
     const parsed = stepParam ? Number(stepParam) : NaN;
-    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 5) {
+    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 6) {
       setCurrentStep(parsed);
     }
   }, [location.search]);
@@ -211,6 +223,10 @@ export default function OnboardingFlow() {
           timezone?: string;
           taxMode?: "INCLUSIVE" | "EXCLUSIVE" | "NONE";
           taxRate?: number;
+          businessType?: string;
+          contactEmail?: string;
+          gstNumber?: string;
+          taxNumber?: string;
         };
 
         setBusinessProfile((previous) => ({
@@ -224,15 +240,25 @@ export default function OnboardingFlow() {
           abn: restaurant.abn || previous.abn,
           logoUrl: restaurant.logoUrl || previous.logoUrl,
           timezone: restaurant.timezone || previous.timezone,
+          businessType: restaurant.businessType || previous.businessType,
+          contactEmail: restaurant.contactEmail || previous.contactEmail,
+          gstNumber: restaurant.gstNumber || previous.gstNumber,
+          taxNumber: restaurant.taxNumber || previous.taxNumber,
         }));
 
-        setTaxConfig((previous) => ({
-          taxMode: restaurant.taxMode || previous.taxMode,
-          taxRate:
-            restaurant.taxRate !== undefined
-              ? String(restaurant.taxRate)
-              : previous.taxRate,
-        }));
+        setTaxConfig((previous) => {
+          const rawMode = restaurant.taxMode as string;
+          // Map NONE → INCLUSIVE since we no longer support the NONE option
+          const safeMode: "INCLUSIVE" | "EXCLUSIVE" =
+            rawMode === "EXCLUSIVE" ? "EXCLUSIVE" : "INCLUSIVE";
+          return {
+            taxMode: safeMode || previous.taxMode,
+            taxRate:
+              restaurant.taxRate !== undefined
+                ? String(restaurant.taxRate)
+                : previous.taxRate,
+          };
+        });
 
         const menuCategoriesResponse = (menuResponse.data || []) as Array<{
           id: string;
@@ -375,6 +401,10 @@ export default function OnboardingFlow() {
       abn: businessProfile.abn,
       logoUrl: businessProfile.logoUrl,
       timezone: businessProfile.timezone,
+      businessType: businessProfile.businessType,
+      contactEmail: businessProfile.contactEmail,
+      gstNumber: businessProfile.gstNumber,
+      taxNumber: businessProfile.taxNumber,
     });
 
     const restaurant = response.data as Partial<BusinessProfileData>;
@@ -389,6 +419,10 @@ export default function OnboardingFlow() {
       abn: restaurant.abn || previous.abn,
       logoUrl: restaurant.logoUrl || previous.logoUrl,
       timezone: restaurant.timezone || previous.timezone,
+      businessType: restaurant.businessType || previous.businessType,
+      contactEmail: restaurant.contactEmail || previous.contactEmail,
+      gstNumber: restaurant.gstNumber || previous.gstNumber,
+      taxNumber: restaurant.taxNumber || previous.taxNumber,
     }));
   };
 
@@ -433,20 +467,25 @@ export default function OnboardingFlow() {
       }
 
       if (currentStep === 2) {
-        await persistTaxSetup();
+        // Outlets step manages its own backend updates via the step component
         setStepFeedback("Saved successfully");
       }
 
       if (currentStep === 3) {
-        await persistMenuSetup();
+        await persistTaxSetup();
         setStepFeedback("Saved successfully");
       }
 
       if (currentStep === 4) {
+        await persistMenuSetup();
         setStepFeedback("Saved successfully");
       }
 
       if (currentStep === 5) {
+        setStepFeedback("Saved successfully");
+      }
+
+      if (currentStep === 6) {
         await persistPaymentSetup();
         const completionResponse = await api.post("/onboarding/complete");
         if (completionResponse.data?.onboardingCompleted) {
@@ -459,7 +498,7 @@ export default function OnboardingFlow() {
         }
       }
 
-      setCurrentStep((previous) => Math.min(5, previous + 1));
+      setCurrentStep((previous) => Math.min(6, previous + 1));
     } catch (error: any) {
       console.error("Failed to persist onboarding step", error);
 
@@ -474,9 +513,9 @@ export default function OnboardingFlow() {
           window.setTimeout(() => setCurrentStep(1), 1500);
         } else if (missing.includes("serviceModel")) {
           setStepFeedback(
-            "Please select at least one Service Model. Redirecting to Step 1...",
+            "Please configure at least one active Service Model. Redirecting to Step 2...",
           );
-          window.setTimeout(() => setCurrentStep(1), 1500);
+          window.setTimeout(() => setCurrentStep(2), 1500);
         } else if (missing.includes("emailVerification")) {
           setStepFeedback(
             "Email verification is required. Please verify your email first.",
@@ -498,11 +537,11 @@ export default function OnboardingFlow() {
     setCurrentStep((previous) => Math.max(1, previous - 1));
 
   const skipStep = () => {
-    if (currentStep === 5) {
+    if (currentStep === 6) {
       void nextStep();
       return;
     }
-    setCurrentStep((previous) => Math.min(5, previous + 1));
+    setCurrentStep((previous) => Math.min(6, previous + 1));
   };
 
   const actions: StepActions = {
@@ -524,13 +563,21 @@ export default function OnboardingFlow() {
         );
       case 2:
         return (
+          <OutletStep
+            onBack={backStep}
+            onNext={nextStep}
+            businessProfile={businessProfile}
+          />
+        );
+      case 3:
+        return (
           <TaxConfigurationStep
             {...actions}
             data={taxConfig}
             onChange={setTaxConfig}
           />
         );
-      case 3:
+      case 4:
         return (
           <MenuSetupStep
             {...actions}
@@ -540,9 +587,9 @@ export default function OnboardingFlow() {
             onItemsChange={setMenuItems}
           />
         );
-      case 4:
-        return <StaffTerminalsStep {...actions} />;
       case 5:
+        return <StaffTerminalsStep {...actions} />;
+      case 6:
         return (
           <PaymentSetupStep
             {...actions}
@@ -577,7 +624,8 @@ export default function OnboardingFlow() {
         <main className="bg-[#ebf5f9]">
           <div className="mx-auto max-w-[980px] px-5 py-6 sm:px-8 lg:px-12">
             <div className="flex items-center justify-between lg:justify-end mb-6">
-              <div className="lg:hidden text-[22px] font-black text-[#111827]">
+              <div className="flex items-center gap-2.5 lg:hidden text-[26px] font-[950] tracking-tighter text-[#111827]">
+                <img src="/logo.png" alt="TillCloud Logo" className="w-8 h-8 object-contain" />
                 TILLCLOUD
               </div>
               <button

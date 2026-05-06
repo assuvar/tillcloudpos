@@ -22,6 +22,8 @@ import { DASHBOARD_VIEWS } from "../dashboardNavigation";
 import { FRONTEND_PERMISSIONS } from "../permissions";
 import POSTopBar from "./POSTopBar";
 import POSBottomNav from "./POSBottomNav";
+import Clock from "./Clock";
+import { useOutlets } from "../context/OutletContext";
 
 function SidebarIcon({
   icon: Icon,
@@ -96,6 +98,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user, logout, hasPermission } = useAuth();
+  const { activeOutlet, availableOutlets, switchOutlet } = useOutlets();
   const [accessDeniedLabel, setAccessDeniedLabel] = useState<string | null>(
     null,
   );
@@ -210,13 +213,35 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
 
       <main className="mx-auto min-w-0 w-full max-w-[1600px] px-4 pb-24 pt-4 sm:px-6 lg:ml-0 lg:pl-[100px] lg:pr-8 xl:pl-[108px] lg:py-8">
         <header className="mb-6 flex flex-col gap-4 lg:mb-8 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-black text-[#0c1424]">
-              {user?.businessName || "TillCloud POS"}
-            </h2>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[9px] font-black uppercase text-[#0c1424]">
-              {user?.role || "User"}
-            </span>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-black text-[#0c1424]">
+                {user?.businessName || "TillCloud POS"}
+              </h2>
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[9px] font-black uppercase text-[#0c1424]">
+                {user?.role || "User"}
+              </span>
+            </div>
+            {availableOutlets.length > 0 && (
+              <div className="relative">
+                <select
+                  value={activeOutlet?.id || ""}
+                  onChange={(e) => switchOutlet(e.target.value)}
+                  className="h-8 px-3 rounded-lg border border-slate-100 bg-white hover:bg-slate-50 text-[11px] font-black text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#0c1424] cursor-pointer transition-all appearance-none pr-7"
+                >
+                  {availableOutlets.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                  <svg className="fill-current h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                  </svg>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="group relative mx-auto w-full max-w-[400px] flex-1">
@@ -232,6 +257,8 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
           </div>
 
           <div className="flex items-center gap-4 self-end lg:self-auto">
+            <Clock />
+            <div className="h-6 w-[1px] bg-slate-100 hidden sm:block mx-1"></div>
             <button className="text-slate-400 hover:text-[#0c1424] transition-colors relative">
               <Bell size={18} />
               <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-rose-500 border border-white"></div>

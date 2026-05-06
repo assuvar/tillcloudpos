@@ -374,14 +374,17 @@ export default function PrinterDocketSettings() {
              <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em] mb-10">RECEIPT PREVIEW</span>
              
              <div className="shadow-xl rounded-sm text-[#1a1a1a] flex flex-col items-center text-center overflow-hidden">
-                <ReceiptTemplate 
+                   <ReceiptTemplate 
                   billSettings={billSettings} 
                   bill={{
                     orderNumber: 124,
                     orderType: "DINE_IN",
                     tableNumber: "GROUND-05",
                     totalAmount: 23.50,
+                    subtotalAmount: 21.37,
                     taxAmount: 2.13,
+                    taxMode: "INCLUSIVE",
+                    taxRate: 10,
                     createdAt: new Date().toISOString(),
                     items: [
                       { id: "1", name: "Cloud Coffee", quantity: 1, price: 5.50 },

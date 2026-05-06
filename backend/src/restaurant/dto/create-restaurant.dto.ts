@@ -46,6 +46,26 @@ export class CreateRestaurantDto {
   logoUrl?: string;
 
   @IsOptional()
+  @IsString()
+  businessType?: string;
+
+  @IsOptional()
+  @IsString()
+  abn?: string;
+
+  @IsOptional()
+  @IsString()
+  gstNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  taxNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  contactEmail?: string;
+
+  @IsOptional()
   @IsIn(['INCLUSIVE', 'EXCLUSIVE', 'NONE'])
   taxMode?: 'INCLUSIVE' | 'EXCLUSIVE' | 'NONE';
 

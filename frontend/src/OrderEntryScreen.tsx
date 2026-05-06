@@ -134,9 +134,12 @@ export default function OrderEntryScreen() {
     void loadRestaurantServiceModels();
   }, []);
 
-  const effectiveOrderType = enabledServiceModels.includes(orderType)
-    ? orderType
-    : enabledServiceModels[0] || "DINE_IN";
+  const effectiveOrderType =
+    activeBill?.orderType && ALLOWED_SERVICE_MODELS.includes(activeBill.orderType as any)
+      ? (activeBill.orderType as PosOrderType)
+      : enabledServiceModels.includes(orderType)
+        ? orderType
+        : enabledServiceModels[0] || "DINE_IN";
 
   const isCreatingRef = useRef(false);
   const activeBillRef = useRef(activeBill);
@@ -225,10 +228,9 @@ export default function OrderEntryScreen() {
     [menuItems, selectedCategoryId],
   );
 
-  const subtotal = billTotal;
-  const discountedSubtotal = subtotal - loyaltyDiscount;
-  const taxAmount = discountedSubtotal * 0.08;
-  const totalDue = discountedSubtotal + taxAmount;
+  const subtotal = activeBill ? activeBill.subtotalAmount : billTotal;
+  const taxAmount = activeBill ? activeBill.taxAmount : 0;
+  const totalDue = Math.max(0, (activeBill ? activeBill.totalAmount : billTotal) - loyaltyDiscount);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-AU", {
@@ -767,20 +769,52 @@ export default function OrderEntryScreen() {
 
           <div className="border-t border-slate-100 bg-slate-50/30 p-6">
             <div className="mb-10 space-y-4">
-              <div className="flex items-center justify-between px-1 text-sm font-bold text-slate-500">
-                <span>Subtotal</span>
-                <span>{formatCurrency(subtotal)}</span>
-              </div>
-              {loyaltyDiscount > 0 ? (
-                <div className="flex items-center justify-between px-1 text-sm font-bold text-emerald-500">
-                  <span>Loyalty Discount</span>
-                  <span>-{formatCurrency(loyaltyDiscount)}</span>
-                </div>
-              ) : null}
-              <div className="flex items-center justify-between px-1 text-sm font-bold text-slate-500">
-                <span>Tax (8%)</span>
-                <span>{formatCurrency(taxAmount)}</span>
-              </div>
+              {activeBill?.taxMode === "INCLUSIVE" ? (
+                <>
+                  {loyaltyDiscount > 0 ? (
+                    <div className="flex items-center justify-between px-1 text-sm font-bold text-emerald-500">
+                      <span>Loyalty Discount</span>
+                      <span>-{formatCurrency(loyaltyDiscount)}</span>
+                    </div>
+                  ) : null}
+                  {/* INCLUSIVE: just show total, no subtotal breakdown */}
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-xs font-bold text-[#5cc7eb] bg-[#e8f9ff] px-2 py-0.5 rounded-full">
+                      ✓ GST Included in price
+                    </span>
+                  </div>
+                </>
+              ) : activeBill?.taxMode === "EXCLUSIVE" ? (
+                <>
+                  <div className="flex items-center justify-between px-1 text-sm font-bold text-slate-500">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  {loyaltyDiscount > 0 ? (
+                    <div className="flex items-center justify-between px-1 text-sm font-bold text-emerald-500">
+                      <span>Loyalty Discount</span>
+                      <span>-{formatCurrency(loyaltyDiscount)}</span>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between px-1 text-sm font-bold text-slate-500">
+                    <span>GST ({activeBill?.taxRate ?? 10}%)</span>
+                    <span>+{formatCurrency(taxAmount)}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between px-1 text-sm font-bold text-slate-500">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  {loyaltyDiscount > 0 ? (
+                    <div className="flex items-center justify-between px-1 text-sm font-bold text-emerald-500">
+                      <span>Loyalty Discount</span>
+                      <span>-{formatCurrency(loyaltyDiscount)}</span>
+                    </div>
+                  ) : null}
+                </>
+              )}
               <div className="mt-4 flex items-end justify-between px-1">
                 <div>
                   <span className="mb-1 block text-[11px] font-black uppercase tracking-widest text-slate-400">

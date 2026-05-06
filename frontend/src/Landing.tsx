@@ -9,9 +9,10 @@ export default function Landing() {
       <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-slate-100 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div
-            className="text-xl font-black tracking-tight text-[#0b1b3d] sm:text-2xl cursor-pointer"
+            className="flex items-center gap-2.5 text-2xl font-[950] tracking-tighter text-[#0b1b3d] sm:text-3xl cursor-pointer"
             onClick={() => navigate("/")}
           >
+            <img src="/logo.png" alt="TillCloud Logo" className="w-9 h-9 object-contain" />
             TILLCLOUD
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] font-bold text-slate-600 sm:gap-x-10 sm:text-[15px]">
@@ -415,9 +416,10 @@ export default function Landing() {
           <div className="mb-16 grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-5 sm:mb-20 sm:gap-12">
             <div className="col-span-2">
               <div
-                className="text-2xl font-black tracking-tight text-[#0b1b3d] mb-6 cursor-pointer"
+                className="flex items-center gap-2.5 text-3xl font-[950] tracking-tighter text-[#0b1b3d] mb-6 cursor-pointer w-fit"
                 onClick={() => navigate("/")}
               >
+                <img src="/logo.png" alt="TillCloud Logo" className="w-9 h-9 object-contain" />
                 TILLCLOUD
               </div>
               <p className="text-slate-400 font-medium text-sm max-w-xs leading-relaxed">

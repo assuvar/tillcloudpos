@@ -64,7 +64,7 @@ function ProtectedRoute({
     }
   }
 
-  if (user && mode === "dashboard" && !user.onboardingCompleted) {
+  if (user && !user.onboardingCompleted) {
     return <Navigate to="/onboarding" replace />;
   }
 

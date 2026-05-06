@@ -1,4 +1,4 @@
-import { ArrowLeft, BriefcaseBusiness, Copy } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness, Copy, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import api from "../../services/api";
 
@@ -154,22 +154,27 @@ export function StaffTerminalsStep({
               aria-label="Staff email"
             />
 
-            <select
-              value={role}
-              onChange={(event) => {
-                setRole(event.target.value as StaffRole | "");
-                setError("");
-              }}
-              className="h-11 rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px]"
-              aria-label="Staff role"
-            >
-              <option value="">Select Role</option>
-              {roleOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative group">
+              <select
+                value={role}
+                onChange={(event) => {
+                  setRole(event.target.value as StaffRole | "");
+                  setError("");
+                }}
+                className="h-11 w-full appearance-none rounded-md border border-slate-200 bg-[#f8fafc] px-3 text-[13px] pr-10"
+                aria-label="Staff role"
+              >
+                <option value="">Select Role</option>
+                {roleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md bg-cyan-50 flex items-center justify-center pointer-events-none shadow-sm transition-all group-hover:bg-cyan-100">
+                <ChevronDown className="h-3.5 w-3.5 text-cyan-600 group-hover:text-cyan-700" />
+              </div>
+            </div>
 
             <button
               type="button"

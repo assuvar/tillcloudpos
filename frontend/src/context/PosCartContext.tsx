@@ -46,6 +46,8 @@ export interface BillRecord {
   subtotalAmount: number;
   taxAmount: number;
   totalAmount: number;
+  taxMode?: "INCLUSIVE" | "EXCLUSIVE" | "NONE";
+  taxRate?: number;
   paidAmount?: number;
   remainingAmount?: number;
   customerName?: string | null;
@@ -240,6 +242,8 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       subtotalAmount: toDollars(bill.subtotalAmount, bill.subtotalCents),
       taxAmount: toDollars(bill.taxAmount, bill.taxAmountCents),
       totalAmount: toDollars(bill.totalAmount, bill.totalCents),
+      taxMode: bill.taxMode,
+      taxRate: Number(bill.taxRate ?? 0),
       customerName:
         bill.customerName ||
         bill.customer?.name ||

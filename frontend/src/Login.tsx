@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Eye,
+  EyeOff,
   Loader2,
   MessageSquare,
   Mail,
@@ -102,9 +103,10 @@ export default function Login() {
     <div className="min-h-screen bg-[#f8fafc] font-sans text-slate-900 flex flex-col">
       <header className="relative z-10 flex items-center justify-between px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
         <div
-          className="text-2xl font-black tracking-tight text-[#0b1b3d] cursor-pointer"
+          className="flex items-center gap-2.5 text-3xl font-[950] tracking-tighter text-[#0b1b3d] cursor-pointer"
           onClick={() => navigate("/")}
         >
+          <img src="/logo.png" alt="TillCloud Logo" className="w-9 h-9 object-contain" />
           TILLCLOUD
         </div>
         <Link
@@ -160,7 +162,7 @@ export default function Login() {
             <form className="space-y-8" onSubmit={handlePasswordLogin}>
               <div className="space-y-3">
                 <label className="text-[13px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  Email ID
+                  Email ID <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
@@ -177,7 +179,7 @@ export default function Login() {
 
               <div className="space-y-3">
                 <label className="text-[13px] font-black text-slate-800 uppercase tracking-wider ml-1 flex justify-between">
-                  <span>Password</span>
+                  <span>Password <span className="text-rose-500">*</span></span>
                   <Link
                     to="/forgot"
                     className="text-sky-600 normal-case font-bold hover:underline"
@@ -197,11 +199,13 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-600 hover:text-cyan-700 bg-cyan-50 hover:bg-cyan-100 p-1 rounded-md transition-all duration-200 shadow-sm flex items-center justify-center"
                   >
-                    <Eye
-                      className={`w-5 h-5 ${showPassword ? "text-sky-500" : ""}`}
-                    />
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -224,7 +228,7 @@ export default function Login() {
                 <form className="space-y-8" onSubmit={handleRequestOtp}>
                   <div className="space-y-3">
                     <label className="text-[13px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                      Email or Phone
+                      Email or Phone <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative">
                       <Smartphone className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
@@ -277,7 +281,7 @@ export default function Login() {
 
                     <div className="space-y-3">
                       <label className="text-[13px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                        Enter 6-digit Code
+                        Enter 6-digit Code <span className="text-rose-500">*</span>
                       </label>
                       <p className="text-[11px] font-semibold text-slate-500 ml-1">
                         We've sent a 6-digit code to your email.

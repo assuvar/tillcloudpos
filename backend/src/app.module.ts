@@ -27,6 +27,7 @@ import { MailModule } from './mail/mail.module';
 import { TablesModule } from './tables/tables.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { SettingsModule } from './settings/settings.module';
+import { OutletsModule } from './outlets/outlets.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SettingsModule } from './settings/settings.module';
     TablesModule,
     ReservationsModule,
     SettingsModule,
+    OutletsModule,
   ],
   controllers: [AppController],
   providers: [

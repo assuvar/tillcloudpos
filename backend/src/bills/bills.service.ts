@@ -49,6 +49,8 @@ type NormalizedBill = {
   subtotalAmount: number;
   taxAmount: number;
   totalAmount: number;
+  taxMode: string;
+  taxRate: number;
   kotSentAt: string | null;
   paidAt: string | null;
   createdAt: string;
@@ -233,6 +235,8 @@ export class BillsService {
       subtotalAmount: this.toAmount(bill.subtotalCents || 0),
       taxAmount: this.toAmount(bill.taxAmountCents || 0),
       totalAmount: this.toAmount(bill.totalCents || 0),
+      taxMode: bill.taxMode,
+      taxRate: Number(bill.taxRate || 0),
       customerName:
         bill.customerName ||
         bill.customer?.name ||
@@ -360,6 +364,11 @@ export class BillsService {
     tx: Prisma.TransactionClient,
     billId: string,
   ) {
+    const bill = await tx.bill.findUnique({
+      where: { id: billId },
+      select: { taxMode: true, taxRate: true },
+    });
+
     const items = await tx.billItem.findMany({
       where: { billId },
       select: {
@@ -367,17 +376,36 @@ export class BillsService {
       },
     });
 
-    const subtotalCents = items.reduce(
+    const itemTotalCents = items.reduce(
       (sum, item) => sum + Number(item.lineTotalCents || 0),
       0,
     );
+
+    const taxRatePercent = Number(bill?.taxRate || 0);
+    const taxMode = bill?.taxMode || TaxMode.INCLUSIVE;
+
+    let subtotalCents = itemTotalCents;
+    let taxAmountCents = 0;
+    let totalCents = itemTotalCents;
+
+    if (taxMode === TaxMode.EXCLUSIVE) {
+      taxAmountCents = Math.round(subtotalCents * (taxRatePercent / 100));
+      totalCents = subtotalCents + taxAmountCents;
+    } else if (taxMode === TaxMode.INCLUSIVE) {
+      taxAmountCents = Math.round(itemTotalCents - (itemTotalCents / (1 + (taxRatePercent / 100))));
+      subtotalCents = itemTotalCents - taxAmountCents;
+      totalCents = itemTotalCents;
+    } else {
+      taxAmountCents = 0;
+      totalCents = itemTotalCents;
+    }
 
     return tx.bill.update({
       where: { id: billId },
       data: {
         subtotalCents,
-        taxAmountCents: 0,
-        totalCents: subtotalCents,
+        taxAmountCents,
+        totalCents,
       },
       include: {
         items: true,
@@ -392,6 +420,14 @@ export class BillsService {
     dto: CreateBillDto,
   ) {
     await this.assertBillDateOpen(restaurantId, new Date());
+
+    // Retrieve restaurant tax settings dynamically
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { taxMode: true, taxRate: true },
+    });
+    const dbTaxMode = restaurant?.taxMode || TaxMode.INCLUSIVE;
+    const dbTaxRate = restaurant?.taxRate || new Prisma.Decimal(10.00);
 
     // Calculate order numbers
     const totalOrderCount = await this.prisma.bill.count({
@@ -452,8 +488,8 @@ export class BillsService {
           subtotalCents: 0,
           taxAmountCents: 0,
           totalCents: 0,
-          taxMode: TaxMode.INCLUSIVE,
-          taxRate: new Prisma.Decimal(0),
+          taxMode: dbTaxMode,
+          taxRate: dbTaxRate,
         },
         include: {
           items: true,

@@ -1,14 +1,19 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
+import { MailService } from '../mail/mail.service';
 
 type MissingStep = 'business' | 'serviceModel' | 'emailVerification';
 
 @Injectable()
 export class OnboardingService {
   private readonly logger = new Logger(OnboardingService.name);
+  private readonly lastReminderSent = new Map<string, number>();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   private async getTenantContext(userId: string, restaurantId: string) {
     const user = await this.prisma.user.findFirst({
@@ -20,6 +25,8 @@ export class OnboardingService {
         id: true,
         emailVerified: true,
         onboardingCompleted: true,
+        email: true,
+        fullName: true,
       },
     });
 
@@ -33,11 +40,14 @@ export class OnboardingService {
         id: true,
         onboardingCompleted: true,
         name: true,
+        businessType: true,
+        abn: true,
         streetAddress: true,
         suburb: true,
         state: true,
         postcode: true,
         phone: true,
+        contactEmail: true,
         serviceModels: true,
       },
     });
@@ -80,36 +90,37 @@ export class OnboardingService {
     restaurant: {
       onboardingCompleted: boolean;
       name: string;
+      businessType: string;
+      abn: string | null;
       streetAddress: string;
       suburb: string;
       state: string;
       postcode: string;
       phone: string | null;
-      serviceModels: string[];
+      contactEmail: string | null;
     },
     user: {
       emailVerified: boolean;
     },
+    hasOutletServiceModels: boolean,
   ): MissingStep[] {
     const missingSteps: MissingStep[] = [];
     const hasBusinessFields =
       !!restaurant.name?.trim() &&
+      !!restaurant.businessType?.trim() &&
+      !!restaurant.abn?.trim() &&
       !!restaurant.streetAddress?.trim() &&
-      !!restaurant.phone?.trim();
+      !!restaurant.suburb?.trim() &&
+      !!restaurant.state?.trim() &&
+      !!restaurant.postcode?.trim() &&
+      !!restaurant.phone?.trim() &&
+      !!restaurant.contactEmail?.trim();
 
     if (!hasBusinessFields) {
       missingSteps.push('business');
     }
 
-    const hasServiceModelArray = Array.isArray(restaurant.serviceModels);
-    const normalizedServiceModels = hasServiceModelArray
-      ? this.normalizeAndValidateServiceModels(restaurant.serviceModels, {
-          throwOnInvalid: false,
-        })
-      : [];
-    const hasServiceModels = normalizedServiceModels.length > 0;
-
-    if (!hasServiceModels) {
+    if (!hasOutletServiceModels) {
       missingSteps.push('serviceModel');
     }
 
@@ -129,7 +140,15 @@ export class OnboardingService {
       userId,
       restaurantId,
     );
-    const missingSteps = this.getMissingSteps(restaurant, user);
+
+    // Fetch primary outlet to verify its service models configurations
+    const primaryOutlet = await this.prisma.outlet.findFirst({
+      where: { restaurantId, isPrimary: true },
+      select: { serviceModels: true },
+    });
+    const hasOutletServiceModels = !!primaryOutlet && primaryOutlet.serviceModels.length > 0;
+
+    const missingSteps = this.getMissingSteps(restaurant, user, hasOutletServiceModels);
     const onboardingCompleted =
       restaurant.onboardingCompleted && missingSteps.length === 0;
 
@@ -147,10 +166,57 @@ export class OnboardingService {
       });
     }
 
+    if (missingSteps.includes('business')) {
+      void this.triggerOnboardingReminderEmail(user.email, user.fullName, {
+        id: restaurant.id,
+        name: restaurant.name,
+      });
+    }
+
     return {
       onboardingCompleted,
       missingSteps,
     };
+  }
+
+  private async triggerOnboardingReminderEmail(
+    userEmail: string,
+    userName: string,
+    restaurant: { id: string; name: string },
+  ) {
+    const now = Date.now();
+    const lastSent = this.lastReminderSent.get(restaurant.id) || 0;
+    const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+
+    if (now - lastSent < TWELVE_HOURS) {
+      return; // Throttled
+    }
+
+    this.lastReminderSent.set(restaurant.id, now);
+
+    const recipient = userEmail.trim().toLowerCase();
+    const subject = 'Action Required: Complete your TillCloud Business Profile Setup';
+    const text = `Hi ${userName},\n\nYour TillCloud Business Profile setup is incomplete. Please complete your setup to access the TillCloud POS workspace and features.\n\nBest regards,\nThe TillCloud Team`;
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #0c1424; margin-bottom: 24px;">Complete your TillCloud Setup</h2>
+        <p style="font-size: 16px; color: #4a5568; line-height: 1.6;">Hi ${userName},</p>
+        <p style="font-size: 16px; color: #4a5568; line-height: 1.6;">It looks like your **TillCloud Business Profile** details are incomplete. To unlock your full billing counter and management workspace, please make sure to fill out your business profile details.</p>
+        <div style="margin: 32px 0; padding: 20px; background-color: #f8fafc; border-radius: 12px; text-align: center;">
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/onboarding" style="display: inline-block; background-color: #0b1b3d; color: white; padding: 12px 28px; border-radius: 9999px; font-weight: bold; text-decoration: none; font-size: 14px;">Complete Onboarding Setup</a>
+        </div>
+        <p style="font-size: 14px; color: #718096;">If you have any questions, feel free to reply to this email.</p>
+        <hr style="margin: 32px 0; border: 0; border-top: 1px solid #e2e8f0;" />
+        <p style="font-size: 12px; color: #a0aec0; text-align: center;">&copy; 2026 TillCloud POS. All rights reserved.</p>
+      </div>
+    `;
+
+    try {
+      await this.mailService.sendMail(recipient, subject, text, html);
+      this.logger.log(`Onboarding reminder email sent to ${recipient} for restaurant ${restaurant.id}`);
+    } catch (err) {
+      this.logger.error(`Failed to send onboarding reminder email to ${recipient}`, err.stack);
+    }
   }
 
   async complete(userId: string, restaurantId: string) {
@@ -162,16 +228,28 @@ export class OnboardingService {
       userId,
       restaurantId,
     );
-    this.normalizeAndValidateServiceModels(restaurant.serviceModels || [], {
-      throwOnInvalid: true,
+
+    const primaryOutlet = await this.prisma.outlet.findFirst({
+      where: { restaurantId, isPrimary: true },
+      select: { serviceModels: true },
     });
-    const missingSteps = this.getMissingSteps(restaurant, user);
+    const hasOutletServiceModels = !!primaryOutlet && primaryOutlet.serviceModels.length > 0;
+
+    const missingSteps = this.getMissingSteps(restaurant, user, hasOutletServiceModels);
 
     if (missingSteps.length > 0) {
       const details = {
         business:
-          !restaurant.name || !restaurant.streetAddress || !restaurant.phone,
-        serviceModel: (restaurant.serviceModels || []).length === 0,
+          !restaurant.name ||
+          !restaurant.businessType ||
+          !restaurant.abn ||
+          !restaurant.streetAddress ||
+          !restaurant.suburb ||
+          !restaurant.state ||
+          !restaurant.postcode ||
+          !restaurant.phone ||
+          !restaurant.contactEmail,
+        serviceModel: !hasOutletServiceModels,
         emailVerification: !user.emailVerified,
       };
 
