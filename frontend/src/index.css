@@ -4,9 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --ui-font-scale: 100%;
+}
+
 @layer base {
   html {
     @apply scroll-smooth;
+    font-size: var(--ui-font-scale) !important;
+    transition: font-size 150ms ease-in-out;
   }
 
   *,
@@ -25,6 +31,14 @@
     font-family: "Plus Jakarta Sans", sans-serif;
     margin: 0;
     scrollbar-gutter: stable;
+  }
+
+  body.softer-typography .font-black,
+  body.softer-typography .font-\[1000\] {
+    font-weight: 700 !important;
+  }
+  body.softer-typography .font-extrabold {
+    font-weight: 600 !important;
   }
 
   img,
@@ -89,4 +103,235 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #cbd5e1;
   }
+}
+
+/* --- State-of-the-art Dark Theme Engine --- */
+html.dark {
+  background-color: #070d19 !important;
+  color: #f8fafc !important;
+}
+
+html.dark body {
+  background-color: #070d19 !important;
+  color: #f8fafc !important;
+}
+
+/* Scrollbar customizations in dark mode */
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1e293b !important;
+}
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #334155 !important;
+}
+
+/* Background overrides */
+html.dark .bg-white {
+  background-color: #131e31 !important; /* Elegant mid-tone navy cards/widgets */
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-gray-50 {
+  background-color: #0c1324 !important; /* Dark navy sub-sections */
+}
+
+html.dark .bg-slate-100,
+html.dark .bg-gray-100,
+html.dark .bg-slate-100\/50,
+html.dark .bg-slate-200\/50 {
+  background-color: #1f2c45 !important; /* Defined inputs/badges background */
+}
+
+html.dark .bg-slate-50\/50 {
+  background-color: rgba(12, 19, 36, 0.8) !important;
+}
+
+html.dark .bg-\[\#0c1424\] {
+  background-color: #1f2c45 !important;
+}
+
+/* Custom background overrides in dark themes */
+html.dark .bg-\[\#f8fafc\] {
+  background-color: #070d19 !important; /* Midnight Dark outer background */
+}
+
+/* Specific elements background and text styles */
+html.dark select,
+html.dark input,
+html.dark textarea {
+  background-color: #1f2c45 !important;
+  color: #f8fafc !important;
+  border-color: #293959 !important;
+}
+
+html.dark select option {
+  background-color: #131e31 !important;
+  color: #f8fafc !important;
+}
+
+/* Text colors overrides */
+html.dark .text-\[\#0c1424\],
+html.dark .text-\[\#0b1b3d\],
+html.dark .text-slate-900,
+html.dark .text-slate-800 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+html.dark .text-slate-400 {
+  color: #64748b !important;
+}
+
+/* Border overrides */
+html.dark .border-slate-100,
+html.dark .border-slate-50,
+html.dark .border-gray-100 {
+  border-color: #1c283f !important;
+}
+
+html.dark .border-slate-200 {
+  border-color: #293959 !important;
+}
+
+/* Table elements in dark mode */
+html.dark th {
+  background-color: #1f2c45 !important;
+  color: #f8fafc !important;
+}
+
+html.dark td {
+  border-color: #1c283f !important;
+}
+
+/* Hover effects in dark mode */
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-slate-100:hover {
+  background-color: #1f2c45 !important;
+}
+
+html.dark .hover\:text-\[\#0c1424\]:hover {
+  color: #ffffff !important;
+}
+
+/* Unified layout headers / panels adjustments */
+html.dark .bg-\[\#0b1b3d\] {
+  background-color: #131e31 !important;
+}
+
+/* Form and switch overlays */
+html.dark .bg-emerald-500 {
+  background-color: #10b981 !important;
+}
+
+/* Fast Links visualization panels */
+html.dark .bg-slate-50\/50.rounded-2xl {
+  background-color: #131d31 !important;
+}
+
+/* Premium Drop-Shadow and Glow effects for Logos in dark mode */
+html.dark img[alt*="Logo"], 
+html.dark img[src*="logo.png"] {
+  filter: brightness(1.25) drop-shadow(0 0 6px rgba(93, 199, 236, 0.65)) !important;
+  transition: filter 0.3s ease;
+}
+
+/* --- Pitch Black (AMOLED Dark Night) Theme Overrides --- */
+html.dark.black-theme {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+html.dark.black-theme body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Custom background overrides in AMOLED dark theme */
+html.dark.black-theme .bg-\[\#f8fafc\] {
+  background-color: #000000 !important; /* Pitch Black outer background */
+}
+
+/* Background overrides */
+html.dark.black-theme .bg-white {
+  background-color: #131620 !important; /* Charcoal-slate widgets standing out against pitch black outer background */
+}
+
+html.dark.black-theme .bg-slate-50,
+html.dark.black-theme .bg-gray-50 {
+  background-color: #080a0f !important;
+}
+
+html.dark.black-theme .bg-slate-100,
+html.dark.black-theme .bg-gray-100,
+html.dark.black-theme .bg-slate-100\/50,
+html.dark.black-theme .bg-slate-200\/50 {
+  background-color: #1d2333 !important;
+}
+
+html.dark.black-theme .bg-slate-50\/50 {
+  background-color: rgba(8, 10, 15, 0.95) !important;
+}
+
+html.dark.black-theme .bg-\[\#0c1424\] {
+  background-color: #1d2333 !important;
+}
+
+/* Specific elements background and text styles */
+html.dark.black-theme select,
+html.dark.black-theme input,
+html.dark.black-theme textarea {
+  background-color: #1d2333 !important;
+  color: #ffffff !important;
+  border-color: #252e45 !important;
+}
+
+html.dark.black-theme select option {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Border overrides */
+html.dark.black-theme .border-slate-100,
+html.dark.black-theme .border-slate-50,
+html.dark.black-theme .border-gray-100 {
+  border-color: #151b29 !important;
+}
+
+html.dark.black-theme .border-slate-200 {
+  border-color: #252e45 !important;
+}
+
+/* Table elements in dark night mode */
+html.dark.black-theme th {
+  background-color: #1d2333 !important;
+  color: #ffffff !important;
+}
+
+html.dark.black-theme td {
+  border-color: #151b29 !important;
+}
+
+/* Hover effects in dark night mode */
+html.dark.black-theme .hover\:bg-slate-50:hover,
+html.dark.black-theme .hover\:bg-gray-50:hover,
+html.dark.black-theme .hover\:bg-slate-100:hover {
+  background-color: #1d2333 !important;
+}
+
+/* Unified layout headers / panels adjustments */
+html.dark.black-theme .bg-\[\#0b1b3d\] {
+  background-color: #131620 !important;
+}
+
+/* Fast Links visualization panels */
+html.dark.black-theme .bg-slate-50\/50.rounded-2xl {
+  background-color: #090c12 !important;
 }

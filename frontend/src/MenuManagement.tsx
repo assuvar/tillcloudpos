@@ -461,10 +461,10 @@ function MenuManagementContent() {
         return (
           <div className="grid grid-cols-12 gap-8 items-start">
             {/* Left Column Sidebar: Filters */}
-            <div className="col-span-12 md:col-span-3 flex flex-col gap-5 sticky top-6">
+            <div className="col-span-12 md:col-span-3 flex flex-col gap-4 sticky top-6">
               {/* Specific Menu Item Filter Card */}
-              <div className="bg-white rounded-[24px] p-5 border border-slate-100 shadow-sm flex flex-col gap-2.5">
-                <div className="px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+              <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col gap-2">
+                <div className="px-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
                   Search Menu Item
                 </div>
                 <div className="relative">
@@ -476,44 +476,44 @@ function MenuManagementContent() {
                         filterItemsByCategory("all");
                       }
                     }}
-                    className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 pl-3 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
+                    className="w-full h-9 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 pl-2.5 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
                   >
                     <option value="">-- All Products / Dishes --</option>
                     {items.map(it => (
                       <option key={it.id} value={it.id}>{it.name}</option>
                     ))}
                   </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ChevronDown size={14} />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronDown size={12} />
                   </div>
                 </div>
                 {filterItemId && (
                   <button
                     onClick={() => setFilterItemId("")}
-                    className="h-9 w-full rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-600 text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                    className="h-8 w-full rounded-lg bg-slate-100 hover:bg-slate-200/80 text-slate-600 text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1"
                   >
-                    <X size={12} /> Clear Specific Filter
+                    <X size={11} /> Clear Filter
                   </button>
                 )}
               </div>
 
               {/* Category Filter Cards */}
-              <div className="bg-white rounded-[24px] p-5 border border-slate-100 shadow-sm flex flex-col gap-2">
-                <div className="px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col gap-1">
+                <div className="px-1.5 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                   Category Filters
                 </div>
 
                 <button
                   onClick={() => filterItemsByCategory("all")}
-                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-black transition-all text-left ${
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold transition-all text-left ${
                     selectedCategoryId === "all"
-                      ? "bg-[#0c1424] text-white shadow-md shadow-black/10"
+                      ? "bg-[#0c1424] text-white shadow-sm"
                       : "text-slate-500 hover:bg-slate-50"
                   }`}
                 >
-                  <Layers size={15} />
+                  <Layers size={13} />
                   <span>All Items</span>
-                  <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  <span className={`ml-auto px-1.5 py-0.5 rounded-md text-[9px] font-black ${
                     selectedCategoryId === "all" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
                   }`}>
                     {items.length}
@@ -526,16 +526,16 @@ function MenuManagementContent() {
                     <button
                       key={category.id}
                       onClick={() => filterItemsByCategory(category.id)}
-                      className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-black transition-all text-left ${
+                      className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold transition-all text-left ${
                         selectedCategoryId === category.id
-                          ? "bg-[#0c1424] text-white shadow-md shadow-black/10 animate-in fade-in"
+                          ? "bg-[#0c1424] text-white shadow-sm animate-in fade-in"
                           : isParentCat
-                          ? "bg-amber-500/10 text-amber-700 border border-amber-400/50 shadow-sm animate-pulse"
+                          ? "bg-amber-500/10 text-amber-700 border border-amber-400/30 animate-pulse"
                           : "text-slate-500 hover:bg-slate-50"
                       }`}
                     >
                       <div
-                        className="w-3 h-3 rounded-full border border-white shrink-0 shadow-sm"
+                        className="w-2.5 h-2.5 rounded-full border border-white shrink-0 shadow-sm"
                         style={{ backgroundColor: category.color || "#cbd5e1" }}
                       />
                       <span className="truncate max-w-[110px]">{category.name}</span>
@@ -544,7 +544,7 @@ function MenuManagementContent() {
                           PARENT
                         </span>
                       )}
-                      <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      <span className={`ml-auto px-1.5 py-0.5 rounded-md text-[9px] font-black ${
                         selectedCategoryId === category.id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
                       }`}>
                         {getCategoryItemCount(items, category.id)}
@@ -1149,41 +1149,41 @@ function MenuManagementContent() {
                 </div>
 
                 {/* Premium Search & Filter Panel */}
-                <div className="bg-white rounded-[24px] p-5 border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Filter by Category</label>
+                <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Filter by Category</label>
                     <div className="relative">
                       <select
                         value={varFilterCategoryId}
                         onChange={(e) => setVarFilterCategoryId(e.target.value)}
-                        className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 pl-3 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
+                        className="w-full h-9 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 pl-2.5 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
                       >
                         <option value="">-- All Categories --</option>
                         {categories.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <ChevronDown size={14} />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <ChevronDown size={12} />
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Filter by Linked Menu Item</label>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Filter by Linked Menu Item</label>
                     <div className="relative">
                       <select
                         value={varFilterItemId}
                         onChange={(e) => setVarFilterItemId(e.target.value)}
-                        className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 pl-3 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
+                        className="w-full h-9 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 pl-2.5 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
                       >
                         <option value="">-- All Menu Items --</option>
                         {items.map(it => (
                           <option key={it.id} value={it.id}>{it.name}</option>
                         ))}
                       </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <ChevronDown size={14} />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <ChevronDown size={12} />
                       </div>
                     </div>
                   </div>
@@ -1362,41 +1362,41 @@ function MenuManagementContent() {
                 </div>
 
                 {/* Premium Search & Filter Panel */}
-                <div className="bg-white rounded-[24px] p-5 border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Filter by Category</label>
+                <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Filter by Category</label>
                     <div className="relative">
                       <select
                         value={addonFilterCategoryId}
                         onChange={(e) => setAddonFilterCategoryId(e.target.value)}
-                        className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 pl-3 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
+                        className="w-full h-9 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 pl-2.5 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
                       >
                         <option value="">-- All Categories --</option>
                         {categories.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <ChevronDown size={14} />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <ChevronDown size={12} />
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Filter by Linked Menu Item</label>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Filter by Linked Menu Item</label>
                     <div className="relative">
                       <select
                         value={addonFilterItemId}
                         onChange={(e) => setAddonFilterItemId(e.target.value)}
-                        className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 pl-3 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
+                        className="w-full h-9 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 pl-2.5 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
                       >
                         <option value="">-- All Menu Items --</option>
                         {items.map(it => (
                           <option key={it.id} value={it.id}>{it.name}</option>
                         ))}
                       </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <ChevronDown size={14} />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <ChevronDown size={12} />
                       </div>
                     </div>
                   </div>
@@ -1572,21 +1572,21 @@ function MenuManagementContent() {
                 </div>
 
                 {/* Premium Search & Filter Panel */}
-                <div className="bg-white rounded-[24px] p-5 border border-slate-100 shadow-sm flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Filter by Combo Deal Package</label>
+                <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col gap-1">
+                  <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Filter by Combo Deal Package</label>
                   <div className="relative">
                     <select
                       value={poolFilterDealId}
                       onChange={(e) => setPoolFilterDealId(e.target.value)}
-                      className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 pl-3 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
+                      className="w-full h-9 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 pl-2.5 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
                     >
                       <option value="">-- All Combo Deal Packages --</option>
                       {deals.map(d => (
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                      <ChevronDown size={14} />
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronDown size={12} />
                     </div>
                   </div>
                 </div>
@@ -1701,41 +1701,41 @@ function MenuManagementContent() {
                 </div>
 
                 {/* Premium Search & Filter Panel */}
-                <div className="bg-white rounded-[24px] p-5 border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Filter by Category of Choices</label>
+                <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Filter by Category of Choices</label>
                     <div className="relative">
                       <select
                         value={dealFilterCategoryId}
                         onChange={(e) => setDealFilterCategoryId(e.target.value)}
-                        className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 pl-3 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
+                        className="w-full h-9 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 pl-2.5 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
                       >
                         <option value="">-- All Choice Categories --</option>
                         {categories.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <ChevronDown size={14} />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <ChevronDown size={12} />
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Filter by Specific Choice Item</label>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Filter by Specific Choice Item</label>
                     <div className="relative">
                       <select
                         value={dealFilterItemId}
                         onChange={(e) => setDealFilterItemId(e.target.value)}
-                        className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 pl-3 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
+                        className="w-full h-9 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 pl-2.5 pr-8 bg-slate-50/50 focus:outline-none focus:border-[#0c1424] transition-all appearance-none cursor-pointer"
                       >
                         <option value="">-- All Choice Menu Items --</option>
                         {items.map(it => (
                           <option key={it.id} value={it.id}>{it.name}</option>
                         ))}
                       </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <ChevronDown size={14} />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <ChevronDown size={12} />
                       </div>
                     </div>
                   </div>

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./Login";
 import Register from "./Register";
@@ -111,6 +112,33 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    // Apply UI scaling from localStorage
+    const savedScale = localStorage.getItem("ui-scale") || "100%";
+    document.documentElement.style.setProperty("--ui-font-scale", savedScale);
+
+    // Apply font softening from localStorage
+    const savedSoft = localStorage.getItem("ui-font-soft") === "true";
+    if (savedSoft) {
+      document.body.classList.add("softer-typography");
+    } else {
+      document.body.classList.remove("softer-typography");
+    }
+
+    // Apply UI Theme from localStorage
+    const savedTheme = localStorage.getItem("ui-theme") || "light";
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("black-theme");
+    } else if (savedTheme === "black") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.add("black-theme");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.remove("black-theme");
+    }
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<Landing />} />

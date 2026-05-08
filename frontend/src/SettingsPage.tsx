@@ -23,6 +23,12 @@ import {
   Lock,
   X,
   Check,
+  Sliders,
+  Columns,
+  Minimize2,
+  Maximize2,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { FRONTEND_PERMISSIONS } from "./permissions";
@@ -1520,6 +1526,334 @@ const SMSCredits = () => (
   </div>
 );
 
+const VisualsSettings = () => {
+  const [scale, setScale] = useState<string>("100%");
+  const [softFont, setSoftFont] = useState<boolean>(false);
+  const [theme, setTheme] = useState<string>("light");
+  const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    const savedScale = localStorage.getItem("ui-scale") || "100%";
+    const savedSoft = localStorage.getItem("ui-font-soft") === "true";
+    const savedTheme = localStorage.getItem("ui-theme") || "light";
+    setScale(savedScale);
+    setSoftFont(savedSoft);
+    setTheme(savedTheme);
+  }, []);
+
+  const handleApplyScale = (newScale: string) => {
+    setScale(newScale);
+    localStorage.setItem("ui-scale", newScale);
+    document.documentElement.style.setProperty("--ui-font-scale", newScale);
+    
+    setSaveMsg({ type: "success", text: `Interface scale adjusted to ${newScale} instantly!` });
+    setTimeout(() => setSaveMsg(null), 3000);
+  };
+
+  const handleApplyTheme = (newTheme: string) => {
+    setTheme(newTheme);
+    localStorage.setItem("ui-theme", newTheme);
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("black-theme");
+    } else if (newTheme === "black") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.add("black-theme");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.remove("black-theme");
+    }
+    
+    let labelName = "Light Mode";
+    if (newTheme === "dark") labelName = "Polished Midnight";
+    if (newTheme === "black") labelName = "Dark Night (AMOLED)";
+    setSaveMsg({ type: "success", text: `Theme changed to ${labelName} instantly!` });
+    setTimeout(() => setSaveMsg(null), 3000);
+  };
+
+  const handleToggleSoftFont = (val: boolean) => {
+    setSoftFont(val);
+    localStorage.setItem("ui-font-soft", val ? "true" : "false");
+    if (val) {
+      document.body.classList.add("softer-typography");
+    } else {
+      document.body.classList.remove("softer-typography");
+    }
+    setSaveMsg({ type: "success", text: `Typography weights tuned successfully!` });
+    setTimeout(() => setSaveMsg(null), 3000);
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col">
+        <h2 className="text-[32px] font-black text-[#0c1424] tracking-tight leading-none">
+          Themes and Settings
+        </h2>
+        <p className="text-[14px] text-slate-400 font-medium mt-2">
+          Select display theme preferences, customize interface scale factor, and fine-tune typography weight.
+        </p>
+      </div>
+
+      {saveMsg && (
+        <div className={`flex items-center gap-3 p-4 rounded-2xl border ${saveMsg.type === "success" ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-rose-50 border-rose-100 text-rose-700"}`}>
+          <CheckCircle2 size={16} />
+          <span className="text-sm font-bold">{saveMsg.text}</span>
+        </div>
+      )}
+
+      {/* Interface Theme Toggle */}
+      <div className="space-y-6">
+        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
+          Interface Theme
+        </h3>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Option 1: Light Mode */}
+          <button
+            type="button"
+            onClick={() => handleApplyTheme("light")}
+            className={`p-6 rounded-[32px] border-2 transition-all text-left relative flex flex-col gap-4 justify-between ${theme === "light" ? "border-[#5dc7ec] bg-white shadow-md shadow-black/5" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
+          >
+            <div className="flex justify-between items-start w-full">
+              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${theme === "light" ? "bg-amber-50 text-amber-500" : "text-slate-300 bg-white shadow-sm"}`}>
+                <Sun size={18} />
+              </div>
+              <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${theme === "light" ? "bg-[#0c1424] text-white" : "bg-slate-100 text-slate-400"}`}>
+                Light Mode
+              </span>
+            </div>
+            <div>
+              <h4 className="text-[15px] font-black text-[#0c1424] mb-1">Standard Light</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                Traditional high-contrast layout. Ideal for bright workspace counters.
+              </p>
+            </div>
+          </button>
+
+          {/* Option 2: Polished Midnight */}
+          <button
+            type="button"
+            onClick={() => handleApplyTheme("dark")}
+            className={`p-6 rounded-[32px] border-2 transition-all text-left relative flex flex-col gap-4 justify-between ${theme === "dark" ? "border-[#5dc7ec] bg-white shadow-md shadow-black/5" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
+          >
+            <div className="flex justify-between items-start w-full">
+              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${theme === "dark" ? "bg-indigo-950 text-[#5dc7ec]" : "text-slate-300 bg-white shadow-sm"}`}>
+                <Moon size={18} />
+              </div>
+              <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${theme === "dark" ? "bg-[#5dc7ec] text-slate-900" : "bg-slate-100 text-slate-400"}`}>
+                Midnight Blue
+              </span>
+            </div>
+            <div>
+              <h4 className="text-[15px] font-black text-[#0c1424] mb-1">Polished Midnight</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                Deep, rich dark-blue-black theme. Comfortable under standard lighting shifts.
+              </p>
+            </div>
+          </button>
+
+          {/* Option 3: AMOLED Dark Night (Pure Black) */}
+          <button
+            type="button"
+            onClick={() => handleApplyTheme("black")}
+            className={`p-6 rounded-[32px] border-2 transition-all text-left relative flex flex-col gap-4 justify-between ${theme === "black" ? "border-[#5dc7ec] bg-white shadow-md shadow-black/5" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
+          >
+            <div className="flex justify-between items-start w-full">
+              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${theme === "black" ? "bg-black text-amber-400 border border-slate-850" : "text-slate-300 bg-white shadow-sm"}`}>
+                <Zap size={18} />
+              </div>
+              <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${theme === "black" ? "bg-amber-400 text-black font-black" : "bg-slate-100 text-slate-400"}`}>
+                AMOLED Black
+              </span>
+            </div>
+            <div>
+              <h4 className="text-[15px] font-black text-[#0c1424] mb-1">Dark Night (AMOLED)</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                Completely black workspace theme. Outstanding visual readability and contrast.
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Interface Scaling Cards */}
+      <div className="space-y-6">
+        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
+          Interface Density / Scale
+        </h3>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
+          {/* Option 1: Micro (75%) */}
+          <button
+            type="button"
+            onClick={() => handleApplyScale("75%")}
+            className={`p-5 rounded-[24px] border-2 transition-all text-left relative flex flex-col gap-3.5 justify-between ${scale === "75%" ? "border-[#5dc7ec] bg-white shadow-md shadow-black/5" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
+          >
+            <div className="flex justify-between items-start w-full">
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${scale === "75%" ? "bg-blue-50 text-[#5dc7ec]" : "text-slate-300 bg-white shadow-sm"}`}>
+                <Minimize2 size={14} />
+              </div>
+              <span className="px-2 py-0.5 bg-sky-900 rounded-md text-[7px] font-black text-white uppercase tracking-wider">
+                Ultra-Density
+              </span>
+            </div>
+            <div>
+              <h4 className="text-[13px] font-black text-[#0c1424] mb-0.5">Micro (75%)</h4>
+              <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                Maximum layout density. Hyper-compact spacing and ultra-small text. Perfect for high-res screens.
+              </p>
+            </div>
+          </button>
+
+          {/* Option 2: Extra Compact (80%) */}
+          <button
+            type="button"
+            onClick={() => handleApplyScale("80%")}
+            className={`p-5 rounded-[24px] border-2 transition-all text-left relative flex flex-col gap-3.5 justify-between ${scale === "80%" ? "border-[#5dc7ec] bg-white shadow-md shadow-black/5" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
+          >
+            <div className="flex justify-between items-start w-full">
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${scale === "80%" ? "bg-blue-50 text-[#5dc7ec]" : "text-slate-300 bg-white shadow-sm"}`}>
+                <LayoutGrid size={14} />
+              </div>
+              <span className="px-2 py-0.5 bg-slate-800 rounded-md text-[7px] font-black text-white uppercase tracking-wider">
+                Super Compact
+              </span>
+            </div>
+            <div>
+              <h4 className="text-[13px] font-black text-[#0c1424] mb-0.5">Extra Compact (80%)</h4>
+              <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                Extremely tight spacing. Maximizes active viewport area for complex grids & forms on laptops.
+              </p>
+            </div>
+          </button>
+
+          {/* Option 3: Compact (85%) */}
+          <button
+            type="button"
+            onClick={() => handleApplyScale("85%")}
+            className={`p-5 rounded-[24px] border-2 transition-all text-left relative flex flex-col gap-3.5 justify-between ${scale === "85%" ? "border-[#5dc7ec] bg-white shadow-md shadow-black/5" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
+          >
+            <div className="flex justify-between items-start w-full">
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${scale === "85%" ? "bg-blue-50 text-[#5dc7ec]" : "text-slate-300 bg-white shadow-sm"}`}>
+                <Columns size={14} />
+              </div>
+              <span className="px-2 py-0.5 bg-[#0c1424] rounded-md text-[7px] font-black text-white uppercase tracking-wider">
+                Compact
+              </span>
+            </div>
+            <div>
+              <h4 className="text-[13px] font-black text-[#0c1424] mb-0.5">Compact Mode (85%)</h4>
+              <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                Balanced workspace efficiency. Tight spacing and neat sizes, ideal for standard laptops.
+              </p>
+            </div>
+          </button>
+
+          {/* Option 4: Standard (100%) */}
+          <button
+            type="button"
+            onClick={() => handleApplyScale("100%")}
+            className={`p-5 rounded-[24px] border-2 transition-all text-left relative flex flex-col gap-3.5 justify-between ${scale === "100%" ? "border-[#5dc7ec] bg-white shadow-md shadow-black/5" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
+          >
+            <div className="flex justify-between items-start w-full">
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${scale === "100%" ? "bg-blue-50 text-[#5dc7ec]" : "text-slate-300 bg-white shadow-sm"}`}>
+                <Monitor size={14} />
+              </div>
+              <span className="px-2 py-0.5 bg-slate-100 rounded-md text-[7px] font-black text-slate-400 uppercase tracking-wider">
+                Default
+              </span>
+            </div>
+            <div>
+              <h4 className="text-[13px] font-black text-[#0c1424] mb-0.5">Standard Mode (100%)</h4>
+              <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                Perfect default visual balance. Recommended for standard desktop monitors or large screens.
+              </p>
+            </div>
+          </button>
+
+          {/* Option 5: Spacious (112%) */}
+          <button
+            type="button"
+            onClick={() => handleApplyScale("112%")}
+            className={`p-5 rounded-[24px] border-2 transition-all text-left relative flex flex-col gap-3.5 justify-between ${scale === "112%" ? "border-[#5dc7ec] bg-white shadow-md shadow-black/5" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200"}`}
+          >
+            <div className="flex justify-between items-start w-full">
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${scale === "112%" ? "bg-blue-50 text-[#5dc7ec]" : "text-slate-300 bg-white shadow-sm"}`}>
+                <Maximize2 size={14} />
+              </div>
+              <span className="px-2 py-0.5 bg-blue-100 text-[#5dc7ec] rounded-md text-[7px] font-black uppercase tracking-wider">
+                Large Touch
+              </span>
+            </div>
+            <div>
+              <h4 className="text-[13px] font-black text-[#0c1424] mb-0.5">Spacious Mode (112%)</h4>
+              <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                Enlarged control surfaces, generous text, and massive touch targets. Ideal for quick checkouts.
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Typography Fine-Tuning */}
+      <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
+        <div>
+          <h3 className="text-[16px] font-black text-[#0c1424]">
+            Typography & Font Weights Limiters
+          </h3>
+          <p className="text-[12px] text-slate-400 font-medium mt-1">
+            Tune typography thickness and reduce heavy headings to increase visual clarity.
+          </p>
+        </div>
+
+        <div className="divide-y divide-slate-50">
+          <div className="flex items-center justify-between py-4">
+            <div>
+              <h4 className="text-[13px] font-black text-[#0c1424]">Softer Bold Weights</h4>
+              <p className="text-[11px] text-slate-400 font-medium">
+                Reduce extreme black font weights (`font-black`/`font-[1000]`) to normal elegant bold weights.
+              </p>
+            </div>
+            <button
+              onClick={() => handleToggleSoftFont(!softFont)}
+              className={`w-12 h-7 rounded-full relative transition-colors duration-200 ${softFont ? "bg-emerald-500" : "bg-slate-200"}`}
+            >
+              <div className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white transition-transform duration-200 ${softFont ? "translate-x-5" : "translate-x-0"}`} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Preview Console */}
+      <div className="bg-[#0c1424] rounded-[32px] p-8 text-white relative overflow-hidden">
+        <h3 className="text-[16px] font-black mb-4 flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-[#5dc7ec] animate-pulse" /> Live Element Scale Preview
+        </h3>
+        <p className="text-[12px] text-slate-400 leading-relaxed font-medium mb-6">
+          This container simulates how key elements, headings, labels, and icons dynamically shrink and expand depending on your chosen display scale factor.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-white/5 border border-white/10 rounded-[20px] p-5 space-y-3">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Preview Heading</span>
+            <h4 className="text-[20px] font-black text-white leading-tight">Gourmet Beef Burger</h4>
+            <span className="text-[13px] font-extrabold text-[#5dc7ec]">$18.50</span>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-[20px] p-5 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-[#5dc7ec]/10 text-[#5dc7ec] flex items-center justify-center shrink-0">
+              <Monitor size={18} />
+            </div>
+            <div>
+              <h4 className="text-[13px] font-black text-white">Active Terminal</h4>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Counter 01 · Online</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* --- Main Settings Module --- */
 
 type SettingType =
@@ -1529,7 +1863,8 @@ type SettingType =
   | "loyalty"
   | "sms"
   | "terminals"
-  | "printer";
+  | "printer"
+  | "visuals";
 
 export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState<SettingType>("profile");
@@ -1550,6 +1885,7 @@ export default function SettingsPage() {
     { id: "sms", label: "SMS Credits", icon: MessageSquare },
     { id: "terminals", label: "Terminals", icon: Monitor },
     { id: "printer", label: "Printer / Docket", icon: Printer },
+    { id: "visuals", label: "Themes and Settings", icon: Sliders },
   ];
 
   const isAdmin = user?.role === "ADMIN";
@@ -1586,6 +1922,9 @@ export default function SettingsPage() {
     if (item.id === "printer") {
       return true; // For now allow all who can see settings, can refine later
     }
+    if (item.id === "visuals") {
+      return true;
+    }
 
     return false;
   });
@@ -1611,7 +1950,7 @@ export default function SettingsPage() {
             <div className="space-y-1">
               {visibleNavItems.map((item) => (
                 <button
-                  key={item.id}
+                   key={item.id}
                   onClick={() => setActiveSetting(item.id as SettingType)}
                   className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all ${activeSetting === item.id ? "bg-blue-50 text-[#5dc7ec] shadow-sm" : "text-slate-400 hover:bg-slate-50 hover:text-[#0c1424]"}`}
                 >
@@ -1639,6 +1978,7 @@ export default function SettingsPage() {
           {activeSetting === "loyalty" && <LoyaltyProgram />}
           {activeSetting === "sms" && <SMSCredits />}
           {activeSetting === "printer" && <PrinterDocketSettings />}
+          {activeSetting === "visuals" && <VisualsSettings />}
         </div>
       </div>
     </div>
