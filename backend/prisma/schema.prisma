@@ -48,6 +48,10 @@ model Restaurant {
   inviteTokens     InviteToken[]
   menuCategories   MenuCategory[]
   menuItems        MenuItem[]
+  variationGroups  VariationGroup[]
+  addonGroups      AddonGroup[]
+  menuGroups       MenuGroup[]
+  deals            Deal[]
   pinAuditLogs     PinAuditLog[]
   smsLogs          SmsLog[]
   terminals        Terminal[]
@@ -161,39 +165,49 @@ model Terminal {
 }
 
 model MenuCategory {
-  id           String     @id @default(cuid())
-  restaurantId String
-  name         String
-  sortOrder    Int        @default(0)
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
-  menuItems    MenuItem[]
+  id              String                       @id @default(cuid())
+  restaurantId    String
+  name            String
+  sortOrder       Int                          @default(0)
+  isActive        Boolean                      @default(true)
+  color           String?                      @db.VarChar(20)
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  restaurant      Restaurant                   @relation(fields: [restaurantId], references: [id])
+  menuItems       MenuItem[]
+  variationGroups MenuCategoryVariationGroup[]
+  addonGroups     MenuCategoryAddonGroup[]
 
   @@unique([restaurantId, name])
   @@map("menu_categories")
 }
 
 model MenuItem {
-  id             String         @id @default(cuid())
-  restaurantId   String
-  categoryId     String
-  name           String         @db.VarChar(60)
-  description    String?        @db.VarChar(200)
-  priceInCents   Int
-  imageUrl       String?        // URL to uploaded or external image
-  sortOrder      Int            @default(0)
-  isActive       Boolean        @default(true)
-  trackInventory Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  billItems      BillItem[]
-  inventoryItem  InventoryItem?
-  recipeItems    RecipeItem[]
-  category       MenuCategory   @relation(fields: [categoryId], references: [id])
-  restaurant     Restaurant     @relation(fields: [restaurantId], references: [id])
+  id              String                   @id @default(cuid())
+  restaurantId    String
+  categoryId      String
+  name            String                   @db.VarChar(60)
+  description     String?                  @db.VarChar(200)
+  priceInCents    Int
+  imageUrl        String?                  // URL to uploaded or external image
+  sortOrder       Int                      @default(0)
+  isActive        Boolean                  @default(true)
+  color           String?                  @db.VarChar(20)
+  shortcode       String?                  @db.VarChar(30)
+  visibility      Json                     @default("{\"dineIn\":true,\"pickup\":true,\"delivery\":true,\"inStore\":true,\"qrOrdering\":true,\"kiosk\":true,\"onlineOrdering\":true}")
+  trackInventory  Boolean                  @default(false)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  billItems       BillItem[]
+  inventoryItem   InventoryItem?
+  recipeItems     RecipeItem[]
+  category        MenuCategory             @relation(fields: [categoryId], references: [id])
+  restaurant      Restaurant               @relation(fields: [restaurantId], references: [id])
+  variationGroups MenuItemVariationGroup[]
+  addonGroups     MenuItemAddonGroup[]
+  groupItems      MenuGroupItem[]
 
+  @@unique([restaurantId, shortcode])
   @@map("menu_items")
 }
 
@@ -763,3 +777,179 @@ model Outlet {
   @@unique([restaurantId, outletNumber])
   @@map("outlets")
 }
+
+// -------------------------------------------------------------
+// Advanced Menu Management Modifiers & Deals
+// -------------------------------------------------------------
+
+model VariationGroup {
+  id           String                        @id @default(cuid())
+  restaurantId String
+  name         String                        @db.VarChar(100)
+  type         String                        @default("SINGLE") // SINGLE, MULTIPLE, QUANTITY
+  createdAt    DateTime                      @default(now())
+  updatedAt    DateTime                      @updatedAt
+  options      VariationOption[]
+  
+  restaurant   Restaurant                    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItems    MenuItemVariationGroup[]
+  categories   MenuCategoryVariationGroup[]
+
+  @@map("variation_groups")
+}
+
+model VariationOption {
+  id               String                    @id @default(cuid())
+  variationGroupId String
+  name             String                    @db.VarChar(100)
+  priceInCents     Int                       @default(0)
+  sortOrder        Int                       @default(0)
+  
+  variationGroup   VariationGroup            @relation(fields: [variationGroupId], references: [id], onDelete: Cascade)
+
+  @@map("variation_options")
+}
+
+model MenuItemVariationGroup {
+  menuItemId       String
+  variationGroupId String
+  menuItem         MenuItem                  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  variationGroup   VariationGroup            @relation(fields: [variationGroupId], references: [id], onDelete: Cascade)
+
+  @@id([menuItemId, variationGroupId])
+  @@map("menu_item_variation_groups")
+}
+
+model MenuCategoryVariationGroup {
+  categoryId       String
+  variationGroupId String
+  category         MenuCategory              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  variationGroup   VariationGroup            @relation(fields: [variationGroupId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, variationGroupId])
+  @@map("menu_category_variation_groups")
+}
+
+model AddonGroup {
+  id            String                       @id @default(cuid())
+  restaurantId  String
+  name          String                       @db.VarChar(100)
+  selectionType String                       @default("MULTIPLE") // SINGLE, MULTIPLE
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+  addons        AddonOption[]
+  
+  restaurant    Restaurant                   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItems     MenuItemAddonGroup[]
+  categories    MenuCategoryAddonGroup[]
+  deals         DealAddonGroup[]
+
+  @@map("addon_groups")
+}
+
+model AddonOption {
+  id           String                        @id @default(cuid())
+  addonGroupId String
+  name         String                        @db.VarChar(100)
+  priceInCents Int                           @default(0)
+  sortOrder    Int                           @default(0)
+  
+  addonGroup   AddonGroup                    @relation(fields: [addonGroupId], references: [id], onDelete: Cascade)
+
+  @@map("addon_options")
+}
+
+model MenuItemAddonGroup {
+  menuItemId   String
+  addonGroupId String
+  menuItem     MenuItem                      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  addonGroup   AddonGroup                    @relation(fields: [addonGroupId], references: [id], onDelete: Cascade)
+
+  @@id([menuItemId, addonGroupId])
+  @@map("menu_item_addon_groups")
+}
+
+model MenuCategoryAddonGroup {
+  categoryId   String
+  addonGroupId String
+  category     MenuCategory                  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  addonGroup   AddonGroup                    @relation(fields: [addonGroupId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, addonGroupId])
+  @@map("menu_category_addon_groups")
+}
+
+model MenuGroup {
+  id           String                        @id @default(cuid())
+  restaurantId String
+  name         String                        @db.VarChar(100)
+  minSelect    Int                           @default(1)
+  maxSelect    Int                           @default(1)
+  required     Boolean                       @default(true)
+  createdAt    DateTime                      @default(now())
+  updatedAt    DateTime                      @updatedAt
+  
+  restaurant   Restaurant                    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items        MenuGroupItem[]
+  deals        DealGroup[]
+
+  @@map("menu_groups")
+}
+
+model MenuGroupItem {
+  menuGroupId  String
+  menuItemId   String
+  priceOverrideInCents Int?
+  
+  menuGroup    MenuGroup                     @relation(fields: [menuGroupId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem                      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@id([menuGroupId, menuItemId])
+  @@map("menu_group_items")
+}
+
+model Deal {
+  id             String                      @id @default(cuid())
+  restaurantId   String
+  name           String                      @db.VarChar(100)
+  description    String?                     @db.VarChar(250)
+  priceInCents   Int                         @default(0)
+  imageUrl       String?
+  color          String?                     @db.VarChar(20)
+  shortcode      String?                     @db.VarChar(30)
+  isActive       Boolean                     @default(true)
+  visibility     Json                        @default("{\"dineIn\":true,\"pickup\":true,\"delivery\":true,\"inStore\":true,\"qrOrdering\":true,\"kiosk\":true,\"onlineOrdering\":true}")
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  
+  restaurant     Restaurant                  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  groups         DealGroup[]
+  addonGroups    DealAddonGroup[]
+
+  @@unique([restaurantId, shortcode])
+  @@map("deals")
+}
+
+model DealGroup {
+  dealId       String
+  menuGroupId  String
+  sortOrder    Int                           @default(0)
+  
+  deal         Deal                          @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  menuGroup    MenuGroup                     @relation(fields: [menuGroupId], references: [id], onDelete: Cascade)
+
+  @@id([dealId, menuGroupId])
+  @@map("deal_groups")
+}
+
+model DealAddonGroup {
+  dealId       String
+  addonGroupId String
+  
+  deal         Deal                          @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  addonGroup   AddonGroup                    @relation(fields: [addonGroupId], references: [id], onDelete: Cascade)
+
+  @@id([dealId, addonGroupId])
+  @@map("deal_addon_groups")
+}
+

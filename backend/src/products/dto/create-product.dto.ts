@@ -14,5 +14,8 @@ export class CreateProductDto {
   trackInventory?: boolean;
   recipeItems?: ProductRecipeItemDto[];
   isActive?: boolean;
+  color?: string;
+  shortcode?: string;
+  visibility?: any;
   restaurantId: string; // From auth context
 }

@@ -16,7 +16,7 @@ export class CategoriesService {
    * Create a new category
    */
   async create(createCategoryDto: CreateCategoryDto) {
-    const { name, restaurantId, sortOrder, isActive } = createCategoryDto;
+    const { name, restaurantId, sortOrder, isActive, color } = createCategoryDto;
 
     if (!name) {
       throw new BadRequestException('Category name is required');
@@ -37,6 +37,7 @@ export class CategoriesService {
         restaurantId,
         sortOrder: sortOrder ?? 0,
         isActive: isActive ?? true,
+        color: color || null,
       },
     });
   }
@@ -128,6 +129,9 @@ export class CategoriesService {
         }),
         ...(updateCategoryDto.isActive !== undefined && {
           isActive: updateCategoryDto.isActive,
+        }),
+        ...(updateCategoryDto.color !== undefined && {
+          color: updateCategoryDto.color || null,
         }),
       },
     });

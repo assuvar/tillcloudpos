@@ -609,10 +609,16 @@ export class BillsService {
         throw new NotFoundException('Menu item not found');
       }
 
+      const priceCents = dto.customPriceInCents !== undefined && dto.customPriceInCents !== null
+        ? dto.customPriceInCents
+        : menuItem.priceInCents;
+
       const existing = await tx.billItem.findFirst({
         where: {
           billId,
           menuItemId: dto.menuItemId,
+          unitPriceInCents: priceCents,
+          notes: dto.notes?.trim() || null,
         },
       });
 
@@ -621,8 +627,7 @@ export class BillsService {
           where: { id: existing.id },
           data: {
             quantity: existing.quantity + quantity,
-            lineTotalCents:
-              (existing.quantity + quantity) * menuItem.priceInCents,
+            lineTotalCents: (existing.quantity + quantity) * priceCents,
           },
         });
       } else {
@@ -632,9 +637,9 @@ export class BillsService {
             menuItemId: menuItem.id,
             itemName: menuItem.name,
             categoryName: menuItem.category?.name || 'Uncategorized',
-            unitPriceInCents: menuItem.priceInCents,
+            unitPriceInCents: priceCents,
             quantity,
-            lineTotalCents: menuItem.priceInCents * quantity,
+            lineTotalCents: priceCents * quantity,
             notes: dto.notes?.trim() || null,
           },
         });

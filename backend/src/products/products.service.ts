@@ -113,6 +113,9 @@ export class ProductsService {
       trackInventory,
       recipeItems,
       isActive,
+      color,
+      shortcode,
+      visibility,
       restaurantId,
     } = createProductDto;
 
@@ -157,6 +160,9 @@ export class ProductsService {
         imageUrl: uploadedImageUrl || imageUrl?.trim() || null,
         trackInventory: normalizedTrackInventory,
         isActive: isActive ?? true,
+        color: color || null,
+        shortcode: shortcode || null,
+        visibility: visibility ?? undefined,
         restaurantId,
         recipeItems: normalizedTrackInventory
           ? {
@@ -303,6 +309,15 @@ export class ProductsService {
     }
     if (updateProductDto.isActive !== undefined) {
       updateData.isActive = updateProductDto.isActive;
+    }
+    if (updateProductDto.color !== undefined) {
+      updateData.color = updateProductDto.color || null;
+    }
+    if (updateProductDto.shortcode !== undefined) {
+      updateData.shortcode = updateProductDto.shortcode || null;
+    }
+    if (updateProductDto.visibility !== undefined) {
+      updateData.visibility = updateProductDto.visibility;
     }
 
     const nextTrackInventory =

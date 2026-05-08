@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, ImagePlus, Plus, Trash2, X, Check } from "lucide-react";
 import { useMenuManagement } from "./context/MenuManagementContext";
+
+const PRESET_COLORS = [
+  "#3b82f6", // Blue
+  "#10b981", // Green
+  "#8b5cf6", // Purple
+  "#f59e0b", // Orange
+  "#ec4899", // Pink
+  "#ef4444", // Red
+  "#0f172a", // Dark Slate
+];
 
 export default function AddItemDrawer() {
   const {
@@ -13,11 +23,33 @@ export default function AddItemDrawer() {
     closeDrawer,
     updateDrawerField,
     saveDrawerItem,
+    variationGroups,
+    addonGroups,
   } = useMenuManagement();
 
+  const [selectedVariationGroups, setSelectedVariationGroups] = useState<string[]>([]);
+  const [selectedAddonGroups, setSelectedAddonGroups] = useState<string[]>([]);
   const [localError, setLocalError] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (drawerOpen) {
+      if (drawerMode === "edit" && drawerEditingItemId) {
+        const activeVgs = variationGroups
+          .filter((vg) => vg.menuItems?.some((mi: any) => mi.menuItemId === drawerEditingItemId))
+          .map((vg) => vg.id);
+        const activeAds = addonGroups
+          .filter((ag) => ag.menuItems?.some((mi: any) => mi.menuItemId === drawerEditingItemId))
+          .map((ag) => ag.id);
+        setSelectedVariationGroups(activeVgs);
+        setSelectedAddonGroups(activeAds);
+      } else {
+        setSelectedVariationGroups([]);
+        setSelectedAddonGroups([]);
+      }
+    }
+  }, [drawerOpen, drawerMode, drawerEditingItemId, variationGroups, addonGroups]);
 
   useEffect(() => {
     if (!drawerOpen) {
@@ -81,10 +113,24 @@ export default function AddItemDrawer() {
     updateDrawerField("image", "");
   };
 
+  const generateShortcode = () => {
+    const name = drawerForm.name.trim();
+    if (!name) return;
+    
+    const words = name.split(/\s+/).filter(Boolean);
+    let code = "";
+    if (words.length >= 2) {
+      code = words.map(w => w.charAt(0)).join("").substring(0, 4);
+    } else {
+      code = name.substring(0, 3);
+    }
+    updateDrawerField("shortcode", code.toUpperCase());
+  };
+
   const handleSave = async () => {
-    const success = await saveDrawerItem();
+    const success = await saveDrawerItem(selectedVariationGroups, selectedAddonGroups);
     if (!success) {
-      setLocalError("Please complete item name, category, and price.");
+      setLocalError("Please complete item name, category, price, and required settings.");
     }
   };
 
@@ -95,7 +141,7 @@ export default function AddItemDrawer() {
         onClick={handleClose}
       />
 
-      <div className="relative flex h-full max-h-[calc(100vh-1rem)] w-full max-w-[calc(100vw-1rem)] flex-col overflow-hidden bg-white shadow-2xl animate-in slide-in-from-right duration-500 sm:max-h-none sm:max-w-[560px]">
+      <div className="relative flex h-full max-h-[calc(100vh-1rem)] w-full max-w-[calc(100vw-1rem)] flex-col overflow-hidden bg-white shadow-2xl animate-in slide-in-from-right duration-500 sm:max-h-none sm:max-w-[580px]">
         <div className="flex items-start justify-between border-b border-slate-50 p-4 pb-4 sm:p-8">
           <div>
             <h2 className="text-[24px] font-black leading-tight text-[#0c1424] sm:text-[28px]">
@@ -143,6 +189,69 @@ export default function AddItemDrawer() {
             />
           </div>
 
+          {/* COLOR AND SHORTCODE SECTIONS */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Keyboard Shortcode Input */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                POS Keyboard Shortcode
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={drawerForm.shortcode}
+                  onChange={(event) =>
+                    updateDrawerField("shortcode", event.target.value.toUpperCase())
+                  }
+                  placeholder="e.g. CSD"
+                  className="w-full h-12 bg-blue-50/50 border border-transparent rounded-xl px-4 text-[14px] font-black text-[#0c1424] focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:font-bold"
+                />
+                <button
+                  type="button"
+                  onClick={generateShortcode}
+                  disabled={!drawerForm.name.trim()}
+                  className="h-12 px-4 rounded-xl border border-slate-250 bg-slate-50 text-[11px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-100 transition-all disabled:opacity-50 shrink-0"
+                >
+                  Auto
+                </button>
+              </div>
+            </div>
+
+            {/* Item Specific Custom Theme Color */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                  Display Color
+                </label>
+                {drawerForm.color && (
+                  <button
+                    type="button"
+                    onClick={() => updateDrawerField("color", "")}
+                    className="text-[9px] font-bold text-slate-400 hover:text-rose-500 transition-colors uppercase"
+                  >
+                    Clear Custom
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 h-12 bg-blue-50/50 rounded-xl px-3 border border-transparent">
+                {PRESET_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => updateDrawerField("color", color)}
+                    className="w-7 h-7 rounded-full relative transition-transform hover:scale-110 flex items-center justify-center shrink-0 shadow-sm"
+                    style={{ backgroundColor: color }}
+                  >
+                    {drawerForm.color === color && (
+                      <Check size={12} className="text-white drop-shadow-sm" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
               Item Image (Optional)
@@ -161,7 +270,7 @@ export default function AddItemDrawer() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-[11px] font-black uppercase tracking-widest text-[#0c1424] shadow-sm"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-[11px] font-black uppercase tracking-widest text-[#0c1424] shadow-sm animate-none"
                 >
                   <ImagePlus size={14} />
                   Choose File
@@ -262,6 +371,68 @@ export default function AddItemDrawer() {
             </div>
           </div>
 
+          {/* AVAILABILITY & VISIBILITY SECTION */}
+          <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+            <div className="flex items-center justify-between border-b border-slate-100/40 pb-4">
+              <div>
+                <div className="text-[13px] font-black text-[#0c1424] leading-tight">
+                  POS Active Status
+                </div>
+                <div className="text-[11px] text-slate-400 font-bold tracking-tight mt-0.5">
+                  Is this menu item active and visible inside the POS terminal?
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={drawerForm.isActive}
+                onChange={(event) =>
+                  updateDrawerField("isActive", event.target.checked)
+                }
+                className="h-5 w-5 rounded border-slate-300 text-[#0c1424] focus:ring-[#0c1424] cursor-pointer"
+              />
+            </div>
+
+            <div className="pt-2">
+              <div className="text-[13px] font-black text-[#0c1424] leading-tight">
+                POS Channels Availability
+              </div>
+              <div className="text-[11px] text-slate-400 font-bold tracking-tight mt-0.5">
+                Select checkout channels where this menu item is visible
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              {[
+                { key: "dineIn", label: "Dine-In" },
+                { key: "pickup", label: "Pickup" },
+                { key: "delivery", label: "Delivery" },
+                { key: "inStore", label: "In-Store" },
+                { key: "qrOrdering", label: "QR Ordering" },
+                { key: "kiosk", label: "Kiosk" },
+                { key: "onlineOrdering", label: "Online" },
+              ].map(({ key, label }) => (
+                <label
+                  key={key}
+                  className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-blue-500/20 hover:shadow-sm transition-all shadow-none"
+                >
+                  <input
+                    type="checkbox"
+                    checked={drawerForm.visibility?.[key as keyof typeof drawerForm.visibility] ?? true}
+                    onChange={(event) => {
+                      const updatedVis = {
+                        ...drawerForm.visibility,
+                        [key]: event.target.checked,
+                      };
+                      updateDrawerField("visibility", updatedVis);
+                    }}
+                    className="h-4.5 w-4.5 rounded border-slate-300 text-[#0c1424] focus:ring-[#0c1424]"
+                  />
+                  <span className="text-[13px] font-bold text-slate-700">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
               Description
@@ -272,7 +443,7 @@ export default function AddItemDrawer() {
                 updateDrawerField("description", event.target.value)
               }
               placeholder="Brief description of the dish..."
-              className="w-full h-32 bg-blue-50/50 border border-transparent rounded-xl p-4 text-[14px] font-bold text-[#0c1424] focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:font-medium resize-none"
+              className="w-full h-28 bg-blue-50/50 border border-transparent rounded-xl p-4 text-[14px] font-bold text-[#0c1424] focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:font-medium resize-none"
             />
             <div className="flex justify-end pt-1">
               <span className="text-[10px] font-bold text-slate-300">
@@ -452,28 +623,112 @@ export default function AddItemDrawer() {
               </div>
             ) : null}
 
-            <label className="flex items-center justify-between gap-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
-              <div>
-                <div className="text-[13px] font-black text-[#0c1424] leading-tight">
-                  Active
+            {/* LINKED MODIFIER GROUPS SECTIONS */}
+            <div className="space-y-4 pt-4 border-t border-slate-100">
+              <h3 className="text-sm font-black text-[#0c1424] uppercase tracking-wide">
+                Linked Modifier Groups
+              </h3>
+              
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Size Variations */}
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                    Size Variations
+                  </span>
+                  {variationGroups.length === 0 ? (
+                    <span className="text-xs text-slate-400 font-medium">No Variation Groups created yet.</span>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {variationGroups.map((vg) => {
+                        const isChecked = selectedVariationGroups.includes(vg.id);
+                        return (
+                          <div key={vg.id} className="flex flex-col gap-1.5 p-2 rounded-xl border border-transparent hover:bg-white/60 hover:border-slate-100 transition-all">
+                            <label className="flex items-center gap-2.5 cursor-pointer text-[13px] font-bold text-slate-700 w-full">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedVariationGroups(selectedVariationGroups.filter(id => id !== vg.id));
+                                  } else {
+                                    setSelectedVariationGroups([...selectedVariationGroups, vg.id]);
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-[#0c1424] focus:ring-[#0c1424]"
+                              />
+                              <span className="truncate">{vg.name}</span>
+                              <span className="text-[10px] text-slate-400 font-black bg-slate-100 px-1.5 py-0.5 rounded-md ml-auto shrink-0">
+                                {vg.options?.length || 0} opt
+                              </span>
+                            </label>
+                            {vg.options && vg.options.length > 0 && (
+                              <div className="pl-6.5 flex flex-wrap gap-1">
+                                {vg.options.map((opt: any) => (
+                                  <span key={opt.id} className="text-[10px] text-slate-500 font-bold bg-white border border-slate-100 px-2 py-0.5 rounded-full shadow-sm">
+                                    {opt.name} {opt.priceInCents > 0 ? `(+$${(opt.priceInCents / 100).toFixed(2)})` : ""}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="text-[11px] text-slate-400 font-bold tracking-tight">
-                  Visible in POS menu
+
+                {/* Toppings & Addons */}
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                    Toppings & Addons
+                  </span>
+                  {addonGroups.length === 0 ? (
+                    <span className="text-xs text-slate-400 font-medium">No Addon Groups created yet.</span>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {addonGroups.map((ag) => {
+                        const isChecked = selectedAddonGroups.includes(ag.id);
+                        return (
+                          <div key={ag.id} className="flex flex-col gap-1.5 p-2 rounded-xl border border-transparent hover:bg-white/60 hover:border-slate-100 transition-all">
+                            <label className="flex items-center gap-2.5 cursor-pointer text-[13px] font-bold text-slate-700 w-full">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedAddonGroups(selectedAddonGroups.filter(id => id !== ag.id));
+                                  } else {
+                                    setSelectedAddonGroups([...selectedAddonGroups, ag.id]);
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-[#0c1424] focus:ring-[#0c1424]"
+                              />
+                              <span className="truncate">{ag.name}</span>
+                              <span className="text-[10px] text-slate-400 font-black bg-slate-100 px-1.5 py-0.5 rounded-md ml-auto shrink-0">
+                                {ag.addons?.length || 0} opt
+                              </span>
+                            </label>
+                            {ag.addons && ag.addons.length > 0 && (
+                              <div className="pl-6.5 flex flex-wrap gap-1">
+                                {ag.addons.map((add: any) => (
+                                  <span key={add.id} className="text-[10px] text-slate-500 font-bold bg-white border border-slate-100 px-2 py-0.5 rounded-full shadow-sm">
+                                    {add.name} {add.priceInCents > 0 ? `(+$${(add.priceInCents / 100).toFixed(2)})` : ""}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
-              <input
-                type="checkbox"
-                checked={drawerForm.isActive}
-                onChange={(event) =>
-                  updateDrawerField("isActive", event.target.checked)
-                }
-                className="h-5 w-5 rounded border-slate-300 text-[#0c1424] focus:ring-[#0c1424]"
-              />
-            </label>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-slate-100 p-4 sm:flex-row sm:gap-4 sm:p-8">
+        <div className="flex flex-col gap-3 border-t border-slate-100 p-4 sm:flex-row sm:gap-4 sm:p-8 shrink-0">
           <button
             onClick={handleClose}
             className="h-12 flex-1 rounded-xl border border-slate-100 text-[13px] font-black uppercase tracking-widest text-[#0c1424] transition-all hover:bg-slate-50"

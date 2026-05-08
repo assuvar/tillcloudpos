@@ -12,11 +12,18 @@ export interface MenuItem {
   isActive: boolean;
   isOutOfStock?: boolean;
   description: string;
+  color?: string | null;
+  shortcode?: string | null;
+  variationGroups?: any[];
+  addonGroups?: any[];
+  isDeal?: boolean;
+  groups?: any[];
 }
 
 export interface MenuCategory {
   id: string;
   name: string;
+  color?: string | null;
   items: MenuItem[];
 }
 
@@ -111,7 +118,11 @@ interface PosCartContextType {
     },
   ) => Promise<BillRecord>;
   loadBill: (billId: string) => Promise<BillRecord | null>;
-  addItemToBill: (item: MenuItem) => Promise<boolean>;
+  addItemToBill: (
+    item: MenuItem,
+    customPriceInCents?: number,
+    notes?: string,
+  ) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (
     itemId: string,
@@ -142,7 +153,7 @@ interface PosCartContextType {
     }>,
   ) => Promise<void>;
   closeOrder: (orderId: string) => Promise<boolean>;
-  loadMenuItems: () => Promise<void>;
+  loadMenuItems: (serviceType?: string) => Promise<void>;
 }
 
 const PosCartContext = createContext<PosCartContextType | undefined>(undefined);
@@ -188,6 +199,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       return {
         id: category.id,
         name: category.name,
+        color: category.color || null,
         items: categoryItems.map((item: any) => ({
           id: item.id,
           name: item.name,
@@ -198,6 +210,12 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
           isActive: item.isActive !== false,
           isOutOfStock: item.isOutOfStock,
           description: item.description || "",
+          color: item.color || null,
+          shortcode: item.shortcode || null,
+          variationGroups: item.variationGroups || [],
+          addonGroups: item.addonGroups || [],
+          isDeal: item.isDeal || false,
+          groups: item.groups || [],
         })),
       };
     });
@@ -286,12 +304,13 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const loadMenuItems = async () => {
+  const loadMenuItems = async (serviceType?: string) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await api.get("/menu/categories");
+      const url = serviceType ? `/menu/categories?serviceType=${serviceType}` : "/menu/categories";
+      const response = await api.get(url);
       const transformedCategories = normalizeMenuCategories(response.data);
 
       setCategories(transformedCategories);
@@ -390,22 +409,25 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const hydrate = async () => {
-      await loadMenuItems();
+      // Find stored bill ID first to see if we can get its orderType
+      const storedBillId = localStorage.getItem(ACTIVE_BILL_KEY);
+      let initialOrderType: string | undefined;
 
-      // Try to hydrate active bill from localStorage to avoid flicker
       try {
         const stored = localStorage.getItem(ACTIVE_BILL_DATA_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
           if (parsed && parsed.id) {
             setActiveBill(parsed);
+            initialOrderType = parsed.orderType;
           }
         }
       } catch (e) {
         console.warn("Failed to hydrate active bill from storage", e);
       }
 
-      const storedBillId = localStorage.getItem(ACTIVE_BILL_KEY);
+      await loadMenuItems(initialOrderType);
+
       if (storedBillId) {
         // Refresh from API but don't block UI if it fails
         void loadBill(storedBillId).catch((e) => {
@@ -417,7 +439,17 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     void hydrate();
   }, [user?.id, accessToken]);
 
-  const addItemToBill = async (item: MenuItem) => {
+  useEffect(() => {
+    if (user?.id && accessToken) {
+      void loadMenuItems(activeBill?.orderType);
+    }
+  }, [activeBill?.orderType, user?.id, accessToken]);
+
+  const addItemToBill = async (
+    item: MenuItem,
+    customPriceInCents?: number,
+    notes?: string,
+  ) => {
     if (!item.isActive || item.isOutOfStock) {
       return false;
     }
@@ -430,6 +462,8 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await api.post(`/orders/${activeBill.id}/items`, {
         productId: item.id,
         quantity: 1,
+        customPriceInCents,
+        notes,
       });
 
       syncBill(normalizeBill(response.data));

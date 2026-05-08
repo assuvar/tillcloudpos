@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { usePosCart } from "./context/PosCartContext";
+import POSModifierModal from "./components/POSModifierModal";
+import POSComboBuilderModal from "./components/POSComboBuilderModal";
 
 export default function POSPage() {
   const { user, logout } = useAuth();
@@ -25,6 +27,7 @@ export default function POSPage() {
     billItems,
     totalItems,
     billTotal,
+    activeBill,
     addItemToBill,
     removeItem,
     updateQuantity,
@@ -35,6 +38,9 @@ export default function POSPage() {
   const [toastMessage, setToastMessage] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [modifierItem, setModifierItem] = useState<any | null>(null);
+  const [comboDeal, setComboDeal] = useState<any | null>(null);
 
   const categoryTabs = useMemo(
     () => [
@@ -54,7 +60,7 @@ export default function POSPage() {
         selectedCategoryId === "all" || item.categoryId === selectedCategoryId;
       const matchesSearch =
         !normalizedSearch ||
-        [item.name, item.description, item.categoryName].some((field) =>
+        [item.name, item.description, item.categoryName, item.shortcode || ""].some((field) =>
           field.toLowerCase().includes(normalizedSearch),
         );
       return matchesCategory && matchesSearch;
@@ -66,12 +72,53 @@ export default function POSPage() {
     window.setTimeout(() => setToastMessage(""), 2200);
   };
 
+  const handleSearchChange = async (value: string) => {
+    setSearchTerm(value);
+    
+    const code = value.trim().toUpperCase();
+    if (code) {
+      // Fast exact shortcode matching logic
+      const matchedItem = menuItems.find(
+        (item) => item.isActive && item.shortcode && item.shortcode.toUpperCase() === code
+      );
+      
+      if (matchedItem) {
+        setSearchTerm("");
+        const added = await addItemToBill(matchedItem);
+        if (added) {
+          showToast(`${matchedItem.name} added via shortcode!`);
+        }
+      }
+    }
+  };
+
   const handleItemClick = async (itemId: string) => {
     const item = menuItems.find((entry) => entry.id === itemId);
     if (!item || !item.isActive) {
-      showToast(item?.isActive ? "Item out of stock" : "Item is inactive");
+      showToast(item ? "Item out of stock" : "Item is inactive");
       return;
     }
+
+    if (!activeBill) {
+      showToast("Please open or select a bill session first!");
+      return;
+    }
+
+    // 1. Intercept Combo Deals
+    if (item.isDeal) {
+      setComboDeal(item);
+      return;
+    }
+
+    // 2. Intercept Variations or Addons
+    const hasVars = Array.isArray(item.variationGroups) && item.variationGroups.length > 0;
+    const hasAddons = Array.isArray(item.addonGroups) && item.addonGroups.length > 0;
+    if (hasVars || hasAddons) {
+      setModifierItem(item);
+      return;
+    }
+
+    // 3. Otherwise add directly to order
     const added = await addItemToBill(item);
     if (added) {
       showToast(`${item.name} added`);
@@ -134,9 +181,33 @@ export default function POSPage() {
         {/* Left Column: Categories & Search (25%) */}
         <aside className="w-80 flex flex-col gap-4 shrink-0">
           <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-6 flex-1 flex flex-col">
+            
+            {/* Active Service Visibility Indicator */}
+            {activeBill ? (
+              <div className="bg-blue-50/60 border border-blue-100/50 rounded-2xl p-4 mb-4 select-none">
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 block mb-1">
+                  Visibility Filter Active
+                </span>
+                <span className="text-[15px] font-black text-[#0c1424] flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Order Mode: {activeBill.orderType === "DINE_IN" ? "Dine-In" : activeBill.orderType === "PICKUP" ? "Pickup" : "Delivery"}
+                </span>
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-4 select-none">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">
+                  Visibility Filter Active
+                </span>
+                <span className="text-[14px] font-black text-slate-500">
+                  Global Standard View
+                </span>
+              </div>
+            )}
+
             <h2 className="text-lg font-black text-[#0c1424] mb-4">
               Explore Menu
             </h2>
+            
             <div className="relative mb-6">
               <Search
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -145,23 +216,44 @@ export default function POSPage() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Find an item..."
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Find item or scan shortcode..."
                 className="w-full h-12 pl-11 pr-4 rounded-2xl bg-[#f8fafc] border-none focus:ring-2 focus:ring-sky-500/20 text-sm font-bold"
               />
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`w-full h-14 px-5 rounded-2xl flex items-center justify-between text-sm font-bold transition-all ${selectedCategoryId === cat.id ? "bg-[#0c1424] text-white shadow-lg" : "bg-transparent text-slate-500 hover:bg-slate-50"}`}
-                >
-                  {cat.name}
-                  {selectedCategoryId === cat.id && <ChevronRight size={16} />}
-                </button>
-              ))}
+              <button
+                onClick={() => setSelectedCategoryId("all")}
+                className={`w-full h-14 px-5 rounded-2xl flex items-center justify-between text-sm font-black transition-all border border-slate-100 ${
+                  selectedCategoryId === "all"
+                    ? "bg-[#0c1424] text-white shadow-lg shadow-black/10"
+                    : "bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <span>All Products</span>
+                {selectedCategoryId === "all" && <ChevronRight size={16} />}
+              </button>
+
+              {categories.map((cat) => {
+                const isSelected = selectedCategoryId === cat.id;
+                const catColor = cat.color || "#0c1424";
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategoryId(cat.id)}
+                    className="w-full h-14 px-5 rounded-2xl flex items-center justify-between text-sm font-bold transition-all border border-slate-100 shadow-sm relative overflow-hidden"
+                    style={{
+                      backgroundColor: isSelected ? catColor : "white",
+                      color: isSelected ? "white" : "#0c1424",
+                      borderLeft: `5px solid ${catColor}`,
+                    }}
+                  >
+                    <span>{cat.name}</span>
+                    {isSelected && <ChevronRight size={16} />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </aside>
@@ -174,10 +266,10 @@ export default function POSPage() {
                 <h2 className="text-2xl font-black text-[#0c1424]">
                   {categoryTabs.find(
                     (category) => category.id === selectedCategoryId,
-                  )?.name || "All"}
+                  )?.name || "All Items"}
                 </h2>
                 <p className="text-sm font-medium text-slate-400">
-                  Total {visibleItems.length} items available
+                  Total {visibleItems.length} items visible for current channel
                 </p>
               </div>
             </div>
@@ -191,12 +283,22 @@ export default function POSPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {visibleItems.map((item) => {
                   const unavailable = !item.isActive;
+                  const catColor = categories.find((c) => c.id === item.categoryId)?.color || "#cbd5e1";
+                  const itemThemeColor = item.color || catColor;
+
                   return (
                     <button
                       key={item.id}
                       onClick={() => void handleItemClick(item.id)}
                       disabled={unavailable}
-                      className={`group relative h-48 rounded-[32px] overflow-hidden border transition-all text-left flex flex-col p-6 ${unavailable ? "bg-slate-50 border-slate-100 opacity-60 grayscale cursor-not-allowed" : "bg-white border-slate-100 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/5 hover:-translate-y-1"}`}
+                      className={`group relative h-48 rounded-[28px] overflow-hidden border transition-all text-left flex flex-col p-6 shadow-sm ${
+                        unavailable
+                          ? "bg-slate-50 border-slate-100 opacity-60 grayscale cursor-not-allowed"
+                          : "bg-white border-slate-100 hover:shadow-xl hover:-translate-y-1"
+                      }`}
+                      style={{
+                        borderTop: unavailable ? undefined : `4px solid ${itemThemeColor}`,
+                      }}
                     >
                       <div className="z-10 flex-1 flex flex-col justify-between">
                         <div className="flex justify-between items-start">
@@ -210,9 +312,16 @@ export default function POSPage() {
                           )}
                         </div>
                         <div>
-                          <h4 className="text-lg font-black text-[#0c1424] leading-tight mb-1">
-                            {item.name}
-                          </h4>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-lg font-black text-[#0c1424] leading-tight mb-0.5">
+                              {item.name}
+                            </h4>
+                            {item.shortcode && (
+                              <span className="bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider scale-90">
+                                {item.shortcode}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs font-bold text-slate-400 line-clamp-2">
                             {item.description}
                           </p>
@@ -221,7 +330,7 @@ export default function POSPage() {
                           <div className="text-xl font-black text-sky-600">
                             {formatCurrency(item.price)}
                           </div>
-                          <div className="text-[10px] font-black text-slate-400 uppercase">
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                             Live menu
                           </div>
                         </div>
@@ -274,12 +383,19 @@ export default function POSPage() {
                     className="bg-[#f8fafc]/50 border border-slate-50 p-4 rounded-[24px] flex flex-col gap-4"
                   >
                     <div className="flex justify-between">
-                      <span className="font-black text-sm text-[#0c1424]">
-                        {item.name}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="font-black text-sm text-[#0c1424]">
+                          {item.name}
+                        </span>
+                        {item.notes && (
+                          <span className="text-[11px] font-bold text-indigo-500 mt-1 bg-indigo-50/50 px-2 py-0.5 rounded-lg border border-indigo-100/30 max-w-max">
+                            {item.notes}
+                          </span>
+                        )}
+                      </div>
                       <button
                         onClick={() => void removeItem(item.id)}
-                        className="text-slate-300 hover:text-rose-500 transition-colors"
+                        className="text-slate-300 hover:text-rose-500 transition-colors self-start"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -367,6 +483,34 @@ export default function POSPage() {
           </div>
         </aside>
       </main>
+
+      <POSModifierModal
+        isOpen={modifierItem !== null}
+        item={modifierItem}
+        onClose={() => setModifierItem(null)}
+        onConfirm={async (finalPriceInCents, notes) => {
+          if (!modifierItem) return;
+          const added = await addItemToBill(modifierItem, finalPriceInCents, notes);
+          setModifierItem(null);
+          if (added) {
+            showToast(`${modifierItem.name} added!`);
+          }
+        }}
+      />
+
+      <POSComboBuilderModal
+        isOpen={comboDeal !== null}
+        deal={comboDeal}
+        onClose={() => setComboDeal(null)}
+        onConfirm={async (finalPriceInCents, notes) => {
+          if (!comboDeal) return;
+          const added = await addItemToBill(comboDeal, finalPriceInCents, notes);
+          setComboDeal(null);
+          if (added) {
+            showToast(`${comboDeal.name} combo added!`);
+          }
+        }}
+      />
 
       {toastMessage && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#0c1424] text-white px-8 py-4 rounded-full font-black text-sm shadow-2xl z-50 animate-bounce-in">

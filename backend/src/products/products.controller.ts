@@ -67,17 +67,35 @@ const parseRecipeItems = (value: unknown) => {
 const buildProductDto = (
   body: any,
   restaurantId: string,
-): CreateProductDto => ({
-  name: body?.name,
-  categoryId: body?.categoryId,
-  description: body?.description,
-  priceInCents: Number(body?.priceInCents),
-  trackInventory: parseBoolean(body?.trackInventory, false),
-  recipeItems: parseRecipeItems(body?.recipeItems),
-  isActive: parseBoolean(body?.isActive, true),
-  restaurantId,
-  imageUrl: body?.imageUrl,
-});
+): CreateProductDto => {
+  let parsedVisibility = undefined;
+  if (body?.visibility) {
+    if (typeof body.visibility === 'string') {
+      try {
+        parsedVisibility = JSON.parse(body.visibility);
+      } catch {
+        parsedVisibility = undefined;
+      }
+    } else {
+      parsedVisibility = body.visibility;
+    }
+  }
+
+  return {
+    name: body?.name,
+    categoryId: body?.categoryId,
+    description: body?.description,
+    priceInCents: Number(body?.priceInCents),
+    trackInventory: parseBoolean(body?.trackInventory, false),
+    recipeItems: parseRecipeItems(body?.recipeItems),
+    isActive: parseBoolean(body?.isActive, true),
+    color: body?.color,
+    shortcode: body?.shortcode,
+    visibility: parsedVisibility,
+    restaurantId,
+    imageUrl: body?.imageUrl,
+  };
+};
 
 @Controller('products')
 export class ProductsController {

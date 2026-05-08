@@ -151,6 +151,8 @@ export class OrdersService {
     return this.billsService.addBillItem(orderId, restaurantId, {
       menuItemId: dto.productId,
       quantity: dto.quantity,
+      notes: dto.notes,
+      customPriceInCents: dto.customPriceInCents,
     });
   }
 

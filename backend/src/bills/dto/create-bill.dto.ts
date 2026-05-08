@@ -27,6 +27,7 @@ export class AddBillItemDto {
   menuItemId: string;
   quantity: number;
   notes?: string;
+  customPriceInCents?: number;
 }
 
 export class UpdateBillItemDto {

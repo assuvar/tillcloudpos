@@ -36,6 +36,8 @@ export class CreateOrderDto {
 export class AddOrderItemDto {
   productId: string;
   quantity: number;
+  notes?: string;
+  customPriceInCents?: number;
 }
 
 export class CompleteOrderDto {

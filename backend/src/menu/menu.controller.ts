@@ -34,15 +34,22 @@ export class MenuController {
   ) {}
 
   @Get('categories')
-  async findCategories(@Req() req: any) {
+  async findCategories(
+    @Req() req: any,
+    @Query('serviceType') serviceType?: string,
+  ) {
     const restaurantId = getRestaurantId(req);
-    return this.menuService.findCategoriesWithItems(restaurantId);
+    return this.menuService.findCategoriesWithItems(restaurantId, serviceType);
   }
 
   @Get('items')
-  async findItems(@Req() req: any, @Query('categoryId') categoryId?: string) {
+  async findItems(
+    @Req() req: any,
+    @Query('categoryId') categoryId?: string,
+    @Query('serviceType') serviceType?: string,
+  ) {
     const restaurantId = getRestaurantId(req);
-    return this.menuService.findItems(restaurantId, categoryId);
+    return this.menuService.findItems(restaurantId, categoryId, serviceType);
   }
 
   @Post('categories')
@@ -54,6 +61,7 @@ export class MenuController {
       name?: string;
       sortOrder?: number;
       isActive?: boolean;
+      color?: string;
     },
   ) {
     const restaurantId = getRestaurantId(req);
@@ -65,6 +73,7 @@ export class MenuController {
       name: body.name,
       sortOrder: body.sortOrder,
       isActive: body.isActive,
+      color: body.color,
       restaurantId,
     });
   }
@@ -82,6 +91,9 @@ export class MenuController {
       imageUrl?: string;
       isActive?: boolean;
       trackInventory?: boolean;
+      color?: string;
+      shortcode?: string;
+      visibility?: any;
     },
   ) {
     const restaurantId = getRestaurantId(req);
@@ -103,6 +115,9 @@ export class MenuController {
       imageUrl: body.imageUrl,
       isActive: body.isActive,
       trackInventory: body.trackInventory,
+      color: body.color,
+      shortcode: body.shortcode,
+      visibility: body.visibility,
       restaurantId,
     });
   }
