@@ -64,10 +64,7 @@ const parseRecipeItems = (value: unknown) => {
   return undefined;
 };
 
-const buildProductDto = (
-  body: any,
-  restaurantId: string,
-): CreateProductDto => {
+const buildProductDto = (body: any, restaurantId: string): CreateProductDto => {
   let parsedVisibility = undefined;
   if (body?.visibility) {
     if (typeof body.visibility === 'string') {

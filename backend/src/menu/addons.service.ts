@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAddonGroupDto } from './dto/modifiers.dto';
+import { MenuService } from './menu.service';
 
 @Injectable()
 export class AddonsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(restaurantId: string, dto: CreateAddonGroupDto) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const group = await tx.addonGroup.create({
         data: {
           restaurantId,
@@ -32,6 +33,9 @@ export class AddonsService {
         include: { addons: { orderBy: { sortOrder: 'asc' } } },
       });
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return result;
   }
 
   async findAll(restaurantId: string) {
@@ -66,7 +70,7 @@ export class AddonsService {
   async update(restaurantId: string, id: string, dto: CreateAddonGroupDto) {
     const existing = await this.findOne(restaurantId, id);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.addonGroup.update({
         where: { id: existing.id },
         data: {
@@ -96,6 +100,9 @@ export class AddonsService {
         include: { addons: { orderBy: { sortOrder: 'asc' } } },
       });
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return result;
   }
 
   async remove(restaurantId: string, id: string) {
@@ -105,6 +112,7 @@ export class AddonsService {
       where: { id: existing.id },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 
@@ -124,20 +132,30 @@ export class AddonsService {
       update: {},
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 
-  async unassignFromItem(restaurantId: string, groupId: string, itemId: string) {
+  async unassignFromItem(
+    restaurantId: string,
+    groupId: string,
+    itemId: string,
+  ) {
     await this.findOne(restaurantId, groupId);
 
     await this.prisma.menuItemAddonGroup.deleteMany({
       where: { menuItemId: itemId, addonGroupId: groupId },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 
-  async assignToCategory(restaurantId: string, groupId: string, categoryId: string) {
+  async assignToCategory(
+    restaurantId: string,
+    groupId: string,
+    categoryId: string,
+  ) {
     await this.findOne(restaurantId, groupId);
 
     const category = await this.prisma.menuCategory.findFirst({
@@ -153,16 +171,22 @@ export class AddonsService {
       update: {},
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 
-  async unassignFromCategory(restaurantId: string, groupId: string, categoryId: string) {
+  async unassignFromCategory(
+    restaurantId: string,
+    groupId: string,
+    categoryId: string,
+  ) {
     await this.findOne(restaurantId, groupId);
 
     await this.prisma.menuCategoryAddonGroup.deleteMany({
       where: { categoryId, addonGroupId: groupId },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 }

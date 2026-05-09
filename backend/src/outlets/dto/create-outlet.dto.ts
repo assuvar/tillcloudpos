@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsArray, IsBoolean, IsNotEmpty, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateOutletDto {
   @IsString()

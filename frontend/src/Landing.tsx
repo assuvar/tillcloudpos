@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 
 export default function Landing() {
   const navigate = useNavigate();
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-slate-900 pb-0">
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-slate-100 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto flex max-w-[1240px] items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div
             className="flex items-center gap-2.5 text-2xl font-[950] tracking-tighter text-[#0b1b3d] sm:text-3xl cursor-pointer"
             onClick={() => navigate("/")}
@@ -15,24 +18,22 @@ export default function Landing() {
             <img src="/logo.png" alt="TillCloud Logo" className="w-9 h-9 object-contain" />
             TILLCLOUD
           </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] font-bold text-slate-600 sm:gap-x-10 sm:text-[15px]">
+
+          {/* Desktop Nav Links */}
+          <div className="hidden lg:flex items-center gap-10 text-[14px] font-bold text-slate-600">
             <a href="#home" className="hover:text-[#4fc3f7] transition-colors">
               Home
             </a>
-            <a
-              href="#pricing"
-              className="hover:text-[#4fc3f7] transition-colors"
-            >
+            <a href="#pricing" className="hover:text-[#4fc3f7] transition-colors">
               Pricing
             </a>
-            <a
-              href="#contact"
-              className="hover:text-[#4fc3f7] transition-colors"
-            >
+            <a href="#contact" className="hover:text-[#4fc3f7] transition-colors">
               Contact
             </a>
           </div>
-          <div className="flex items-center justify-between gap-4 text-[14px] font-bold sm:gap-6 sm:text-[15px]">
+
+          {/* Desktop Nav Actions */}
+          <div className="hidden lg:flex items-center gap-6 text-[14px] font-bold">
             <button
               onClick={() => navigate("/login")}
               className="text-slate-600 hover:text-slate-900 transition-colors"
@@ -46,7 +47,65 @@ export default function Landing() {
               Get Started
             </button>
           </div>
+
+          {/* Mobile Menu Toggle Button */}
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="lg:hidden p-2 rounded-xl bg-slate-50 border border-slate-100 text-[#0b1b3d]"
+            aria-label="Toggle Navigation Menu"
+          >
+            {showMobileMenu ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
+
+        {/* Mobile Navigation Dropdown */}
+        {showMobileMenu && (
+          <div className="lg:hidden border-t border-slate-100 bg-white p-6 space-y-6 animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="flex flex-col gap-4 text-base font-bold text-slate-600">
+              <a
+                href="#home"
+                onClick={() => setShowMobileMenu(false)}
+                className="hover:text-[#4fc3f7] transition-colors py-2"
+              >
+                Home
+              </a>
+              <a
+                href="#pricing"
+                onClick={() => setShowMobileMenu(false)}
+                className="hover:text-[#4fc3f7] transition-colors py-2"
+              >
+                Pricing
+              </a>
+              <a
+                href="#contact"
+                onClick={() => setShowMobileMenu(false)}
+                className="hover:text-[#4fc3f7] transition-colors py-2"
+              >
+                Contact
+              </a>
+            </div>
+            <div className="border-t border-slate-100 pt-6 flex flex-col gap-4">
+              <button
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  navigate("/login");
+                }}
+                className="w-full py-3 text-center text-slate-600 font-bold border border-slate-100 rounded-xl hover:bg-slate-50 transition-all"
+              >
+                Sign in
+              </button>
+              <button
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  navigate("/register");
+                }}
+                className="w-full py-3 text-center bg-[#0b1b3d] text-white font-bold rounded-xl hover:bg-[#152a55] transition-all"
+              >
+                Get Started
+              </button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -323,7 +382,7 @@ export default function Landing() {
               </button>
             </div>
 
-            <div className="bg-[#0b1b3d] p-12 rounded-[3.5rem] flex flex-col items-center text-center flex-1 shadow-3xl shadow-blue-900/40 relative transform scale-[1.05] z-10">
+            <div className="bg-[#0b1b3d] p-12 rounded-[3.5rem] flex flex-col items-center text-center flex-1 shadow-3xl shadow-blue-900/40 relative lg:transform lg:scale-[1.05] z-10">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#4fc3f7] text-white px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ring-8 ring-white">
                 Most Popular
               </div>

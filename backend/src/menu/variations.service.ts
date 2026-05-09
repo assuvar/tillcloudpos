@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVariationGroupDto } from './dto/modifiers.dto';
+import { MenuService } from './menu.service';
 
 @Injectable()
 export class VariationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(restaurantId: string, dto: CreateVariationGroupDto) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const group = await tx.variationGroup.create({
         data: {
           restaurantId,
@@ -32,6 +33,9 @@ export class VariationsService {
         include: { options: { orderBy: { sortOrder: 'asc' } } },
       });
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return result;
   }
 
   async findAll(restaurantId: string) {
@@ -66,7 +70,7 @@ export class VariationsService {
   async update(restaurantId: string, id: string, dto: CreateVariationGroupDto) {
     const existing = await this.findOne(restaurantId, id);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.variationGroup.update({
         where: { id: existing.id },
         data: {
@@ -96,6 +100,9 @@ export class VariationsService {
         include: { options: { orderBy: { sortOrder: 'asc' } } },
       });
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return result;
   }
 
   async remove(restaurantId: string, id: string) {
@@ -105,6 +112,7 @@ export class VariationsService {
       where: { id: existing.id },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 
@@ -118,26 +126,39 @@ export class VariationsService {
 
     await this.prisma.menuItemVariationGroup.upsert({
       where: {
-        menuItemId_variationGroupId: { menuItemId: itemId, variationGroupId: groupId },
+        menuItemId_variationGroupId: {
+          menuItemId: itemId,
+          variationGroupId: groupId,
+        },
       },
       create: { menuItemId: itemId, variationGroupId: groupId },
       update: {},
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 
-  async unassignFromItem(restaurantId: string, groupId: string, itemId: string) {
+  async unassignFromItem(
+    restaurantId: string,
+    groupId: string,
+    itemId: string,
+  ) {
     await this.findOne(restaurantId, groupId);
 
     await this.prisma.menuItemVariationGroup.deleteMany({
       where: { menuItemId: itemId, variationGroupId: groupId },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 
-  async assignToCategory(restaurantId: string, groupId: string, categoryId: string) {
+  async assignToCategory(
+    restaurantId: string,
+    groupId: string,
+    categoryId: string,
+  ) {
     await this.findOne(restaurantId, groupId);
 
     const category = await this.prisma.menuCategory.findFirst({
@@ -153,16 +174,22 @@ export class VariationsService {
       update: {},
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 
-  async unassignFromCategory(restaurantId: string, groupId: string, categoryId: string) {
+  async unassignFromCategory(
+    restaurantId: string,
+    groupId: string,
+    categoryId: string,
+  ) {
     await this.findOne(restaurantId, groupId);
 
     await this.prisma.menuCategoryVariationGroup.deleteMany({
       where: { categoryId, variationGroupId: groupId },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 }

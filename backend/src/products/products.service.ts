@@ -8,6 +8,7 @@ import { BillStatus } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { MenuService } from '../menu/menu.service';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -151,7 +152,7 @@ export class ProductsService {
 
     const uploadedImageUrl = await this.saveUploadedImage(imageFile);
 
-    return await this.prisma.menuItem.create({
+    const product = await this.prisma.menuItem.create({
       data: {
         name: name.trim(),
         categoryId,
@@ -182,6 +183,9 @@ export class ProductsService {
         },
       },
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return product;
   }
 
   /**
@@ -362,7 +366,7 @@ export class ProductsService {
         });
       }
 
-      return tx.menuItem.update({
+      const updatedProduct = await tx.menuItem.update({
         where: { id },
         data: updateData,
         include: {
@@ -374,6 +378,9 @@ export class ProductsService {
           },
         },
       });
+
+      MenuService.invalidateCache(restaurantId);
+      return updatedProduct;
     });
   }
 
@@ -427,6 +434,7 @@ export class ProductsService {
       },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return {
       success: true,
       archived: true,
@@ -464,6 +472,7 @@ export class ProductsService {
       where: { restaurantId },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return result;
   }
 }

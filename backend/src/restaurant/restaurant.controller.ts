@@ -88,12 +88,17 @@ export class RestaurantController {
     }),
   )
   async uploadLogo(@UploadedFile() logoFile: any) {
-    console.log('[RestaurantController] uploadLogo received file:', logoFile ? {
-      originalname: logoFile.originalname,
-      mimetype: logoFile.mimetype,
-      size: logoFile.size,
-      hasBuffer: !!logoFile.buffer,
-    } : 'undefined');
+    console.log(
+      '[RestaurantController] uploadLogo received file:',
+      logoFile
+        ? {
+            originalname: logoFile.originalname,
+            mimetype: logoFile.mimetype,
+            size: logoFile.size,
+            hasBuffer: !!logoFile.buffer,
+          }
+        : 'undefined',
+    );
 
     try {
       const result = await this.restaurantService.uploadLogo(logoFile);

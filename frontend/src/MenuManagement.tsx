@@ -942,41 +942,53 @@ function MenuManagementContent() {
                     </button>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-4">
-                  <input
-                    type="text"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    placeholder="Category Name (e.g., Woodfired Pizza)"
-                    className="h-12 flex-1 min-w-[200px] border border-slate-200 rounded-xl px-4 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                  />
-
-                  {/* Preset color theme selector */}
-                  <div className="flex items-center gap-1.5 bg-slate-50 rounded-xl p-1 border border-slate-200/50">
-                    {PRESET_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setNewCategoryColor(color)}
-                        className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${
-                          newCategoryColor === color ? "border-slate-800 scale-110" : "border-transparent hover:scale-105"
-                        }`}
-                        style={{ backgroundColor: color }}
-                      >
-                        {newCategoryColor === color && (
-                          <Check size={12} className="text-white drop-shadow-md" />
-                        )}
-                      </button>
-                    ))}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                  <div className="col-span-12 md:col-span-6 flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                      Category Name <span className="text-red-500 font-bold ml-1 text-sm">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Category Name (e.g., Woodfired Pizza)"
+                      className="h-12 border border-slate-200 rounded-xl px-4 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all w-full"
+                    />
                   </div>
 
-                  <button
-                    onClick={editingCategoryId ? handleSaveCategorySubmit : createCategory}
-                    disabled={!newCategoryName.trim()}
-                    className="h-12 px-6 rounded-xl bg-[#0c1424] text-white font-black text-xs uppercase tracking-wider hover:bg-black active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    {editingCategoryId ? "Save Category" : "Add Category"}
-                  </button>
+                  {/* Preset color theme selector */}
+                  <div className="col-span-12 md:col-span-4 flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                      Category Color
+                    </label>
+                    <div className="flex items-center gap-1.5 bg-slate-50 rounded-xl p-1 border border-slate-200/50 h-12 w-fit">
+                      {PRESET_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setNewCategoryColor(color)}
+                          className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${
+                            newCategoryColor === color ? "border-slate-800 scale-110" : "border-transparent hover:scale-105"
+                          }`}
+                          style={{ backgroundColor: color }}
+                        >
+                          {newCategoryColor === color && (
+                            <Check size={12} className="text-white drop-shadow-md" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="col-span-12 md:col-span-2">
+                    <button
+                      onClick={editingCategoryId ? handleSaveCategorySubmit : createCategory}
+                      disabled={!newCategoryName.trim()}
+                      className="h-12 w-full px-4 rounded-xl bg-[#0c1424] text-white font-black text-xs uppercase tracking-wider hover:bg-black active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {editingCategoryId ? "Save" : "Add"}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Direct category default modifier checklists */}
@@ -1849,7 +1861,7 @@ function MenuManagementContent() {
               {openModalType === "variations" && (
                 <form onSubmit={handleSaveVarGroup} className="flex flex-col gap-5">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Group Name</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Group Name <span className="text-red-500 font-bold ml-1 text-sm">*</span></label>
                     <input
                       type="text"
                       value={varFormName}
@@ -1931,7 +1943,7 @@ function MenuManagementContent() {
               {openModalType === "addons" && (
                 <form onSubmit={handleSaveAddonGroup} className="flex flex-col gap-5">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Group Name</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Group Name <span className="text-red-500 font-bold ml-1 text-sm">*</span></label>
                     <input
                       type="text"
                       value={addonFormName}
@@ -2014,7 +2026,7 @@ function MenuManagementContent() {
                 <form onSubmit={handleSaveGroup} className="flex flex-col gap-5">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Group Title</label>
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Group Title <span className="text-red-500 font-bold ml-1 text-sm">*</span></label>
                       <input
                         type="text"
                         value={groupFormName}
@@ -2109,7 +2121,7 @@ function MenuManagementContent() {
                 <form onSubmit={handleSaveDeal} className="flex flex-col gap-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Combo Name</label>
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Combo Name <span className="text-red-500 font-bold ml-1 text-sm">*</span></label>
                       <input
                         type="text"
                         value={dealFormName}
@@ -2119,7 +2131,7 @@ function MenuManagementContent() {
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Base Combo Price</label>
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Base Combo Price <span className="text-red-500 font-bold ml-1 text-sm">*</span></label>
                       <div className="relative mt-1">
                         <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input

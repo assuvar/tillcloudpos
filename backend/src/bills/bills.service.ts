@@ -392,7 +392,9 @@ export class BillsService {
       taxAmountCents = Math.round(subtotalCents * (taxRatePercent / 100));
       totalCents = subtotalCents + taxAmountCents;
     } else if (taxMode === TaxMode.INCLUSIVE) {
-      taxAmountCents = Math.round(itemTotalCents - (itemTotalCents / (1 + (taxRatePercent / 100))));
+      taxAmountCents = Math.round(
+        itemTotalCents - itemTotalCents / (1 + taxRatePercent / 100),
+      );
       subtotalCents = itemTotalCents - taxAmountCents;
       totalCents = itemTotalCents;
     } else {
@@ -427,7 +429,7 @@ export class BillsService {
       select: { taxMode: true, taxRate: true },
     });
     const dbTaxMode = restaurant?.taxMode || TaxMode.INCLUSIVE;
-    const dbTaxRate = restaurant?.taxRate || new Prisma.Decimal(10.00);
+    const dbTaxRate = restaurant?.taxRate || new Prisma.Decimal(10.0);
 
     // Calculate order numbers
     const totalOrderCount = await this.prisma.bill.count({
@@ -609,9 +611,10 @@ export class BillsService {
         throw new NotFoundException('Menu item not found');
       }
 
-      const priceCents = dto.customPriceInCents !== undefined && dto.customPriceInCents !== null
-        ? dto.customPriceInCents
-        : menuItem.priceInCents;
+      const priceCents =
+        dto.customPriceInCents !== undefined && dto.customPriceInCents !== null
+          ? dto.customPriceInCents
+          : menuItem.priceInCents;
 
       const existing = await tx.billItem.findFirst({
         where: {

@@ -161,6 +161,7 @@ model Terminal {
   bills        Bill[]
   restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
 
+  @@index([restaurantId])
   @@map("terminals")
 }
 
@@ -277,6 +278,7 @@ model InventoryItem {
   restaurant        Restaurant          @relation(fields: [restaurantId], references: [id])
   movements         InventoryMovement[]
 
+  @@index([restaurantId])
   @@map("inventory_items")
 }
 
@@ -382,6 +384,7 @@ model Bill {
   payments              Payment[]
   table                 Table?                 @relation(fields: [tableId], references: [id])
 
+  @@index([restaurantId])
   @@map("bills")
 }
 
@@ -664,6 +667,7 @@ model Reservation {
   customer        Customer?         @relation(fields: [customerId], references: [id])
   table           Table?            @relation(fields: [tableId], references: [id])
 
+  @@index([restaurantId])
   @@map("reservations")
 }
 
@@ -699,6 +703,7 @@ model PrinterSettings {
   updatedAt    DateTime    @updatedAt
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
+  @@index([restaurantId])
   @@map("printer_settings")
 }
 
@@ -795,6 +800,7 @@ model VariationGroup {
   menuItems    MenuItemVariationGroup[]
   categories   MenuCategoryVariationGroup[]
 
+  @@index([restaurantId])
   @@map("variation_groups")
 }
 
@@ -807,6 +813,7 @@ model VariationOption {
   
   variationGroup   VariationGroup            @relation(fields: [variationGroupId], references: [id], onDelete: Cascade)
 
+  @@index([variationGroupId])
   @@map("variation_options")
 }
 
@@ -844,6 +851,7 @@ model AddonGroup {
   categories    MenuCategoryAddonGroup[]
   deals         DealAddonGroup[]
 
+  @@index([restaurantId])
   @@map("addon_groups")
 }
 
@@ -856,6 +864,7 @@ model AddonOption {
   
   addonGroup   AddonGroup                    @relation(fields: [addonGroupId], references: [id], onDelete: Cascade)
 
+  @@index([addonGroupId])
   @@map("addon_options")
 }
 
@@ -893,6 +902,7 @@ model MenuGroup {
   items        MenuGroupItem[]
   deals        DealGroup[]
 
+  @@index([restaurantId])
   @@map("menu_groups")
 }
 

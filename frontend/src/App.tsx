@@ -112,32 +112,44 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const location = useLocation();
+
   useEffect(() => {
-    // Apply UI scaling from localStorage
-    const savedScale = localStorage.getItem("ui-scale") || "100%";
-    document.documentElement.style.setProperty("--ui-font-scale", savedScale);
+    const isPublicPath = ["/", "/login", "/register", "/signup", "/onboarding"].includes(location.pathname);
 
-    // Apply font softening from localStorage
-    const savedSoft = localStorage.getItem("ui-font-soft") === "true";
-    if (savedSoft) {
-      document.body.classList.add("softer-typography");
-    } else {
+    if (isPublicPath) {
+      // Clean up/Reset themes & scales for public pages
+      document.documentElement.style.removeProperty("--ui-font-scale");
       document.body.classList.remove("softer-typography");
-    }
-
-    // Apply UI Theme from localStorage
-    const savedTheme = localStorage.getItem("ui-theme") || "light";
-    if (savedTheme === "dark") {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("black-theme");
-    } else if (savedTheme === "black") {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.add("black-theme");
-    } else {
       document.documentElement.classList.remove("dark");
       document.documentElement.classList.remove("black-theme");
+    } else {
+      // Apply UI scaling from localStorage
+      const savedScale = localStorage.getItem("ui-scale") || "100%";
+      document.documentElement.style.setProperty("--ui-font-scale", savedScale);
+
+      // Apply font softening from localStorage
+      const savedSoft = localStorage.getItem("ui-font-soft") === "true";
+      if (savedSoft) {
+        document.body.classList.add("softer-typography");
+      } else {
+        document.body.classList.remove("softer-typography");
+      }
+
+      // Apply UI Theme from localStorage
+      const savedTheme = localStorage.getItem("ui-theme") || "light";
+      if (savedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.remove("black-theme");
+      } else if (savedTheme === "black") {
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.add("black-theme");
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.classList.remove("black-theme");
+      }
     }
-  }, []);
+  }, [location.pathname]);
 
   return (
     <Routes>

@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { MenuService } from '../menu/menu.service';
 
 @Injectable()
 export class CategoriesService {
@@ -16,7 +17,8 @@ export class CategoriesService {
    * Create a new category
    */
   async create(createCategoryDto: CreateCategoryDto) {
-    const { name, restaurantId, sortOrder, isActive, color } = createCategoryDto;
+    const { name, restaurantId, sortOrder, isActive, color } =
+      createCategoryDto;
 
     if (!name) {
       throw new BadRequestException('Category name is required');
@@ -31,7 +33,7 @@ export class CategoriesService {
       throw new BadRequestException('Category with this name already exists');
     }
 
-    return await this.prisma.menuCategory.create({
+    const newCat = await this.prisma.menuCategory.create({
       data: {
         name: name.trim(),
         restaurantId,
@@ -40,6 +42,9 @@ export class CategoriesService {
         color: color || null,
       },
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return newCat;
   }
 
   /**
@@ -120,7 +125,7 @@ export class CategoriesService {
       }
     }
 
-    return await this.prisma.menuCategory.update({
+    const updatedCat = await this.prisma.menuCategory.update({
       where: { id },
       data: {
         ...(updateCategoryDto.name && { name: updateCategoryDto.name.trim() }),
@@ -135,6 +140,9 @@ export class CategoriesService {
         }),
       },
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return updatedCat;
   }
 
   /**
@@ -165,9 +173,12 @@ export class CategoriesService {
     }
 
     // Hard delete the category
-    return await this.prisma.menuCategory.delete({
+    const deletedCat = await this.prisma.menuCategory.delete({
       where: { id },
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return deletedCat;
   }
 
   /**
@@ -196,6 +207,8 @@ export class CategoriesService {
       }),
     );
 
-    return await Promise.all(updatePromises);
+    const result = await Promise.all(updatePromises);
+    MenuService.invalidateCache(restaurantId);
+    return result;
   }
 }

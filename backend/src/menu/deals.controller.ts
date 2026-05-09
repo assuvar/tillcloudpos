@@ -47,11 +47,7 @@ export class DealsController {
 
   @Put(':id')
   @RequirePermissions(PERMISSIONS.MENU_MANAGE)
-  update(
-    @Param('id') id: string,
-    @Body() dto: CreateDealDto,
-    @Req() req: any,
-  ) {
+  update(@Param('id') id: string, @Body() dto: CreateDealDto, @Req() req: any) {
     return this.dealsService.update(getRestaurantId(req), id, dto);
   }
 

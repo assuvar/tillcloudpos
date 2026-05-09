@@ -123,11 +123,15 @@ export class RestaurantService {
         ...(nextState !== undefined ? { state: nextState } : {}),
         ...(nextPostcode !== undefined ? { postcode: nextPostcode } : {}),
         ...(nextPhone !== undefined ? { phone: nextPhone } : {}),
-        ...(nextBusinessType !== undefined ? { businessType: nextBusinessType } : {}),
+        ...(nextBusinessType !== undefined
+          ? { businessType: nextBusinessType }
+          : {}),
         ...(nextAbn !== undefined ? { abn: nextAbn } : {}),
         ...(nextGstNumber !== undefined ? { gstNumber: nextGstNumber } : {}),
         ...(nextTaxNumber !== undefined ? { taxNumber: nextTaxNumber } : {}),
-        ...(nextContactEmail !== undefined ? { contactEmail: nextContactEmail } : {}),
+        ...(nextContactEmail !== undefined
+          ? { contactEmail: nextContactEmail }
+          : {}),
         ...(dto.logoUrl !== undefined
           ? { logoUrl: dto.logoUrl?.trim() || null }
           : {}),
@@ -169,15 +173,33 @@ export class RestaurantService {
       await this.prisma.outlet.update({
         where: { id: primaryOutlet.id },
         data: {
-          ...(nextName !== undefined && primaryOutlet.name === 'Main Outlet' ? { name: nextName } : {}),
-          ...(nextPhone !== undefined && !primaryOutlet.phone ? { phone: nextPhone } : {}),
-          ...(nextContactEmail !== undefined && !primaryOutlet.contactEmail ? { contactEmail: nextContactEmail } : {}),
-          ...(nextAbn !== undefined && !primaryOutlet.abn ? { abn: nextAbn } : {}),
-          ...(dto.logoUrl !== undefined && !primaryOutlet.logoUrl ? { logoUrl: dto.logoUrl.trim() || null } : {}),
-          ...(nextStreetAddress !== undefined && !primaryOutlet.streetAddress ? { streetAddress: nextStreetAddress } : {}),
-          ...(nextSuburb !== undefined && !primaryOutlet.suburb ? { suburb: nextSuburb } : {}),
-          ...(nextState !== undefined && primaryOutlet.state === 'NSW' ? { state: nextState } : {}),
-          ...(nextPostcode !== undefined && !primaryOutlet.postcode ? { postcode: nextPostcode } : {}),
+          ...(nextName !== undefined && primaryOutlet.name === 'Main Outlet'
+            ? { name: nextName }
+            : {}),
+          ...(nextPhone !== undefined && !primaryOutlet.phone
+            ? { phone: nextPhone }
+            : {}),
+          ...(nextContactEmail !== undefined && !primaryOutlet.contactEmail
+            ? { contactEmail: nextContactEmail }
+            : {}),
+          ...(nextAbn !== undefined && !primaryOutlet.abn
+            ? { abn: nextAbn }
+            : {}),
+          ...(dto.logoUrl !== undefined && !primaryOutlet.logoUrl
+            ? { logoUrl: dto.logoUrl.trim() || null }
+            : {}),
+          ...(nextStreetAddress !== undefined && !primaryOutlet.streetAddress
+            ? { streetAddress: nextStreetAddress }
+            : {}),
+          ...(nextSuburb !== undefined && !primaryOutlet.suburb
+            ? { suburb: nextSuburb }
+            : {}),
+          ...(nextState !== undefined && primaryOutlet.state === 'NSW'
+            ? { state: nextState }
+            : {}),
+          ...(nextPostcode !== undefined && !primaryOutlet.postcode
+            ? { postcode: nextPostcode }
+            : {}),
         },
       });
     }

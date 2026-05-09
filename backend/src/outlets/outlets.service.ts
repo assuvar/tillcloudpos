@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOutletDto, UpdateOutletDto } from './dto/create-outlet.dto';
 import { ServiceModel } from '../../generated/prisma';
@@ -93,22 +97,34 @@ export class OutletsService {
       where: { restaurantId, outletNumber: dto.outletNumber.trim() },
     });
     if (duplicateNumber) {
-      throw new BadRequestException(`An outlet with number "${dto.outletNumber}" already exists.`);
+      throw new BadRequestException(
+        `An outlet with number "${dto.outletNumber}" already exists.`,
+      );
     }
 
     const duplicateName = await this.prisma.outlet.findFirst({
-      where: { restaurantId, name: { equals: dto.name.trim(), mode: 'insensitive' } },
+      where: {
+        restaurantId,
+        name: { equals: dto.name.trim(), mode: 'insensitive' },
+      },
     });
     if (duplicateName) {
-      throw new BadRequestException(`An outlet with name "${dto.name}" already exists.`);
+      throw new BadRequestException(
+        `An outlet with name "${dto.name}" already exists.`,
+      );
     }
 
     if (dto.slug?.trim()) {
       const duplicateSlug = await this.prisma.outlet.findFirst({
-        where: { restaurantId, slug: { equals: dto.slug.trim(), mode: 'insensitive' } },
+        where: {
+          restaurantId,
+          slug: { equals: dto.slug.trim(), mode: 'insensitive' },
+        },
       });
       if (duplicateSlug) {
-        throw new BadRequestException(`An outlet with slug "${dto.slug}" already exists.`);
+        throw new BadRequestException(
+          `An outlet with slug "${dto.slug}" already exists.`,
+        );
       }
     }
 
@@ -160,32 +176,57 @@ export class OutletsService {
     // Uniqueness validations per tenant (excluding self)
     if (dto.outletNumber && dto.outletNumber.trim() !== outlet.outletNumber) {
       const duplicateNumber = await this.prisma.outlet.findFirst({
-        where: { restaurantId, outletNumber: dto.outletNumber.trim(), id: { not: id } },
+        where: {
+          restaurantId,
+          outletNumber: dto.outletNumber.trim(),
+          id: { not: id },
+        },
       });
       if (duplicateNumber) {
-        throw new BadRequestException(`An outlet with number "${dto.outletNumber}" already exists.`);
+        throw new BadRequestException(
+          `An outlet with number "${dto.outletNumber}" already exists.`,
+        );
       }
     }
 
-    if (dto.name && dto.name.trim().toLowerCase() !== outlet.name.toLowerCase()) {
+    if (
+      dto.name &&
+      dto.name.trim().toLowerCase() !== outlet.name.toLowerCase()
+    ) {
       const duplicateName = await this.prisma.outlet.findFirst({
-        where: { restaurantId, name: { equals: dto.name.trim(), mode: 'insensitive' }, id: { not: id } },
+        where: {
+          restaurantId,
+          name: { equals: dto.name.trim(), mode: 'insensitive' },
+          id: { not: id },
+        },
       });
       if (duplicateName) {
-        throw new BadRequestException(`An outlet with name "${dto.name}" already exists.`);
+        throw new BadRequestException(
+          `An outlet with name "${dto.name}" already exists.`,
+        );
       }
     }
 
-    if (dto.slug && dto.slug.trim().toLowerCase() !== (outlet.slug || '').toLowerCase()) {
+    if (
+      dto.slug &&
+      dto.slug.trim().toLowerCase() !== (outlet.slug || '').toLowerCase()
+    ) {
       const duplicateSlug = await this.prisma.outlet.findFirst({
-        where: { restaurantId, slug: { equals: dto.slug.trim(), mode: 'insensitive' }, id: { not: id } },
+        where: {
+          restaurantId,
+          slug: { equals: dto.slug.trim(), mode: 'insensitive' },
+          id: { not: id },
+        },
       });
       if (duplicateSlug) {
-        throw new BadRequestException(`An outlet with slug "${dto.slug}" already exists.`);
+        throw new BadRequestException(
+          `An outlet with slug "${dto.slug}" already exists.`,
+        );
       }
     }
 
-    const isPrimary = dto.isPrimary !== undefined ? dto.isPrimary : outlet.isPrimary;
+    const isPrimary =
+      dto.isPrimary !== undefined ? dto.isPrimary : outlet.isPrimary;
 
     if (isPrimary && !outlet.isPrimary) {
       // Unset previous primary outlets
@@ -195,7 +236,7 @@ export class OutletsService {
       });
     }
 
-    const serviceModels = dto.serviceModels 
+    const serviceModels = dto.serviceModels
       ? this.validateServiceModels(dto.serviceModels)
       : undefined;
 
@@ -205,16 +246,34 @@ export class OutletsService {
         ...(dto.outletNumber ? { outletNumber: dto.outletNumber.trim() } : {}),
         ...(dto.name ? { name: dto.name.trim() } : {}),
         ...(dto.slug !== undefined ? { slug: dto.slug?.trim() || null } : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone?.trim() || null } : {}),
-        ...(dto.contactEmail !== undefined ? { contactEmail: dto.contactEmail?.trim() || null } : {}),
+        ...(dto.phone !== undefined
+          ? { phone: dto.phone?.trim() || null }
+          : {}),
+        ...(dto.contactEmail !== undefined
+          ? { contactEmail: dto.contactEmail?.trim() || null }
+          : {}),
         ...(dto.abn !== undefined ? { abn: dto.abn?.trim() || null } : {}),
-        ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl?.trim() || null } : {}),
-        ...(dto.streetAddress !== undefined ? { streetAddress: dto.streetAddress?.trim() || null } : {}),
-        ...(dto.suburb !== undefined ? { suburb: dto.suburb?.trim() || null } : {}),
-        ...(dto.state !== undefined ? { state: dto.state?.trim() || 'NSW' } : {}),
-        ...(dto.postcode !== undefined ? { postcode: dto.postcode?.trim() || null } : {}),
-        ...(dto.timezone !== undefined ? { timezone: dto.timezone?.trim() || null } : {}),
-        ...(dto.currency !== undefined ? { currency: dto.currency?.trim() || 'AUD' } : {}),
+        ...(dto.logoUrl !== undefined
+          ? { logoUrl: dto.logoUrl?.trim() || null }
+          : {}),
+        ...(dto.streetAddress !== undefined
+          ? { streetAddress: dto.streetAddress?.trim() || null }
+          : {}),
+        ...(dto.suburb !== undefined
+          ? { suburb: dto.suburb?.trim() || null }
+          : {}),
+        ...(dto.state !== undefined
+          ? { state: dto.state?.trim() || 'NSW' }
+          : {}),
+        ...(dto.postcode !== undefined
+          ? { postcode: dto.postcode?.trim() || null }
+          : {}),
+        ...(dto.timezone !== undefined
+          ? { timezone: dto.timezone?.trim() || null }
+          : {}),
+        ...(dto.currency !== undefined
+          ? { currency: dto.currency?.trim() || 'AUD' }
+          : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.isPrimary !== undefined ? { isPrimary } : {}),
         ...(serviceModels !== undefined ? { serviceModels } : {}),
@@ -222,7 +281,11 @@ export class OutletsService {
     });
   }
 
-  async updateServiceModels(restaurantId: string, id: string, serviceModels: string[]) {
+  async updateServiceModels(
+    restaurantId: string,
+    id: string,
+    serviceModels: string[],
+  ) {
     const models = this.validateServiceModels(serviceModels);
 
     const outlet = await this.prisma.outlet.findFirst({

@@ -15,6 +15,8 @@ import {
 import CustomerModal from "./components/CustomerModal";
 import LoyaltyModal from "./components/LoyaltyModal";
 import CustomerDetailsForm from "./components/CustomerDetailsForm";
+import POSModifierModal from "./components/POSModifierModal";
+import POSComboBuilderModal from "./components/POSComboBuilderModal";
 import { useAuth } from "./context/AuthContext";
 import { usePosCart } from "./context/PosCartContext";
 import { FRONTEND_PERMISSIONS } from "./permissions";
@@ -90,6 +92,8 @@ export default function OrderEntryScreen() {
   const [loyaltyPointsUsed, setLoyaltyPointsUsed] = useState(0);
   const [toastMessage, setToastMessage] = useState("");
   const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [modifierItem, setModifierItem] = useState<any>(null);
+  const [comboDeal, setComboDeal] = useState<any>(null);
   const [pendingAction, setPendingAction] = useState<{
     type: "PAY" | "KITCHEN";
     shouldCheckout?: boolean;
@@ -336,6 +340,21 @@ export default function OrderEntryScreen() {
       return;
     }
 
+    // 1. Intercept Combo Deals
+    if (item.isDeal) {
+      setComboDeal(item);
+      return;
+    }
+
+    // 2. Intercept Variations or Addons
+    const hasVars = Array.isArray(item.variationGroups) && item.variationGroups.length > 0;
+    const hasAddons = Array.isArray(item.addonGroups) && item.addonGroups.length > 0;
+    if (hasVars || hasAddons) {
+      setModifierItem(item);
+      return;
+    }
+
+    // 3. Otherwise add directly to order
     const added = await addItemToBill(item);
     if (!added) {
       showToast(error || "Unable to add item to this bill");
@@ -928,6 +947,34 @@ export default function OrderEntryScreen() {
           onClose={() => setShowLoyaltyModal(false)}
         />
       ) : null}
+
+      <POSModifierModal
+        isOpen={modifierItem !== null}
+        item={modifierItem}
+        onClose={() => setModifierItem(null)}
+        onConfirm={async (finalPriceInCents, notes) => {
+          if (!modifierItem) return;
+          const added = await addItemToBill(modifierItem, finalPriceInCents, notes);
+          setModifierItem(null);
+          if (added) {
+            showToast(`${modifierItem.name} added!`);
+          }
+        }}
+      />
+
+      <POSComboBuilderModal
+        isOpen={comboDeal !== null}
+        deal={comboDeal}
+        onClose={() => setComboDeal(null)}
+        onConfirm={async (finalPriceInCents, notes) => {
+          if (!comboDeal) return;
+          const added = await addItemToBill(comboDeal, finalPriceInCents, notes);
+          setComboDeal(null);
+          if (added) {
+            showToast(`${comboDeal.name} combo added!`);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -49,7 +49,11 @@ export class OutletsController {
     @Param('id') id: string,
     @Body('serviceModels') serviceModels: string[],
   ) {
-    return this.outletsService.updateServiceModels(user.restaurantId, id, serviceModels);
+    return this.outletsService.updateServiceModels(
+      user.restaurantId,
+      id,
+      serviceModels,
+    );
   }
 
   @Delete(':id')

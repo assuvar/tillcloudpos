@@ -1119,6 +1119,7 @@ export function MenuManagementProvider({
    */
   useEffect(() => {
     loadData();
+    loadModifiersAndDeals();
   }, [user?.restaurantId, accessToken]);
 
   /**

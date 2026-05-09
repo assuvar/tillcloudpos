@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDealDto } from './dto/combos.dto';
+import { MenuService } from './menu.service';
 
 @Injectable()
 export class DealsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(restaurantId: string, dto: CreateDealDto) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const deal = await tx.deal.create({
         data: {
           restaurantId,
@@ -68,6 +69,9 @@ export class DealsService {
         },
       });
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return result;
   }
 
   async findAll(restaurantId: string) {
@@ -142,7 +146,7 @@ export class DealsService {
   async update(restaurantId: string, id: string, dto: CreateDealDto) {
     const existing = await this.findOne(restaurantId, id);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.deal.update({
         where: { id: existing.id },
         data: {
@@ -207,6 +211,9 @@ export class DealsService {
         },
       });
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return result;
   }
 
   async remove(restaurantId: string, id: string) {
@@ -216,6 +223,7 @@ export class DealsService {
       where: { id: existing.id },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 }

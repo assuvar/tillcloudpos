@@ -9,7 +9,10 @@ import {
   Req,
 } from '@nestjs/common';
 import { VariationsService } from './variations.service';
-import { CreateVariationGroupDto, AssignModifierDto } from './dto/modifiers.dto';
+import {
+  CreateVariationGroupDto,
+  AssignModifierDto,
+} from './dto/modifiers.dto';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions.constants';
 

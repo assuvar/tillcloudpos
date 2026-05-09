@@ -5,6 +5,22 @@ import { PrismaService } from '../prisma/prisma.service';
 export class MenuService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private static cache = new Map<string, { data: any; timestamp: number }>();
+  private static readonly CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes default TTL
+
+  public static invalidateCache(restaurantId: string) {
+    const keysToDelete = [];
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(`${restaurantId}:`)) {
+        keysToDelete.push(key);
+      }
+    }
+    for (const key of keysToDelete) {
+      this.cache.delete(key);
+    }
+    console.log(`[MenuCache] Invalidated cache for restaurant: ${restaurantId}`);
+  }
+
   /**
    * Normalize a service type string into camelCase to match the JSON visibility properties.
    * e.g., "DINE_IN" -> "dineIn", "delivery" -> "delivery", "online-ordering" -> "onlineOrdering"
@@ -13,10 +29,20 @@ export class MenuService {
     let key = serviceType.toLowerCase();
     if (key.includes('_')) {
       const parts = key.split('_');
-      key = parts[0] + parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+      key =
+        parts[0] +
+        parts
+          .slice(1)
+          .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+          .join('');
     } else if (key.includes('-')) {
       const parts = key.split('-');
-      key = parts[0] + parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+      key =
+        parts[0] +
+        parts
+          .slice(1)
+          .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+          .join('');
     }
     return key;
   }
@@ -51,6 +77,13 @@ export class MenuService {
   }
 
   async findCategoriesWithItems(restaurantId: string, serviceType?: string) {
+    const cacheKey = `${restaurantId}:categories:${serviceType || 'all'}`;
+    const cached = MenuService.cache.get(cacheKey);
+    const now = Date.now();
+    if (cached && (now - cached.timestamp < MenuService.CACHE_TTL_MS)) {
+      return cached.data;
+    }
+
     // 1. Fetch Categories and their directly linked modifier groups
     const categories = await this.prisma.menuCategory.findMany({
       where: {
@@ -127,7 +160,9 @@ export class MenuService {
         : category.menuItems;
 
       // Extract category level modifiers
-      const categoryVars = category.variationGroups.map((g: any) => g.variationGroup);
+      const categoryVars = category.variationGroups.map(
+        (g: any) => g.variationGroup,
+      );
       const categoryAddons = category.addonGroups.map((g: any) => g.addonGroup);
 
       return {
@@ -158,11 +193,17 @@ export class MenuService {
         })),
         items: filteredItems.map((item: any) => {
           // Resolve Inheritance: if item has no direct modifiers, inherit category-level modifiers
-          const itemDirectVars = item.variationGroups.map((g: any) => g.variationGroup);
-          const itemDirectAddons = item.addonGroups.map((g: any) => g.addonGroup);
+          const itemDirectVars = item.variationGroups.map(
+            (g: any) => g.variationGroup,
+          );
+          const itemDirectAddons = item.addonGroups.map(
+            (g: any) => g.addonGroup,
+          );
 
-          const varsToUse = itemDirectVars.length > 0 ? itemDirectVars : categoryVars;
-          const addonsToUse = itemDirectAddons.length > 0 ? itemDirectAddons : categoryAddons;
+          const varsToUse =
+            itemDirectVars.length > 0 ? itemDirectVars : categoryVars;
+          const addonsToUse =
+            itemDirectAddons.length > 0 ? itemDirectAddons : categoryAddons;
 
           return {
             id: item.id,
@@ -203,9 +244,10 @@ export class MenuService {
       };
     });
 
-    // 2. Fetch Active Combo Deals
+    // 2. Fetch Active Combo Deals (filtered securely by restaurantId)
     const activeDeals = await this.prisma.deal.findMany({
       where: {
+        restaurantId,
         isActive: true,
       },
       include: {
@@ -270,7 +312,10 @@ export class MenuService {
               id: gi.menuItem.id,
               name: gi.menuItem.name,
               priceInCents: gi.menuItem.priceInCents,
-              priceOverride: gi.priceOverrideInCents !== null ? gi.priceOverrideInCents / 100 : null,
+              priceOverride:
+                gi.priceOverrideInCents !== null
+                  ? gi.priceOverrideInCents / 100
+                  : null,
               priceOverrideInCents: gi.priceOverrideInCents,
             })),
           })),
@@ -289,10 +334,22 @@ export class MenuService {
       });
     }
 
+    MenuService.cache.set(cacheKey, { data: mappedCategories, timestamp: Date.now() });
     return mappedCategories;
   }
 
-  async findItems(restaurantId: string, categoryId?: string, serviceType?: string) {
+  async findItems(
+    restaurantId: string,
+    categoryId?: string,
+    serviceType?: string,
+  ) {
+    const cacheKey = `${restaurantId}:items:${categoryId || 'all'}:${serviceType || 'all'}`;
+    const cached = MenuService.cache.get(cacheKey);
+    const now = Date.now();
+    if (cached && (now - cached.timestamp < MenuService.CACHE_TTL_MS)) {
+      return cached.data;
+    }
+
     const items = await this.prisma.menuItem.findMany({
       where: {
         restaurantId,
@@ -331,7 +388,7 @@ export class MenuService {
       ? this.filterItemsByServiceType(items, serviceType)
       : items;
 
-    return filteredItems.map((item: any) => ({
+    const mapped = filteredItems.map((item: any) => ({
       id: item.id,
       name: item.name,
       description: item.description ?? '',
@@ -345,5 +402,8 @@ export class MenuService {
       shortcode: item.shortcode,
       visibility: item.visibility,
     }));
+
+    MenuService.cache.set(cacheKey, { data: mapped, timestamp: Date.now() });
+    return mapped;
   }
 }

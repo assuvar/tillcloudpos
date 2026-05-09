@@ -146,9 +146,14 @@ export class OnboardingService {
       where: { restaurantId, isPrimary: true },
       select: { serviceModels: true },
     });
-    const hasOutletServiceModels = !!primaryOutlet && primaryOutlet.serviceModels.length > 0;
+    const hasOutletServiceModels =
+      !!primaryOutlet && primaryOutlet.serviceModels.length > 0;
 
-    const missingSteps = this.getMissingSteps(restaurant, user, hasOutletServiceModels);
+    const missingSteps = this.getMissingSteps(
+      restaurant,
+      user,
+      hasOutletServiceModels,
+    );
     const onboardingCompleted =
       restaurant.onboardingCompleted && missingSteps.length === 0;
 
@@ -195,7 +200,8 @@ export class OnboardingService {
     this.lastReminderSent.set(restaurant.id, now);
 
     const recipient = userEmail.trim().toLowerCase();
-    const subject = 'Action Required: Complete your TillCloud Business Profile Setup';
+    const subject =
+      'Action Required: Complete your TillCloud Business Profile Setup';
     const text = `Hi ${userName},\n\nYour TillCloud Business Profile setup is incomplete. Please complete your setup to access the TillCloud POS workspace and features.\n\nBest regards,\nThe TillCloud Team`;
     const html = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -213,9 +219,14 @@ export class OnboardingService {
 
     try {
       await this.mailService.sendMail(recipient, subject, text, html);
-      this.logger.log(`Onboarding reminder email sent to ${recipient} for restaurant ${restaurant.id}`);
+      this.logger.log(
+        `Onboarding reminder email sent to ${recipient} for restaurant ${restaurant.id}`,
+      );
     } catch (err) {
-      this.logger.error(`Failed to send onboarding reminder email to ${recipient}`, err.stack);
+      this.logger.error(
+        `Failed to send onboarding reminder email to ${recipient}`,
+        err.stack,
+      );
     }
   }
 
@@ -233,9 +244,14 @@ export class OnboardingService {
       where: { restaurantId, isPrimary: true },
       select: { serviceModels: true },
     });
-    const hasOutletServiceModels = !!primaryOutlet && primaryOutlet.serviceModels.length > 0;
+    const hasOutletServiceModels =
+      !!primaryOutlet && primaryOutlet.serviceModels.length > 0;
 
-    const missingSteps = this.getMissingSteps(restaurant, user, hasOutletServiceModels);
+    const missingSteps = this.getMissingSteps(
+      restaurant,
+      user,
+      hasOutletServiceModels,
+    );
 
     if (missingSteps.length > 0) {
       const details = {

@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMenuGroupDto } from './dto/combos.dto';
+import { MenuService } from './menu.service';
 
 @Injectable()
 export class GroupsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(restaurantId: string, dto: CreateMenuGroupDto) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const group = await tx.menuGroup.create({
         data: {
           restaurantId,
@@ -39,6 +40,9 @@ export class GroupsService {
         },
       });
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return result;
   }
 
   async findAll(restaurantId: string) {
@@ -77,7 +81,7 @@ export class GroupsService {
   async update(restaurantId: string, id: string, dto: CreateMenuGroupDto) {
     const existing = await this.findOne(restaurantId, id);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.menuGroup.update({
         where: { id: existing.id },
         data: {
@@ -114,6 +118,9 @@ export class GroupsService {
         },
       });
     });
+
+    MenuService.invalidateCache(restaurantId);
+    return result;
   }
 
   async remove(restaurantId: string, id: string) {
@@ -123,6 +130,7 @@ export class GroupsService {
       where: { id: existing.id },
     });
 
+    MenuService.invalidateCache(restaurantId);
     return { success: true };
   }
 }

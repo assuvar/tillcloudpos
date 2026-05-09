@@ -176,7 +176,7 @@ export default function AddItemDrawer() {
 
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
-              Item Name
+              Item Name <span className="text-red-500 font-bold ml-1 text-sm">*</span>
             </label>
             <input
               type="text"
@@ -325,7 +325,7 @@ export default function AddItemDrawer() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                Price (AUD)
+                Price (AUD) <span className="text-red-500 font-bold ml-1 text-sm">*</span>
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#0c1424] font-black text-[14px]">
@@ -346,7 +346,7 @@ export default function AddItemDrawer() {
 
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                Category
+                Category <span className="text-red-500 font-bold ml-1 text-sm">*</span>
               </label>
               <div className="relative">
                 <select
