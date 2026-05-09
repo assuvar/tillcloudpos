@@ -245,7 +245,7 @@ export default function POSTablesScreen() {
                 className={`rounded-[14px] px-8 py-2.5 text-[12px] font-black tracking-tight transition-all uppercase ${
                   activeFloor === f
                     ? "bg-white text-[#0c1424] shadow-sm"
-                    : "text-slate-400 hover:text-slate-600"
+                    : "text-slate-400 hover:text-slate-600 dark:text-slate-300 dark:hover:text-white"
                 }`}
               >
                 {f}
@@ -262,7 +262,7 @@ export default function POSTablesScreen() {
             ].map((s) => (
               <div key={s.label} className="flex items-center gap-2.5">
                 <div className={`h-2 w-2 rounded-full ${s.color}`} />
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest">
                   {s.label}
                 </span>
               </div>

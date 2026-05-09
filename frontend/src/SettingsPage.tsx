@@ -1117,6 +1117,17 @@ const PaymentMethods = () => (
 
       {/* Tyro */}
       <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm space-y-10">
+        <style>{`
+          html.dark input.transparent-input {
+            background-color: transparent !important;
+            background: transparent !important;
+            border-color: transparent !important;
+            color: #0c1424 !important;
+          }
+          html.dark input.transparent-input::placeholder {
+            color: #94a3b8 !important;
+          }
+        `}</style>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="h-14 w-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400">
@@ -1137,37 +1148,37 @@ const PaymentMethods = () => (
         </div>
 
         <div className="space-y-6 pt-10 border-t border-slate-50">
-          <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
+          <h4 className="text-[11px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest px-2">
             Integration Details
           </h4>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest ml-1">
                 Tyro Merchant ID
               </label>
               <div className="h-14 rounded-2xl bg-[#f0f7ff] border border-transparent px-6 flex items-center">
                 <input
                   type="text"
                   placeholder="e.g. 1234567"
-                  className="bg-transparent w-full text-[14px] font-bold text-[#0c1424] outline-none"
+                  className="bg-transparent transparent-input w-full text-[14px] font-bold text-[#0c1424] outline-none"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest ml-1">
                 Tyro Terminal ID
               </label>
               <div className="h-14 rounded-2xl bg-[#f0f7ff] border border-transparent px-6 flex items-center">
                 <input
                   type="text"
                   placeholder="e.g. T12345"
-                  className="bg-transparent w-full text-[14px] font-bold text-[#0c1424] outline-none"
+                  className="bg-transparent transparent-input w-full text-[14px] font-bold text-[#0c1424] outline-none"
                 />
               </div>
             </div>
           </div>
           <div className="flex justify-end gap-4 pt-4">
-            <button className="h-12 px-8 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-[#0c1424] transition-colors">
+            <button className="h-12 px-8 text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-300 hover:text-[#0c1424] dark:hover:text-white transition-colors">
               Cancel
             </button>
             <button className="h-12 px-10 rounded-full bg-[#0c1424] text-white text-[12px] font-black uppercase tracking-widest">
@@ -1180,7 +1191,7 @@ const PaymentMethods = () => (
       {/* Methods via Tyro */}
       <div className="space-y-6">
         <div className="flex items-center justify-between px-2">
-          <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+          <h4 className="text-[11px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest">
             Methods via Tyro
           </h4>
           <span className="px-3 py-1 bg-blue-50 text-[#5dc7ec] text-[9px] font-black uppercase tracking-widest rounded-lg">
@@ -1208,7 +1219,7 @@ const PaymentMethods = () => (
               <h5 className="text-[13px] font-black text-[#0c1424]">
                 {method.label}
               </h5>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 block">
+              <span className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mt-1 block">
                 Enabled via Tyro
               </span>
             </div>
@@ -1225,7 +1236,7 @@ const PaymentMethods = () => (
             <h3 className="text-[16px] font-black text-[#0c1424]">
               Split Payment
             </h3>
-            <p className="text-[12px] text-slate-400 font-medium">
+            <p className="text-[12px] text-slate-400 dark:text-slate-300 font-medium">
               Allow customers to split payments across multiple methods (e.g.
               part cash, part card) for a single order.
             </p>
@@ -1241,7 +1252,7 @@ const PaymentMethods = () => (
           <h3 className="text-[28px] font-black tracking-tight">
             Seamless Checkout
           </h3>
-          <p className="text-slate-400 text-[14px] leading-relaxed font-medium">
+          <p className="text-slate-400 dark:text-slate-300 text-[14px] leading-relaxed font-medium">
             Integrating Tyro reduces manual entry errors and speeds up your
             service by up to 30%.
           </p>

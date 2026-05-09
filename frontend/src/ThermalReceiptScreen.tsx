@@ -102,7 +102,7 @@ export default function ThermalReceiptScreen() {
             </button>
             <button
               onClick={() => navigate("/pos/order-entry", { replace: true })}
-              className="flex h-12 items-center gap-2 rounded-2xl bg-[#5dc7ec] px-8 text-[11px] font-black uppercase tracking-widest text-[#0c1424] shadow-xl shadow-[#5dc7ec]/20 transition-all hover:bg-white"
+              className="flex h-12 items-center gap-2 rounded-2xl bg-[#5dc7ec] px-8 text-[11px] font-black uppercase tracking-widest text-slate-950 shadow-xl shadow-[#5dc7ec]/20 transition-all hover:bg-white"
             >
               New Transaction
             </button>

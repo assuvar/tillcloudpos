@@ -253,10 +253,10 @@ export default function AddItemDrawer() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest leading-none">
               Item Image (Optional)
             </label>
-            <div className="rounded-xl bg-blue-50/50 px-4 py-4">
+            <div className="rounded-xl bg-slate-50 border border-slate-100/50 dark:border-slate-800/40 px-4 py-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <input
                   ref={fileInputRef}
@@ -275,7 +275,7 @@ export default function AddItemDrawer() {
                   <ImagePlus size={14} />
                   Choose File
                 </button>
-                <div className="text-[12px] font-semibold text-slate-500">
+                <div className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
                   {drawerForm.imageFile
                     ? drawerForm.imageFile.name
                     : drawerMode === "edit" && drawerForm.image
@@ -295,7 +295,7 @@ export default function AddItemDrawer() {
                   </div>
                 ) : null}
                 <div className="flex-1">
-                  <p className="text-[12px] font-semibold text-slate-500">
+                  <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
                     Upload an image file if needed. Items can be saved without
                     images.
                   </p>
@@ -311,7 +311,7 @@ export default function AddItemDrawer() {
                       <button
                         type="button"
                         onClick={clearImage}
-                        className="rounded-full border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500"
+                        className="rounded-full border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"
                       >
                         Clear
                       </button>
@@ -324,7 +324,7 @@ export default function AddItemDrawer() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest leading-none">
                 Price (AUD) <span className="text-red-500 font-bold ml-1 text-sm">*</span>
               </label>
               <div className="relative">
@@ -345,7 +345,7 @@ export default function AddItemDrawer() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest leading-none">
                 Category <span className="text-red-500 font-bold ml-1 text-sm">*</span>
               </label>
               <div className="relative">

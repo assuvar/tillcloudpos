@@ -36,7 +36,33 @@ export default function KotSlipTemplate({ kotSettings, kot }: KotSlipTemplatePro
   const kotDate = kot.createdAt ? new Date(kot.createdAt) : new Date();
 
   return (
-    <div className="w-[280px] bg-white text-[#1a1a1a] p-6 font-mono text-[11px] shadow-2xl rounded-sm text-left">
+    <div className="thermal-paper w-[280px] bg-white text-[#1a1a1a] p-6 font-mono text-[11px] shadow-2xl rounded-sm text-left">
+      <style>{`
+        html.dark .thermal-paper.bg-white,
+        html.dark.black-theme .thermal-paper.bg-white,
+        .thermal-paper {
+          background-color: #ffffff !important;
+          color: #1a1a1a !important;
+        }
+        html.dark .thermal-paper *,
+        html.dark.black-theme .thermal-paper *,
+        .thermal-paper * {
+          color: #1a1a1a !important;
+          border-color: #cbd5e1 !important;
+        }
+        html.dark .thermal-paper .border-dashed,
+        .thermal-paper .border-dashed {
+          border-color: #cbd5e1 !important;
+        }
+        html.dark .thermal-paper .border-black,
+        .thermal-paper .border-black {
+          border-color: #1a1a1a !important;
+        }
+        html.dark .thermal-paper .text-slate-600,
+        .thermal-paper .text-slate-600 {
+          color: #475569 !important;
+        }
+      `}</style>
       <div className="text-center font-bold text-[14px] mb-2 border-b-2 border-dashed border-slate-200 pb-2">
         KITCHEN TICKET #{kot.kotNumber || "000"}
       </div>

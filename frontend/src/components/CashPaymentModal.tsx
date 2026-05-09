@@ -90,7 +90,7 @@ export default function CashPaymentModal({
               <button
                 key={amount}
                 onClick={() => handleQuickAmount(amount)}
-                className="h-14 rounded-2xl bg-[#f0f4f8] border border-slate-100 text-[15px] font-black text-[#0c1424] hover:bg-slate-100 transition-all active:scale-95"
+                className="h-14 rounded-2xl bg-slate-100 border border-slate-200/50 text-[15px] font-black text-slate-900 hover:bg-slate-200 hover:text-slate-900 transition-all active:scale-95"
               >
                 ${amount}
               </button>
@@ -119,7 +119,7 @@ export default function CashPaymentModal({
                 className={`h-16 rounded-2xl flex items-center justify-center text-xl font-black transition-all active:scale-95 ${
                   key === "backspace"
                     ? "bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-100"
-                    : "bg-[#f8fafc] border border-slate-100 text-[#0c1424] hover:bg-slate-50"
+                    : "bg-slate-50 border border-slate-200/50 text-slate-900 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
                 {key === "backspace" ? <Delete size={22} /> : key}
@@ -131,7 +131,7 @@ export default function CashPaymentModal({
           <button
             onClick={() => onComplete(cashTendered)}
             disabled={cashTendered < amountDue}
-            className="w-full h-16 rounded-2xl bg-[#0c1424] text-white font-black text-[15px] shadow-xl shadow-black/15 hover:bg-black transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed mb-3"
+            className="w-full h-16 rounded-2xl bg-[#0c1424] text-white font-black text-[15px] shadow-xl shadow-black/15 hover:bg-black transition-all active:scale-[0.98] disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800/40 dark:disabled:text-slate-600 disabled:opacity-100 disabled:shadow-none disabled:cursor-not-allowed mb-3"
           >
             Complete Payment
           </button>

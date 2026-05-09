@@ -113,12 +113,52 @@ export default function ReceiptTemplate({
 
   return (
     <div
-      className={`receipt-template bg-white text-black font-mono leading-[1.5] flex flex-col p-6 mx-auto ${getAlignmentClass()}`}
+      className={`receipt-template receipt-thermal-paper bg-white text-black font-mono leading-[1.5] flex flex-col p-6 mx-auto ${getAlignmentClass()}`}
       style={{
         width: getWidthStyle(),
         fontSize: `${billSettings?.fontSize || 12}px`,
       }}
     >
+      <style>{`
+        html.dark .receipt-thermal-paper.bg-white,
+        html.dark.black-theme .receipt-thermal-paper.bg-white,
+        .receipt-thermal-paper {
+          background-color: #ffffff !important;
+          color: #1a1a1a !important;
+        }
+        html.dark .receipt-thermal-paper *,
+        html.dark.black-theme .receipt-thermal-paper *,
+        .receipt-thermal-paper * {
+          color: #1a1a1a !important;
+          border-color: #cbd5e1 !important;
+        }
+        html.dark .receipt-thermal-paper .text-slate-500,
+        html.dark .receipt-thermal-paper .text-slate-400,
+        .receipt-thermal-paper .text-slate-500,
+        .receipt-thermal-paper .text-slate-400 {
+          color: #475569 !important;
+        }
+        html.dark .receipt-thermal-paper .text-slate-300,
+        .receipt-thermal-paper .text-slate-300 {
+          color: #94a3b8 !important;
+        }
+        html.dark .receipt-thermal-paper .text-[#0c1424],
+        .receipt-thermal-paper .text-[#0c1424] {
+          color: #1a1a1a !important;
+        }
+        html.dark .receipt-thermal-paper .border-slate-200,
+        .receipt-thermal-paper .border-slate-200 {
+          border-color: #cbd5e1 !important;
+        }
+        html.dark .receipt-thermal-paper .border-t-2,
+        .receipt-thermal-paper .border-t-2 {
+          border-top-width: 2px !important;
+        }
+        html.dark .receipt-thermal-paper .border-b-2,
+        .receipt-thermal-paper .border-b-2 {
+          border-bottom-width: 2px !important;
+        }
+      `}</style>
       <div className="text-center mb-6">
         {billSettings?.showLogo && billSettings.logoUrl && (
           <div className="flex justify-center mb-4">

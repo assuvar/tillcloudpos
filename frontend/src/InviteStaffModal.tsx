@@ -116,7 +116,7 @@ export default function InviteStaffModal({
 
           {/* Full Name */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest block">
               Full Name
             </label>
             <input
@@ -131,7 +131,7 @@ export default function InviteStaffModal({
 
           {/* Email */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest block">
               Email Address
             </label>
             <input
@@ -146,7 +146,7 @@ export default function InviteStaffModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest block">
               Phone (Optional)
             </label>
             <input
@@ -161,7 +161,7 @@ export default function InviteStaffModal({
 
           {/* Role Dropdown */}
           <div className="space-y-2 relative">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest block">
               Role
             </label>
             <button
