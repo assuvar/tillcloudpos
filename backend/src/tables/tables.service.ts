@@ -37,7 +37,15 @@ export class TablesService {
           include: {
             bills: {
               where: {
-                status: { in: ['OPEN', 'KOT_SENT', 'AWAITING_PAYMENT'] as any },
+                status: {
+                  in: [
+                    'OPEN',
+                    'KOT_SENT',
+                    'PREPARING',
+                    'READY',
+                    'AWAITING_PAYMENT',
+                  ] as any,
+                },
               },
               take: 1,
               orderBy: { createdAt: 'desc' },
@@ -64,12 +72,15 @@ export class TablesService {
           ...table,
           activeBillId: activeBill?.id || null,
           currentOrderId: activeBill?.id || null,
+          orderNumber: activeBill?.orderNumber || null,
           startedAt: table.startedAt || activeBill?.createdAt || null,
           currentTotal: activeBill
             ? Number(activeBill.totalCents || 0) / 100
             : 0,
           isKotSent: activeBill
             ? activeBill.status === 'KOT_SENT' ||
+              activeBill.status === 'PREPARING' ||
+              activeBill.status === 'READY' ||
               activeBill.status === 'AWAITING_PAYMENT'
             : false,
           customerName: activeRes?.customerName || null,
@@ -198,7 +209,15 @@ export class TablesService {
       include: {
         bills: {
           where: {
-            status: { in: ['OPEN', 'KOT_SENT', 'AWAITING_PAYMENT'] as any },
+            status: {
+              in: [
+                'OPEN',
+                'KOT_SENT',
+                'PREPARING',
+                'READY',
+                'AWAITING_PAYMENT',
+              ] as any,
+            },
           },
           take: 1,
           orderBy: { createdAt: 'desc' },
@@ -219,10 +238,13 @@ export class TablesService {
         ...table,
         activeBillId: activeBill?.id || null,
         currentOrderId: activeBill?.id || null,
+        orderNumber: activeBill?.orderNumber || null,
         startedAt: table.startedAt || activeBill?.createdAt || null,
         currentTotal: activeBill ? Number(activeBill.totalCents || 0) / 100 : 0,
         isKotSent: activeBill
           ? activeBill.status === 'KOT_SENT' ||
+            activeBill.status === 'PREPARING' ||
+            activeBill.status === 'READY' ||
             activeBill.status === 'AWAITING_PAYMENT'
           : false,
         customerName: activeRes?.customerName || null,

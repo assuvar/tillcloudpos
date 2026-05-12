@@ -6,12 +6,14 @@ interface AddTableModalProps {
   onClose: () => void;
   onSuccess: () => void;
   floor: string;
+  groupId?: string;
 }
 
 export default function AddTableModal({
   onClose,
   onSuccess,
   floor,
+  groupId,
 }: AddTableModalProps) {
   const [name, setName] = useState("");
   const [seats, setSeats] = useState(4);
@@ -26,7 +28,8 @@ export default function AddTableModal({
       await api.post("/tables", {
         name,
         seats: Number(seats),
-        floor,
+        floor: "GROUND", // Prisma DB enum requirement
+        groupId, // Safe dynamic linkage
         sortOrder: 0,
       });
       onSuccess();
@@ -70,14 +73,21 @@ export default function AddTableModal({
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Table Name / ID
+              Table Number
             </label>
             <input
               type="text"
+              pattern="[0-9]*"
+              inputMode="numeric"
               required
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. T110"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "" || /^\d+$/.test(val)) {
+                  setName(val);
+                }
+              }}
+              placeholder="e.g. 12"
               className="w-full rounded-2xl border border-slate-100 bg-slate-50 px-6 py-4 text-[15px] font-bold text-[#0c1424] outline-none focus:border-[#5dc7ec] focus:ring-4 focus:ring-[#5dc7ec]/10 transition-all"
             />
           </div>

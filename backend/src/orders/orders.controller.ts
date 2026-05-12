@@ -119,7 +119,17 @@ export class OrdersController {
 
   @Delete(':id')
   @RequirePermissions(PERMISSIONS.BILLING_VOID)
-  remove(@Param('id') id: string, @Req() req: any) {
-    return this.ordersService.remove(id, getRestaurantId(req));
+  remove(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Req() req: any,
+  ) {
+    return this.ordersService.remove(
+      id,
+      getRestaurantId(req),
+      req.user?.userId || 'system',
+      req.user?.fullName || 'System User',
+      reason,
+    );
   }
 }

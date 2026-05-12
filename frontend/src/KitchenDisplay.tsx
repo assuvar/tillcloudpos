@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Clock3, RefreshCw, Table2, ChefHat, Play, Check, Printer } from "lucide-react";
+import { Clock3, RefreshCw, Table2, ChefHat, Check, Printer } from "lucide-react";
 import api from "./services/api";
 import { useAuth } from "./context/AuthContext";
 import { FRONTEND_PERMISSIONS } from "./permissions";
@@ -46,7 +46,11 @@ export default function KitchenDisplay() {
         api.get("/settings/kot").catch(() => null) // Failsafe
       ]);
       
-      setOrders(Array.isArray(ordersRes.data) ? ordersRes.data : []);
+      const rawOrders = Array.isArray(ordersRes.data) ? ordersRes.data : [];
+      const pendingKots = rawOrders.filter(
+        o => o.status !== "READY" && o.status !== "COMPLETED" && o.status !== "BUMPED"
+      );
+      setOrders(pendingKots);
       if (settingsRes && settingsRes.data) {
         setKotSettings(settingsRes.data);
       }
@@ -111,6 +115,17 @@ export default function KitchenDisplay() {
     const mins = Math.floor(diff / 60);
     const secs = diff % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getTimerColor = (sentAt: string) => {
+    const start = new Date(sentAt).getTime();
+    const elapsedMins = Math.floor((Date.now() - start) / 60000);
+    if (elapsedMins >= 10) {
+      return "bg-rose-600/90 border border-rose-500 text-white animate-pulse font-black shadow-lg shadow-rose-950/25";
+    } else if (elapsedMins >= 5) {
+      return "bg-amber-500 border border-amber-400 text-white font-extrabold shadow-md shadow-amber-950/15";
+    }
+    return "bg-white/5 border border-white/5 text-slate-300 font-bold";
   };
 
   useEffect(() => {
@@ -257,9 +272,8 @@ export default function KitchenDisplay() {
                                     #{String(order.orderNumber).padStart(3, "0")}
                                   </div>
                                 </div>
-                                <div className="flex flex-col items-end gap-2">
-                                  <div className="flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 text-[11px] font-black text-slate-300">
-                                    <Clock3 size={12} className={order.status === 'SENT' ? 'text-rose-500 animate-pulse' : 'text-slate-500'} />
+                                <div className="flex flex-col items-end gap-2">                                  <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-black ${getTimerColor(order.sentAt)}`}>
+                                    <Clock3 size={12} />
                                     <span>{getTimer(order.sentAt)}</span>
                                   </div>
                                   {(kotSettings?.mode === 'BOTH' || kotSettings?.mode === 'PRINT') && (
@@ -284,7 +298,7 @@ export default function KitchenDisplay() {
                               <div className="mb-6 flex items-center gap-3 text-sm font-bold text-slate-400">
                                 <div className="h-8 w-8 rounded-xl bg-white/5 flex items-center justify-center text-slate-300">
                                    <Table2 size={16} />
-                                </div>
+                                 </div>
                                 <span>
                                   {order.orderType === "DINE_IN"
                                     ? `Table ${order.tableNumber || "—"}`
@@ -312,38 +326,13 @@ export default function KitchenDisplay() {
                             </div>
 
                             <div className="mt-auto p-4 flex gap-2">
-                              {order.status === 'SENT' && (
-                                <button
-                                  onClick={() => updateStatus(order.id, 'PREPARING')}
-                                  disabled={updatingId === order.id}
-                                  className="flex-1 h-12 rounded-2xl bg-orange-500 text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-600 transition-colors"
-                                >
-                                  <Play size={14} fill="currentColor" /> Accept
-                                </button>
-                              )}
-                              {order.status === 'PREPARING' && (
-                                <button
-                                  onClick={() => updateStatus(order.id, 'READY')}
-                                  disabled={updatingId === order.id}
-                                  className="flex-1 h-12 rounded-2xl bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors"
-                                >
-                                  <Check size={16} strokeWidth={3} /> Mark Ready
-                                </button>
-                              )}
-                              {order.status === 'READY' && (
-                                <button
-                                  onClick={() => updateStatus(order.id, 'COMPLETED')}
-                                  disabled={updatingId === order.id}
-                                  className="flex-1 h-12 rounded-2xl bg-slate-800 text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors"
-                                >
-                                  <CheckCircle2 size={16} /> Complete
-                                </button>
-                              )}
-                              {(order.status === 'COMPLETED' || order.status === 'BUMPED') && (
-                                <div className="flex-1 h-12 rounded-2xl border border-white/10 flex items-center justify-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                                  Processed
-                                </div>
-                              )}
+                              <button
+                                onClick={() => updateStatus(order.id, 'READY')}
+                                disabled={updatingId === order.id}
+                                className="flex-1 h-12 rounded-2xl bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-md shadow-emerald-950/25 active:scale-95"
+                              >
+                                <Check size={16} strokeWidth={3} /> Bump
+                              </button>
                             </div>
                           </article>
                         ))}

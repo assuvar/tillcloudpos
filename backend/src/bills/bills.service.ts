@@ -46,6 +46,7 @@ type NormalizedBill = {
   orderType: OrderType;
   status: BillStatus;
   tableNumber: string | null;
+  tableId?: string | null;
   subtotalAmount: number;
   taxAmount: number;
   totalAmount: number;
@@ -207,8 +208,7 @@ export class BillsService {
   private isLockedStatus(status: BillStatus) {
     return (
       status === BillStatus.PAID ||
-      status === BillStatus.VOIDED ||
-      status === BillStatus.KOT_SENT
+      status === BillStatus.VOIDED
     );
   }
 
@@ -232,6 +232,7 @@ export class BillsService {
       orderType: bill.orderType,
       status: bill.status,
       tableNumber: bill.tableNumber || null,
+      tableId: bill.tableId || null,
       subtotalAmount: this.toAmount(bill.subtotalCents || 0),
       taxAmount: this.toAmount(bill.taxAmountCents || 0),
       totalAmount: this.toAmount(bill.totalCents || 0),
@@ -299,24 +300,28 @@ export class BillsService {
     );
 
     if (itemsToSend.length === 0) {
-      throw new BadRequestException(
-        'All items have already been sent to the kitchen',
-      );
+      const isPaidOrClosed = bill.status === BillStatus.PAID;
+      const updatedBill = await tx.bill.update({
+        where: { id: bill.id },
+        data: {
+          status: isPaidOrClosed ? bill.status : BillStatus.KOT_SENT,
+        },
+        include: {
+          items: true,
+          kitchenOrders: true,
+        },
+      });
+
+      return {
+        bill: updatedBill,
+        kitchenOrder: bill.kitchenOrders[bill.kitchenOrders.length - 1] || null,
+      };
     }
 
     if (bill.status === BillStatus.PAID || bill.status === BillStatus.VOIDED) {
-      // Allow sending KOT for PAID bills if it's Dine-In/In-Store (since that's the rule)
-      // but only if there are new items to send.
+      // Allow sending KOT for PAID bills
     } else {
-      // For OPEN/AWAITING_PAYMENT, check if it's allowed
-      if (
-        bill.orderType === OrderType.DINE_IN ||
-        bill.orderType === OrderType.IN_STORE
-      ) {
-        throw new BadRequestException(
-          'KOT for Dine-In and In-Store orders can only be triggered after payment is completed.',
-        );
-      }
+      // No prepayment constraints for Dine-In/In-Store anymore! Anyone can save and trigger KOT at any time.
     }
 
     const kotCount = await tx.kitchenOrder.count({
@@ -332,10 +337,11 @@ export class BillsService {
       },
     });
 
+    const isPaidOrClosed = bill.status === BillStatus.PAID;
     const updatedBill = await tx.bill.update({
       where: { id: bill.id },
       data: {
-        status: BillStatus.KOT_SENT,
+        status: isPaidOrClosed ? bill.status : BillStatus.KOT_SENT,
         kotSentAt: bill.kotSentAt || new Date(),
       },
       include: {
@@ -461,6 +467,31 @@ export class BillsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      let customerId = null;
+      const phoneToUse = dto.customerPhone || dto.pickupPhone || dto.deliveryPhone;
+      const nameToUse = dto.customerName || dto.pickupName || dto.deliveryName;
+      
+      if (phoneToUse) {
+        const existingCustomer = await tx.customer.findUnique({
+          where: { restaurantId_phone: { restaurantId, phone: phoneToUse } }
+        });
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+          if (nameToUse && existingCustomer.name !== nameToUse) {
+            await tx.customer.update({ where: { id: customerId }, data: { name: nameToUse } });
+          }
+        } else {
+          const newCustomer = await tx.customer.create({
+            data: {
+              restaurantId,
+              phone: phoneToUse,
+              name: nameToUse || null,
+            }
+          });
+          customerId = newCustomer.id;
+        }
+      }
+
       const bill = await tx.bill.create({
         data: {
           restaurantId,
@@ -471,6 +502,7 @@ export class BillsService {
           status: BillStatus.OPEN,
           tableId: dto.tableId || null,
           tableNumber: resolvedTableNumber,
+          customerId,
           customerName: dto.customerName || null,
           customerPhone: dto.customerPhone || null,
 
@@ -516,29 +548,59 @@ export class BillsService {
     });
   }
 
-  async findAll(restaurantId: string, status?: string, limit?: number) {
+  async findAll(
+    restaurantId: string,
+    status?: string,
+    limit?: number,
+    startDate?: string,
+    endDate?: string,
+    orderType?: string,
+    search?: string,
+  ) {
     const take = Number.isFinite(limit)
-      ? Math.min(Math.max(Number(limit), 1), 100)
+      ? Math.min(Math.max(Number(limit), 1), 500)
       : undefined;
 
-    const where = {
+    const where: Prisma.BillWhereInput = {
       restaurantId,
-      ...(status
-        ? { status: status as BillStatus }
-        : take
-          ? {}
-          : {
-              status: {
-                in: [
-                  BillStatus.OPEN,
-                  BillStatus.KOT_SENT,
-                  BillStatus.PREPARING,
-                  BillStatus.READY,
-                  BillStatus.AWAITING_PAYMENT,
-                ],
-              },
-            }),
     };
+
+    if (status) {
+      if (status !== 'ALL') {
+        where.status = status as BillStatus;
+      }
+    } else {
+      where.status = {
+        in: [BillStatus.PAID, BillStatus.VOIDED],
+      };
+    }
+
+    if (orderType && orderType !== 'ALL') {
+      where.orderType = orderType as OrderType;
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        where.createdAt.lte = new Date(endDate);
+      }
+    }
+
+    if (search && search.trim()) {
+      const cleanSearch = search.trim();
+      const orderNumSearch = Number(cleanSearch);
+      where.OR = [
+        ...(Number.isInteger(orderNumSearch) ? [{ orderNumber: orderNumSearch }, { displayOrderNumber: orderNumSearch }] : []),
+        { customerName: { contains: cleanSearch, mode: 'insensitive' } },
+        { customerPhone: { contains: cleanSearch, mode: 'insensitive' } },
+        { deliveryAddress: { contains: cleanSearch, mode: 'insensitive' } },
+        { pickupName: { contains: cleanSearch, mode: 'insensitive' } },
+        { deliveryName: { contains: cleanSearch, mode: 'insensitive' } },
+      ];
+    }
 
     const bills = await this.prisma.bill.findMany({
       where,
@@ -596,7 +658,7 @@ export class BillsService {
         throw new BadRequestException('Quantity must be a positive integer');
       }
 
-      const menuItem = await tx.menuItem.findFirst({
+      let menuItem = await tx.menuItem.findFirst({
         where: {
           id: dto.menuItemId,
           restaurantId,
@@ -607,19 +669,44 @@ export class BillsService {
         },
       });
 
-      if (!menuItem) {
-        throw new NotFoundException('Menu item not found');
-      }
+      let categoryName = 'Uncategorized';
+      let itemName = '';
+      let priceCents = 0;
 
-      const priceCents =
-        dto.customPriceInCents !== undefined && dto.customPriceInCents !== null
-          ? dto.customPriceInCents
-          : menuItem.priceInCents;
+      if (!menuItem) {
+        // Fallback to deal lookup
+        const deal = await tx.deal.findFirst({
+          where: {
+            id: dto.menuItemId,
+            restaurantId,
+            isActive: true,
+          },
+        });
+
+        if (!deal) {
+          throw new NotFoundException('Menu item or Deal not found');
+        }
+
+        categoryName = 'Deals';
+        itemName = deal.name;
+        priceCents =
+          dto.customPriceInCents !== undefined && dto.customPriceInCents !== null
+            ? dto.customPriceInCents
+            : deal.priceInCents;
+      } else {
+        categoryName = menuItem.category?.name || 'Uncategorized';
+        itemName = menuItem.name;
+        priceCents =
+          dto.customPriceInCents !== undefined && dto.customPriceInCents !== null
+            ? dto.customPriceInCents
+            : menuItem.priceInCents;
+      }
 
       const existing = await tx.billItem.findFirst({
         where: {
           billId,
-          menuItemId: dto.menuItemId,
+          menuItemId: menuItem ? menuItem.id : null,
+          itemName: itemName,
           unitPriceInCents: priceCents,
           notes: dto.notes?.trim() || null,
         },
@@ -637,9 +724,9 @@ export class BillsService {
         await tx.billItem.create({
           data: {
             billId,
-            menuItemId: menuItem.id,
-            itemName: menuItem.name,
-            categoryName: menuItem.category?.name || 'Uncategorized',
+            menuItemId: menuItem ? menuItem.id : null,
+            itemName: itemName,
+            categoryName: categoryName,
             unitPriceInCents: priceCents,
             quantity,
             lineTotalCents: priceCents * quantity,
@@ -1060,6 +1147,34 @@ export class BillsService {
         },
       });
 
+      if (updatedBill.customerId) {
+        const c = await tx.customer.findUnique({ where: { id: updatedBill.customerId } });
+        if (c) {
+          const earnPoints = Math.floor(totalAmount * 0.1);
+          await tx.customer.update({
+            where: { id: updatedBill.customerId },
+            data: {
+              totalVisits: c.totalVisits + 1,
+              totalSpentCents: c.totalSpentCents + updatedBill.totalCents,
+              lastVisitAt: new Date(),
+              loyaltyPoints: c.loyaltyPoints + earnPoints,
+            }
+          });
+          if (earnPoints > 0) {
+            await tx.loyaltyTransaction.create({
+              data: {
+                customerId: updatedBill.customerId,
+                billId: updatedBill.id,
+                type: 'EARN',
+                pointsDelta: earnPoints,
+                balanceAfter: c.loyaltyPoints + earnPoints,
+                reason: `Earned from Order #${updatedBill.orderNumber}`
+              }
+            });
+          }
+        }
+      }
+
       const allDone =
         updatedBill.kitchenOrders.length > 0 &&
         updatedBill.kitchenOrders.every(
@@ -1116,17 +1231,37 @@ export class BillsService {
       // Inventory Deduction (CRITICAL Requirement)
       await this.deductInventoryForBill(tx, bill.id, restaurantId);
 
-      // If a table is associated, update its status to OCCUPIED and start timer (Requirement: Override)
+      // If a table is associated, release it if closed/paid, otherwise set occupied
       if (updatedBill.tableId) {
-        await tx.table.update({
-          where: { id: updatedBill.tableId, restaurantId },
-          data: {
-            status: TableStatus.OCCUPIED,
-            activeBillId: updatedBill.id,
-            currentOrderId: updatedBill.id,
-            startedAt: new Date(),
-          },
-        });
+        if (updatedBill.status === BillStatus.PAID) {
+          await tx.kitchenOrder.updateMany({
+            where: { billId: updatedBill.id },
+            data: {
+              status: KotStatus.BUMPED,
+              bumpedAt: new Date(),
+            },
+          });
+
+          await tx.table.update({
+            where: { id: updatedBill.tableId, restaurantId },
+            data: {
+              status: TableStatus.AVAILABLE,
+              activeBillId: null,
+              currentOrderId: null,
+              startedAt: null,
+            },
+          });
+        } else {
+          await tx.table.update({
+            where: { id: updatedBill.tableId, restaurantId },
+            data: {
+              status: TableStatus.OCCUPIED,
+              activeBillId: updatedBill.id,
+              currentOrderId: updatedBill.id,
+              startedAt: new Date(),
+            },
+          });
+        }
       }
 
       // Trigger Bill Print (Non-blocking)

@@ -1,4 +1,6 @@
 
+import { formatDate } from "../utils/dateUtils";
+
 export interface ReceiptItem {
   id: string;
   name: string;
@@ -191,7 +193,7 @@ export default function ReceiptTemplate({
 
       <div className="border-t-2 border-dashed border-slate-200 py-3 mb-3 text-[11px] font-bold">
         <div className="flex justify-between uppercase">
-          <span>Date: {receiptDate.toLocaleDateString()}</span>
+          <span>Date: {formatDate(bill?.createdAt || new Date())}</span>
           <span>Time: {receiptDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
         </div>
         <div className="flex justify-between uppercase mt-1">

@@ -56,6 +56,10 @@ export class BillsController {
     @Req() req: any,
     @Query('status') status?: string,
     @Query('limit') limit?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('orderType') orderType?: string,
+    @Query('search') search?: string,
   ) {
     try {
       const parsedLimit = Number(limit);
@@ -63,6 +67,10 @@ export class BillsController {
         getRestaurantId(req),
         status,
         Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+        startDate,
+        endDate,
+        orderType,
+        search,
       );
 
       return result;

@@ -9,6 +9,7 @@ import {
   Check,
   Loader2,
 } from "lucide-react";
+import { usePosCart } from "../context/PosCartContext";
 
 interface CustomerDetailsFormProps {
   orderType: string;
@@ -23,6 +24,27 @@ export default function CustomerDetailsForm({
   onSubmit,
   onCancel,
 }: CustomerDetailsFormProps) {
+  const { restaurant } = usePosCart();
+
+  const activeRules = React.useMemo(() => {
+    const rules = restaurant?.serviceModelRules?.[orderType];
+    if (rules) {
+      return {
+        collectCustomerDetails: !!rules.collectCustomerDetails,
+        requiredFields: Array.isArray(rules.requiredFields) ? rules.requiredFields : [],
+        paymentRequiredBeforeKOT: !!rules.paymentRequiredBeforeKOT,
+      };
+    }
+    return {
+      collectCustomerDetails: orderType === "DELIVERY" || orderType === "PICKUP",
+      requiredFields: orderType === "DELIVERY"
+        ? ["name", "phone", "address"]
+        : orderType === "PICKUP"
+          ? ["name", "phone"]
+          : [],
+      paymentRequiredBeforeKOT: orderType === "IN_STORE" || orderType === "DELIVERY" || orderType === "PICKUP",
+    };
+  }, [restaurant, orderType]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     customerName:
@@ -48,14 +70,16 @@ export default function CustomerDetailsForm({
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!formData.customerName.trim())
-      newErrors.customerName = "Name is required";
-    if (!formData.customerPhone.trim())
-      newErrors.customerPhone = "Phone is required";
+    const required = activeRules.requiredFields || [];
 
-    if (orderType === "DELIVERY") {
-      if (!formData.customerAddress.trim())
-        newErrors.customerAddress = "Address is required";
+    if (required.includes("name") && !formData.customerName.trim()) {
+      newErrors.customerName = "Name is required";
+    }
+    if (required.includes("phone") && !formData.customerPhone.trim()) {
+      newErrors.customerPhone = "Phone is required";
+    }
+    if (required.includes("address") && !formData.customerAddress.trim()) {
+      newErrors.customerAddress = "Address is required";
     }
 
     setErrors(newErrors);
@@ -90,7 +114,7 @@ export default function CustomerDetailsForm({
         {/* Name Field */}
         <div className="group">
           <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 group-focus-within:text-sky-500 transition-colors">
-            Customer Name <span className="text-rose-500">*</span>
+            Customer Name {activeRules.requiredFields.includes("name") && <span className="text-rose-500">*</span>}
           </label>
           <div className="relative">
             <User
@@ -121,7 +145,7 @@ export default function CustomerDetailsForm({
         {/* Phone Field */}
         <div className="group">
           <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 group-focus-within:text-sky-500 transition-colors">
-            Mobile Number <span className="text-rose-500">*</span>
+            Mobile Number {activeRules.requiredFields.includes("phone") && <span className="text-rose-500">*</span>}
           </label>
           <div className="relative">
             <Phone
@@ -150,10 +174,10 @@ export default function CustomerDetailsForm({
         </div>
 
         {/* Address Field (Conditional) */}
-        {orderType === "DELIVERY" && (
+        {(orderType === "DELIVERY" || activeRules.requiredFields.includes("address")) && (
           <div className="group">
             <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 group-focus-within:text-sky-500 transition-colors">
-              Delivery Address <span className="text-rose-500">*</span>
+              Delivery Address {activeRules.requiredFields.includes("address") && <span className="text-rose-500">*</span>}
             </label>
             <div className="relative">
               <MapPin

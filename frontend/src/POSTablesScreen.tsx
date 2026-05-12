@@ -13,6 +13,9 @@ import {
   X,
   Trash2,
   Split,
+  Eye,
+  ShoppingBag,
+  Settings,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "./services/api";
@@ -29,6 +32,7 @@ interface Table {
   status: "AVAILABLE" | "OCCUPIED" | "RESERVED" | "BILLING" | "MERGED";
   activeBillId?: string;
   currentOrderId?: string;
+  orderNumber?: number;
   startedAt?: string;
   currentTotal?: number;
   isKotSent?: boolean;
@@ -52,11 +56,9 @@ interface Reservation {
 export default function POSTablesScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { createBillSession } = usePosCart();
-  const [tables, setTables] = useState<Table[]>([]);
-  const [activeFloor, setActiveFloor] = useState<"GROUND" | "TERRACE" | "BAR">(
-    "GROUND",
-  );
+  const { createBillSession, loadBill, setActiveSubView } = usePosCart();
+  const [groups, setGroups] = useState<any[]>([]);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [showAddTableModal, setShowAddTableModal] = useState(false);
@@ -67,12 +69,22 @@ export default function POSTablesScreen() {
 
   const loadData = async () => {
     try {
-      const [tablesRes, resRes] = await Promise.all([
-        api.get("/tables"),
+      const [groupsRes, resRes] = await Promise.all([
+        api.get("/tables/groups"),
         api.get("/reservations/today"),
       ]);
-      setTables(tablesRes.data);
+      const fetchedGroups = groupsRes.data || [];
+      setGroups(fetchedGroups);
       setReservations(resRes.data);
+
+      if (fetchedGroups.length > 0) {
+        setActiveGroupId((prev) => {
+          if (prev && fetchedGroups.some((g: any) => g.id === prev)) {
+            return prev;
+          }
+          return fetchedGroups[0].id;
+        });
+      }
     } catch (err) {
       console.error("Failed to load table data:", err);
     }
@@ -84,7 +96,7 @@ export default function POSTablesScreen() {
 
     // Timer sync: force re-render every second for the running clock
     const timerInterval = setInterval(() => {
-      setTables((prev) => [...prev]);
+      setGroups((prev) => [...prev]);
     }, 1000);
 
     return () => {
@@ -93,10 +105,20 @@ export default function POSTablesScreen() {
     };
   }, []);
 
-  const filteredTables = useMemo(
-    () => tables.filter((t) => t.floor === activeFloor),
-    [tables, activeFloor],
-  );
+  const tables = useMemo(() => {
+    return groups.reduce<Table[]>((acc, group) => {
+      const groupTables = (group.tables || []).map((t: any) => ({
+        ...t,
+        floor: group.name, // compatibility floor mapping
+      }));
+      return [...acc, ...groupTables];
+    }, []);
+  }, [groups]);
+
+  const filteredTables = useMemo(() => {
+    const activeGroup = groups.find((g) => g.id === activeGroupId);
+    return activeGroup?.tables || [];
+  }, [groups, activeGroupId]);
 
   const handleSeatGuests = async () => {
     if (
@@ -115,6 +137,28 @@ export default function POSTablesScreen() {
       navigate(`/pos/order-entry?billId=${bill.id}`);
     } catch (err) {
       console.error("Failed to start table session:", err);
+    }
+  };
+
+  const handleSeatTableDirectly = async (table: Table) => {
+    try {
+      const bill = await createBillSession("DINE_IN", {
+        tableId: table.id,
+        customer: table.name,
+      });
+      await loadData();
+      navigate(`/pos/order-entry?billId=${bill.id}`);
+    } catch (err) {
+      console.error("Failed to start table session:", err);
+    }
+  };
+
+  const handleViewActiveOrderDirectly = async (table: Table) => {
+    const activeId = table.activeBillId || table.currentOrderId;
+    if (activeId) {
+      await loadBill(activeId);
+      setActiveSubView("menu");
+      navigate(`/pos/order-entry?billId=${activeId}`);
     }
   };
 
@@ -235,25 +279,25 @@ export default function POSTablesScreen() {
       </header>
 
       <main className="flex flex-1 flex-col px-10 pt-8 pb-10">
-        {/* Floor Toggles & Legend */}
+        {/* Dynamic Table Categories Toggles & Legend */}
         <div className="mb-8 flex items-center justify-between shrink-0">
-          <div className="flex gap-2 rounded-[18px] bg-slate-200/40 p-1.5 border border-slate-200/20">
-            {(["GROUND", "TERRACE", "BAR"] as const).map((f) => (
+          <div className="flex gap-2 rounded-[18px] bg-slate-200/40 p-1.5 border border-slate-200/20 overflow-x-auto max-w-[70%] custom-scrollbar">
+            {groups.map((g) => (
               <button
-                key={f}
-                onClick={() => setActiveFloor(f)}
-                className={`rounded-[14px] px-8 py-2.5 text-[12px] font-black tracking-tight transition-all uppercase ${
-                  activeFloor === f
+                key={g.id}
+                onClick={() => setActiveGroupId(g.id)}
+                className={`rounded-[14px] px-8 py-2.5 text-[12px] font-black tracking-tight transition-all uppercase whitespace-nowrap ${
+                  activeGroupId === g.id
                     ? "bg-white text-[#0c1424] shadow-sm"
                     : "text-slate-400 hover:text-slate-600 dark:text-slate-300 dark:hover:text-white"
                 }`}
               >
-                {f}
+                {g.name} ({g.tables?.length || 0})
               </button>
             ))}
           </div>
 
-          <div className="flex items-center gap-6 pr-4">
+          <div className="flex items-center gap-6 pr-4 shrink-0">
             {[
               { label: "Available", color: "bg-emerald-500" },
               { label: "Occupied", color: "bg-[#0c1424]" },
@@ -270,91 +314,136 @@ export default function POSTablesScreen() {
           </div>
         </div>
 
-        {/* Floor Header */}
+        {/* Dynamic Category Section Header */}
         <div className="mb-6 flex items-center gap-4 px-2">
           <h2 className="text-[18px] font-black text-[#0c1424] tracking-tight uppercase">
-            {activeFloor} Floor
+            {groups.find((g) => g.id === activeGroupId)?.name || "Tables"} Section Layout
           </h2>
           <div className="h-[2px] flex-1 bg-slate-100" />
         </div>
 
         {/* Table Grid */}
         <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
-          {filteredTables.map((table) => (
-            <button
-              key={table.id}
-              onClick={() => setSelectedTable(table)}
-              className={`group relative flex min-h-[160px] flex-col rounded-[32px] border-2 p-6 text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${
-                selectedTable?.id === table.id
-                  ? "border-[#5dc7ec] bg-white shadow-xl shadow-[#5dc7ec]/10"
-                  : table.status === "BILLING"
-                    ? "border-sky-400 bg-white shadow-sm"
-                    : table.status === "RESERVED"
-                      ? "border-transparent border-l-[4px] border-l-amber-500 bg-white shadow-sm"
-                      : table.status === "OCCUPIED"
-                        ? "border-transparent bg-[#0c1424] shadow-md"
-                        : "border-transparent bg-white shadow-sm hover:shadow-md"
-              }`}
-            >
-              <div className="mb-auto flex items-start justify-between">
-                <div>
-                  <h3
-                    className={`text-[24px] font-black leading-none tracking-tight ${table.status === "OCCUPIED" ? "text-white" : "text-[#0c1424]"}`}
-                  >
-                    {table.name}
-                  </h3>
-                  <div className="mt-2 text-[12px] font-bold text-slate-400">
-                    {table.seats} Seats
+          {filteredTables.map((table: Table) => {
+            const isSelected = selectedTable?.id === table.id;
+            const isOccupied = table.status === "OCCUPIED";
+            const isBilling = table.status === "BILLING";
+            const isReserved = table.status === "RESERVED";
+
+            let cardStyles = "border-slate-200 bg-white hover:border-[#5dc7ec] hover:shadow-lg text-slate-800";
+            let nameStyles = "text-[#0c1424]";
+            let seatsStyles = "text-slate-400";
+
+            if (isOccupied) {
+              cardStyles = "border-yellow-400 bg-[#fef9c3] text-[#854d0e] hover:bg-[#fef08a] shadow-md";
+              nameStyles = "text-[#854d0e]";
+              seatsStyles = "text-yellow-700/80";
+            } else if (isBilling) {
+              cardStyles = "border-sky-300 bg-[#e0f2fe] text-sky-800 hover:bg-[#bae6fd] shadow-md";
+              nameStyles = "text-sky-800";
+              seatsStyles = "text-sky-700/80";
+            } else if (isReserved) {
+              cardStyles = "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/80 shadow-sm";
+              nameStyles = "text-amber-800";
+              seatsStyles = "text-amber-700/80";
+            }
+
+            if (isSelected) {
+              cardStyles += " ring-2 ring-[#5dc7ec] border-[#5dc7ec]";
+            }
+
+            const handleCardClick = () => {
+              if (isOccupied || isBilling) {
+                void handleViewActiveOrderDirectly(table);
+              } else {
+                void handleSeatTableDirectly(table);
+              }
+            };
+
+            return (
+              <div
+                key={table.id}
+                onClick={handleCardClick}
+                className={`group relative flex min-h-[160px] flex-col rounded-[32px] border-2 p-6 text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${cardStyles}`}
+              >
+                <div className="mb-auto flex items-start justify-between">
+                  <div>
+                    <h3 className={`text-[24px] font-black leading-none tracking-tight ${nameStyles}`}>
+                      {table.name}
+                    </h3>
+                    <div className={`mt-2 text-[12px] font-bold ${seatsStyles}`}>
+                      {table.seats} Seats
+                    </div>
+                    {table.orderNumber && (
+                      <div className={`mt-1.5 text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-xl inline-block bg-black/5 ${isOccupied ? "text-yellow-800" : isBilling ? "text-sky-800" : "text-slate-500"}`}>
+                        Bill #{table.orderNumber}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Tiny administrative sidebar toggle option gear */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTable(table);
+                      }}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-black/5 text-current transition-colors"
+                      title="Manage Table Settings"
+                    >
+                      <Settings size={14} />
+                    </button>
+
+                    <div className="pt-0.5">
+                      {isOccupied ? (
+                        <Eye size={18} className="text-[#854d0e]" />
+                      ) : isBilling ? (
+                        <ShoppingBag size={18} className="text-sky-800" />
+                      ) : isReserved ? (
+                        <Calendar className="text-amber-500" size={18} />
+                      ) : (
+                        <CheckCircle2 className="text-emerald-500" size={18} />
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="pt-0.5">
-                  {table.status === "OCCUPIED" ? (
-                    <Users size={18} className="text-white/40" />
-                  ) : table.status === "BILLING" ? (
-                    <div className="h-2 w-2 rounded-full bg-sky-500" />
-                  ) : table.status === "RESERVED" ? (
-                    <Calendar className="text-amber-500" size={18} />
-                  ) : (
-                    <CheckCircle2 className="text-emerald-500" size={18} />
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <div className="flex items-center gap-2">
-                  {table.status === "OCCUPIED" && (
-                    <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-1.5 text-white">
-                      <Clock size={14} />
-                      <span className="text-[13px] font-black tracking-tight">
-                        {getRunningTime(table.startedAt) || "0:00"}
-                      </span>
-                    </div>
-                  )}
-                  {table.status === "BILLING" && (
-                    <>
-                      <div className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-1.5 text-sky-600">
-                        <Clock size={14} />
-                        <span className="text-[13px] font-black tracking-tight">
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {isOccupied && (
+                      <div className="inline-flex items-center gap-1.5 rounded-xl bg-yellow-800/10 px-2.5 py-1 text-[#854d0e]">
+                        <Clock size={13} />
+                        <span className="text-[12px] font-black tracking-tight">
                           {getRunningTime(table.startedAt) || "0:00"}
                         </span>
                       </div>
-                      <div className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-1.5 text-sky-600">
-                        <span className="text-[10px] font-black uppercase tracking-widest">
-                          Billing
-                        </span>
-                      </div>
-                    </>
+                    )}
+                    {isBilling && (
+                      <>
+                        <div className="inline-flex items-center gap-1.5 rounded-xl bg-sky-800/10 px-2.5 py-1 text-sky-800">
+                          <Clock size={13} />
+                          <span className="text-[12px] font-black tracking-tight">
+                            {getRunningTime(table.startedAt) || "0:00"}
+                          </span>
+                        </div>
+                        <div className="inline-flex items-center gap-1.5 rounded-xl bg-sky-800/10 px-2.5 py-1 text-sky-800">
+                          <span className="text-[10px] font-black uppercase tracking-widest">
+                            Billing
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {isReserved && (
+                    <div className="text-[12px] font-black text-amber-800 truncate">
+                      {table.customerName || "Reserved"}
+                    </div>
                   )}
                 </div>
-                {table.status === "RESERVED" && (
-                  <div className="text-[12px] font-black text-[#0c1424] truncate">
-                    {table.customerName || "Reserved"}
-                  </div>
-                )}
               </div>
-            </button>
-          ))}
+            );
+          })}
 
           <button
             onClick={() => setShowAddTableModal(true)}
@@ -509,7 +598,8 @@ export default function POSTablesScreen() {
             setShowAddTableModal(false);
             void loadData();
           }}
-          floor={activeFloor}
+          floor="GROUND"
+          groupId={activeGroupId || undefined}
         />
       )}
 
@@ -524,7 +614,7 @@ export default function POSTablesScreen() {
             setSelectedReservation(null);
             void loadData();
           }}
-          initialFloor={activeFloor}
+          initialFloor={groups.find((g) => g.id === activeGroupId)?.name || "GROUND"}
           initialData={selectedReservation}
         />
       )}
@@ -532,7 +622,8 @@ export default function POSTablesScreen() {
       {showMergeModal && (
         <MergeTablesModal
           tables={tables}
-          initialFloor={activeFloor}
+          initialFloor={groups.find((g) => g.id === activeGroupId)?.name || ""}
+          groupNames={groups.map((g) => g.name)}
           onClose={() => setShowMergeModal(false)}
           onSuccess={() => {
             setShowMergeModal(false);
@@ -548,11 +639,13 @@ export default function POSTablesScreen() {
 function MergeTablesModal({
   tables,
   initialFloor,
+  groupNames,
   onClose,
   onSuccess,
 }: {
   tables: Table[];
   initialFloor: string;
+  groupNames: string[];
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -600,17 +693,17 @@ function MergeTablesModal({
 
         <div className="mb-6">
           <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
-            Select Floor
+            Select Section
           </label>
-          <div className="mt-2 flex gap-2">
-            {["GROUND", "TERRACE", "BAR"].map((f) => (
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+            {groupNames.map((f) => (
               <button
                 key={f}
                 onClick={() => {
                   setFloor(f);
                   setSelectedIds([]);
                 }}
-                className={`flex-1 rounded-xl py-2.5 text-[11px] font-black uppercase transition-all ${
+                className={`flex-1 rounded-xl py-2.5 px-4 text-[11px] font-black uppercase transition-all whitespace-nowrap ${
                   floor === f
                     ? "bg-[#0c1424] text-white"
                     : "bg-slate-100 text-slate-400 hover:bg-slate-200"

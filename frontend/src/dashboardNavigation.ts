@@ -7,6 +7,7 @@ import {
   BarChart,
   Users2,
   Settings as SettingsIcon,
+  History as HistoryIcon,
   type LucideIcon,
 } from "lucide-react";
 import type { PermissionGroup } from "./permissions";
@@ -20,7 +21,8 @@ export type DashboardViewId =
   | "inventory"
   | "customers"
   | "reports"
-  | "settings";
+  | "settings"
+  | "history";
 
 export type DashboardView = {
   id: DashboardViewId;
@@ -32,6 +34,7 @@ export type DashboardView = {
 export const DASHBOARD_VIEWS: DashboardView[] = [
   { id: "home", label: "Home", icon: LayoutDashboard },
   { id: "orders", label: "POS", module: "BILLING", icon: LayoutGrid },
+  { id: "history", label: "History Orders", module: "REPORTS", icon: HistoryIcon },
   { id: "menu", label: "Menu", module: "MENU", icon: MenuIcon },
   { id: "staff", label: "Staff", module: "STAFF", icon: Users },
   { id: "inventory", label: "Inventory", module: "INVENTORY", icon: Package },

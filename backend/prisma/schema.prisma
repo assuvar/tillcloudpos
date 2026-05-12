@@ -62,8 +62,12 @@ model Restaurant {
   tables           Table[]
   reservations     Reservation[]
   printerSettings  PrinterSettings[]
-  kotSettings      KotSettings?
-  billSettings     BillSettings?
+  kotSettings          KotSettings?
+  billSettings         BillSettings?
+  customerFieldRules   Json?
+  paymentBeforeKotRules Json?
+  serviceModelRules    Json?
+  orderDeletionLogs    OrderDeletionLog[]
 
   @@map("restaurants")
 }
@@ -961,5 +965,19 @@ model DealAddonGroup {
 
   @@id([dealId, addonGroupId])
   @@map("deal_addon_groups")
+}
+
+model OrderDeletionLog {
+  id            String     @id @default(cuid())
+  restaurantId  String
+  orderId       String
+  orderNumber   Int
+  deletedById   String
+  deletedByName String
+  deletedAt     DateTime   @default(now())
+  reason        String
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("order_deletion_logs")
 }
 

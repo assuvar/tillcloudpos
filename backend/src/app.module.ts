@@ -28,6 +28,7 @@ import { TablesModule } from './tables/tables.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { SettingsModule } from './settings/settings.module';
 import { OutletsModule } from './outlets/outlets.module';
+import { CustomersModule } from './customers/customers.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { OutletsModule } from './outlets/outlets.module';
     ReservationsModule,
     SettingsModule,
     OutletsModule,
+    CustomersModule,
   ],
   controllers: [AppController],
   providers: [

@@ -57,7 +57,15 @@ export class OrdersService {
         const activeBill = await this.prisma.bill.findFirst({
           where: {
             tableId: createOrderDto.tableId,
-            status: { in: ['OPEN', 'KOT_SENT', 'AWAITING_PAYMENT'] as any },
+            status: {
+              in: [
+                'OPEN',
+                'KOT_SENT',
+                'PREPARING',
+                'READY',
+                'AWAITING_PAYMENT',
+              ] as any,
+            },
             restaurantId,
           },
         });
@@ -212,15 +220,15 @@ export class OrdersService {
         },
       });
 
-      // If a table is associated, update its status to OCCUPIED and start timer (Requirement: Override)
+      // If a table is associated, release it to AVAILABLE status on successful payment completion
       if (updatedBill.tableId) {
         await tx.table.update({
           where: { id: updatedBill.tableId, restaurantId },
           data: {
-            status: TableStatus.OCCUPIED,
-            activeBillId: updatedBill.id,
-            currentOrderId: updatedBill.id,
-            startedAt: new Date(),
+            status: TableStatus.AVAILABLE,
+            activeBillId: null,
+            currentOrderId: null,
+            startedAt: null,
           },
         });
       }
@@ -301,6 +309,8 @@ export class OrdersService {
         totalAmount: totalCents / 100,
         paidAmount: paidCents / 100,
         remainingAmount: remainingCents / 100,
+        tableId: bill.tableId,
+        tableNumber: bill.tableNumber,
         table: bill.table
           ? {
               id: bill.table.id,
@@ -323,6 +333,16 @@ export class OrdersService {
         deliveryAddress: bill.deliveryAddress,
         deliveryPaymentMethod: bill.deliveryPaymentMethod,
         itemCount: bill.items.length,
+        items: bill.items.map((item) => ({
+          id: item.id,
+          menuItemId: item.menuItemId,
+          itemName: item.itemName,
+          categoryName: item.categoryName,
+          unitPriceInCents: item.unitPriceInCents,
+          quantity: item.quantity,
+          lineTotalCents: item.lineTotalCents,
+          notes: item.notes,
+        })),
         createdAt: bill.createdAt,
       };
     });
@@ -436,16 +456,42 @@ export class OrdersService {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.bill.findFirst({
         where: { id, restaurantId },
-        select: { id: true },
+        select: { id: true, customerId: true },
       });
 
       if (!existing) {
         throw new NotFoundException('Order not found');
       }
 
+      let customerId = existing.customerId;
+      const phoneToUse = updateOrderDto.customerPhone || updateOrderDto.pickupPhone || updateOrderDto.deliveryPhone;
+      const nameToUse = updateOrderDto.customerName || updateOrderDto.pickupName || updateOrderDto.deliveryName;
+      
+      if (phoneToUse && !customerId) {
+        const existingCustomer = await tx.customer.findUnique({
+          where: { restaurantId_phone: { restaurantId, phone: phoneToUse } }
+        });
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+          if (nameToUse && existingCustomer.name !== nameToUse) {
+            await tx.customer.update({ where: { id: customerId }, data: { name: nameToUse } });
+          }
+        } else {
+          const newCustomer = await tx.customer.create({
+            data: {
+              restaurantId,
+              phone: phoneToUse,
+              name: nameToUse || null,
+            }
+          });
+          customerId = newCustomer.id;
+        }
+      }
+
       return tx.bill.update({
         where: { id },
         data: {
+          customerId: customerId || undefined,
           customerName: updateOrderDto.customerName || undefined,
           customerPhone: updateOrderDto.customerPhone || undefined,
           tableNumber: updateOrderDto.tableNumber || undefined,
@@ -473,22 +519,55 @@ export class OrdersService {
     });
   }
 
-  remove(id: string, restaurantId: string) {
+  remove(
+    id: string,
+    restaurantId: string,
+    deletedById: string,
+    deletedByName: string,
+    reason: string,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.bill.findFirst({
         where: { id, restaurantId },
-        select: { id: true },
+        select: { id: true, orderNumber: true, tableId: true },
       });
 
       if (!existing) {
         throw new NotFoundException('Order not found');
       }
 
+      // If a table is associated, reset it to AVAILABLE and stop the timer
+      if (existing.tableId) {
+        await tx.table.update({
+          where: { id: existing.tableId, restaurantId },
+          data: {
+            status: TableStatus.AVAILABLE,
+            startedAt: null,
+            activeBillId: null,
+            currentOrderId: null,
+          },
+        });
+      }
+
+      // Log the deletion audit record
+      await tx.orderDeletionLog.create({
+        data: {
+          restaurantId,
+          orderId: id,
+          orderNumber: existing.orderNumber,
+          deletedById,
+          deletedByName,
+          reason: reason || 'No reason specified',
+        },
+      });
+
       return tx.bill.update({
         where: { id },
         data: {
           status: BillStatus.VOIDED,
           voidedAt: new Date(),
+          voidedById: deletedById,
+          voidReason: reason || 'No reason specified',
         },
       });
     });

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import UnifiedLayout from "./components/UnifiedLayout";
 import api from "./services/api";
+import { usePosCart } from "./context/PosCartContext";
 import ReceiptTemplate, { 
   ReceiptBill, 
   ReceiptPayment, 
@@ -17,6 +18,7 @@ type ReceiptState = {
 export default function ThermalReceiptScreen() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { setActiveSubView } = usePosCart();
   const state = (location.state || {}) as ReceiptState;
 
   const bill = state.bill;
@@ -95,10 +97,13 @@ export default function ThermalReceiptScreen() {
               Print Receipt
             </button>
             <button
-              onClick={() => navigate("/pos")}
+              onClick={() => {
+                setActiveSubView("recent-orders");
+                navigate("/pos");
+              }}
               className="flex h-12 items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-8 text-[11px] font-black uppercase tracking-widest text-slate-600 transition-all hover:bg-slate-50"
             >
-              Order List
+              Recent Orders
             </button>
             <button
               onClick={() => navigate("/pos/order-entry", { replace: true })}

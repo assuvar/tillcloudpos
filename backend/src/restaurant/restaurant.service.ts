@@ -15,6 +15,43 @@ import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 
 const ALLOWED_TAX_MODES = ['INCLUSIVE', 'EXCLUSIVE', 'NONE'] as const;
 
+const DEFAULT_CUSTOMER_RULES = {
+  DINE_IN: { enable: false, requireName: false, requirePhone: false, requireAddress: false, requireEmail: false },
+  IN_STORE: { enable: false, requireName: false, requirePhone: false, requireAddress: false, requireEmail: false },
+  DELIVERY: { enable: true, requireName: true, requirePhone: true, requireAddress: true, requireEmail: false },
+  PICKUP: { enable: true, requireName: true, requirePhone: true, requireAddress: false, requireEmail: false }
+};
+
+const DEFAULT_PAYMENT_BEFORE_KOT_RULES = {
+  DINE_IN: { requirePaymentBeforeKot: false },
+  IN_STORE: { requirePaymentBeforeKot: true },
+  DELIVERY: { requirePaymentBeforeKot: true },
+  PICKUP: { requirePaymentBeforeKot: true }
+};
+
+const DEFAULT_SERVICE_MODEL_RULES = {
+  DINE_IN: {
+    collectCustomerDetails: false,
+    requiredFields: [],
+    paymentRequiredBeforeKOT: false
+  },
+  IN_STORE: {
+    collectCustomerDetails: false,
+    requiredFields: [],
+    paymentRequiredBeforeKOT: false
+  },
+  DELIVERY: {
+    collectCustomerDetails: true,
+    requiredFields: ["name", "phone", "address"],
+    paymentRequiredBeforeKOT: true
+  },
+  PICKUP: {
+    collectCustomerDetails: true,
+    requiredFields: ["name", "phone"],
+    paymentRequiredBeforeKOT: false
+  }
+};
+
 @Injectable()
 export class RestaurantService {
   constructor(private readonly prisma: PrismaService) {}
@@ -51,6 +88,9 @@ export class RestaurantService {
       serviceModels: Array.isArray(restaurant.serviceModels)
         ? restaurant.serviceModels
         : ['DINE_IN'],
+      customerFieldRules: restaurant.customerFieldRules || DEFAULT_CUSTOMER_RULES,
+      paymentBeforeKotRules: restaurant.paymentBeforeKotRules || DEFAULT_PAYMENT_BEFORE_KOT_RULES,
+      serviceModelRules: restaurant.serviceModelRules || DEFAULT_SERVICE_MODEL_RULES,
     };
   }
 
@@ -140,6 +180,9 @@ export class RestaurantService {
         ...(nextServiceModels !== undefined
           ? { serviceModels: nextServiceModels }
           : {}),
+        ...(dto.customerFieldRules !== undefined ? { customerFieldRules: dto.customerFieldRules } : {}),
+        ...(dto.paymentBeforeKotRules !== undefined ? { paymentBeforeKotRules: dto.paymentBeforeKotRules } : {}),
+        ...(dto.serviceModelRules !== undefined ? { serviceModelRules: dto.serviceModelRules } : {}),
       },
     });
 

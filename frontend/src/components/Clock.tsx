@@ -46,9 +46,9 @@ export default function Clock() {
 
         const dateFormatter = new Intl.DateTimeFormat("en-AU", {
           timeZone: timezone,
-          weekday: "short",
-          day: "2-digit",
-          month: "short",
+          weekday: "long",
+          day: "numeric",
+          month: "long",
           year: "numeric",
         });
 
@@ -57,7 +57,9 @@ export default function Clock() {
       } catch (err) {
         const now = new Date();
         setTimeStr(now.toLocaleTimeString("en-AU"));
-        setDateStr(now.toLocaleDateString("en-AU"));
+        const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        setDateStr(`${weekdays[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`);
       }
     };
 

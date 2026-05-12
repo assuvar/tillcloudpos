@@ -1,4 +1,6 @@
 
+import { formatDate } from "../utils/dateUtils";
+
 export interface KotSettings {
   mode: 'DISPLAY' | 'PRINT' | 'BOTH';
   enablePrinting: boolean;
@@ -67,7 +69,7 @@ export default function KotSlipTemplate({ kotSettings, kot }: KotSlipTemplatePro
         KITCHEN TICKET #{kot.kotNumber || "000"}
       </div>
       <div className="flex justify-between mb-4 font-bold">
-        <div>DATE: {kotDate.toLocaleDateString()}</div>
+        <div>DATE: {formatDate(kot.createdAt || new Date())}</div>
         <div>TIME: {kotDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
       </div>
       

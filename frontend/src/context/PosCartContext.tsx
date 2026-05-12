@@ -122,6 +122,7 @@ interface PosCartContextType {
     item: MenuItem,
     customPriceInCents?: number,
     notes?: string,
+    targetBillId?: string,
   ) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (
@@ -150,10 +151,21 @@ interface PosCartContextType {
       deliveryPostcode: string;
       deliveryNotes: string;
       paymentType: string;
+      orderType: string;
+      tableId: string | null;
+      tableNumber: string | null;
     }>,
   ) => Promise<void>;
   closeOrder: (orderId: string) => Promise<boolean>;
   loadMenuItems: (serviceType?: string) => Promise<void>;
+  activeSubView: string;
+  setActiveSubView: (view: string) => void;
+  restaurant: any | null;
+  loadRestaurant: () => Promise<void>;
+  isLandingScreen: boolean;
+  setIsLandingScreen: (value: boolean) => void;
+  userHasSelectedServiceModel: boolean;
+  setUserHasSelectedServiceModel: (value: boolean) => void;
 }
 
 const PosCartContext = createContext<PosCartContextType | undefined>(undefined);
@@ -170,6 +182,32 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
   const [activeBill, setActiveBill] = useState<BillRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeSubView, setActiveSubView] = useState<string>("menu");
+  const [restaurant, setRestaurant] = useState<any | null>(null);
+
+  const [isLandingScreen, setIsLandingScreen] = useState<boolean>(() => {
+    const storedBillId = localStorage.getItem(ACTIVE_BILL_KEY);
+    return !storedBillId;
+  });
+  const [userHasSelectedServiceModel, setUserHasSelectedServiceModel] = useState<boolean>(() => {
+    const storedBillId = localStorage.getItem(ACTIVE_BILL_KEY);
+    return !!storedBillId;
+  });
+
+  const loadRestaurant = async () => {
+    try {
+      const res = await api.get("/restaurant");
+      setRestaurant(res.data);
+    } catch (err) {
+      console.error("Failed to load restaurant details inside POS context:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (accessToken) {
+      void loadRestaurant();
+    }
+  }, [accessToken]);
 
   const parseApiError = (err: any, fallback: string) => {
     const payload = err?.response?.data?.message;
@@ -255,8 +293,8 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       orderNumber: Number(bill.orderNumber ?? 0),
       orderType: bill.orderType,
       status: bill.status,
-      tableId: bill.tableId || null,
-      tableNumber: bill.tableNumber || null,
+      tableId: bill.tableId || bill.table?.id || null,
+      tableNumber: bill.tableNumber || bill.table?.name || null,
       subtotalAmount: toDollars(bill.subtotalAmount, bill.subtotalCents),
       taxAmount: toDollars(bill.taxAmount, bill.taxAmountCents),
       totalAmount: toDollars(bill.totalAmount, bill.totalCents),
@@ -334,7 +372,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await api.get("/orders");
       const payload = Array.isArray(response.data) ? response.data : [];
-      setOpenBills(payload);
+      setOpenBills(payload.map((bill: any) => normalizeBill(bill)));
     } catch (err: any) {
       console.error("[PosCartContext] Failed to load open bills:", err);
       setOpenBills([]);
@@ -374,6 +412,8 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!bill) throw new Error("Failed to load bill after creation");
 
       syncBill(bill);
+      setIsLandingScreen(false);
+      setUserHasSelectedServiceModel(true);
       await loadOpenBills();
       return bill;
     } catch (err: any) {
@@ -389,6 +429,10 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await api.get(`/bills/${billId}`);
       const bill = normalizeBill(response.data);
       syncBill(bill);
+      if (bill) {
+        setIsLandingScreen(false);
+        setUserHasSelectedServiceModel(true);
+      }
       return bill;
     } catch (err) {
       console.error("Error loading bill:", err);
@@ -449,17 +493,34 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
     item: MenuItem,
     customPriceInCents?: number,
     notes?: string,
+    targetBillId?: string,
   ) => {
     if (!item.isActive || item.isOutOfStock) {
       return false;
     }
 
-    if (!activeBill) {
-      return false;
+    let billId = targetBillId || activeBill?.id;
+    if (!billId) {
+      const model = localStorage.getItem("selectedServiceModel") || "IN_STORE";
+      if (model !== "DINE_IN") {
+        try {
+          const newBill = await createBillSession(model, {});
+          if (newBill && newBill.id) {
+            billId = newBill.id;
+          } else {
+            return false;
+          }
+        } catch (err) {
+          console.error("Failed to auto-create bill session on item click:", err);
+          return false;
+        }
+      } else {
+        return false;
+      }
     }
 
     try {
-      const response = await api.post(`/orders/${activeBill.id}/items`, {
+      const response = await api.post(`/orders/${billId}/items`, {
         productId: item.id,
         quantity: 1,
         customPriceInCents,
@@ -531,6 +592,8 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearBill = () => {
     syncBill(null);
+    setIsLandingScreen(true);
+    setUserHasSelectedServiceModel(false);
   };
 
   const sendToKitchen = async (): Promise<SendToKitchenResult> => {
@@ -542,7 +605,7 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await api.post(
         `/orders/${activeBill.id}/send-to-kitchen`,
       );
-      syncBill(normalizeBill(response.data));
+      syncBill(normalizeBill(response.data.bill || response.data));
       await loadOpenBills(); // Sync dashboard
       return {
         success: true,
@@ -659,6 +722,14 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
         closeOrder,
         loadMenuItems,
         updateBillDetails,
+        activeSubView,
+        setActiveSubView,
+        restaurant,
+        loadRestaurant,
+        isLandingScreen,
+        setIsLandingScreen,
+        userHasSelectedServiceModel,
+        setUserHasSelectedServiceModel,
       }}
     >
       {children}

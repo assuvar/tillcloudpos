@@ -22,11 +22,11 @@ import StaffManagementPage from "./StaffManagementPage";
 import StockListPage from "./StockListPage";
 import CustomersPage from "./CustomersPage";
 import ReportsPage from "./ReportsPage";
+import HistoryOrdersPage from "./HistoryOrdersPage";
 import SettingsPage from "./SettingsPage";
 import AccessDenied from "./components/AccessDenied";
 import UnifiedLayout from "./components/UnifiedLayout";
 import OrderEntryScreen from "./OrderEntryScreen";
-import POSEntryScreen from "./POSEntryScreen";
 import POSTablesScreen from "./POSTablesScreen";
 import {
   type DashboardViewId,
@@ -460,9 +460,12 @@ export default function Dashboard({
                       <h3 className="text-lg font-black text-[#0c1424]">
                         Recent Orders
                       </h3>
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        Last 15
-                      </span>
+                      <button
+                        onClick={() => setCurrentView("history")}
+                        className="text-[11px] font-[1000] text-slate-900 bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl hover:bg-slate-100 uppercase tracking-wider transition-all"
+                      >
+                        View History →
+                      </button>
                     </div>
                     {recentOrders.length === 0 ? (
                       <p className="text-[13px] font-medium text-slate-500">
@@ -545,13 +548,7 @@ export default function Dashboard({
       )}
 
       {currentView === "orders" && (
-        <>
-          {location.pathname === "/pos/order-entry" ? (
-            <OrderEntryScreen />
-          ) : (
-            <POSEntryScreen />
-          )}
-        </>
+        <OrderEntryScreen />
       )}
 
       {currentView === "tables" && <POSTablesScreen />}
@@ -597,6 +594,16 @@ export default function Dashboard({
       {currentView === "reports" && !hasModuleAccess("REPORTS") && (
         <AccessDenied
           moduleName="Reports"
+          onBack={() => setCurrentView("home")}
+        />
+      )}
+
+      {currentView === "history" && hasModuleAccess("REPORTS") && (
+        <HistoryOrdersPage />
+      )}
+      {currentView === "history" && !hasModuleAccess("REPORTS") && (
+        <AccessDenied
+          moduleName="History Orders"
           onBack={() => setCurrentView("home")}
         />
       )}

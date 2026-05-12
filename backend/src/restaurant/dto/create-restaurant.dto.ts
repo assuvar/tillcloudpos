@@ -73,6 +73,15 @@ export class CreateRestaurantDto {
   @IsNumber()
   @Min(0)
   taxRate?: number;
+
+  @IsOptional()
+  customerFieldRules?: any;
+
+  @IsOptional()
+  paymentBeforeKotRules?: any;
+
+  @IsOptional()
+  serviceModelRules?: any;
 }
 
 export function validateServiceModelsOrThrow(values: string[] | undefined) {

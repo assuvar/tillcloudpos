@@ -23,6 +23,7 @@ import { FRONTEND_PERMISSIONS } from "../permissions";
 import POSTopBar from "./POSTopBar";
 import Clock from "./Clock";
 import { useOutlets } from "../context/OutletContext";
+import { usePosCart } from "../context/PosCartContext";
 
 function SidebarIcon({
   icon: Icon,
@@ -98,6 +99,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
   const navigate = useNavigate();
   const { user, logout, hasPermission } = useAuth();
   const { activeOutlet, availableOutlets, switchOutlet } = useOutlets();
+  const { clearBill, setActiveSubView } = usePosCart();
   const [accessDeniedLabel, setAccessDeniedLabel] = useState<string | null>(
     null,
   );
@@ -241,7 +243,11 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
 
           {/* New Order Button */}
           <button
-            onClick={() => navigate("/pos")}
+            onClick={() => {
+              clearBill();
+              setActiveSubView("menu");
+              navigate("/pos");
+            }}
             className="flex items-center gap-2 h-10 px-5 rounded-xl bg-[#0c1424] text-white text-[12px] font-black uppercase tracking-widest shadow-lg shadow-black/10 hover:bg-black transition-all active:scale-95 flex-shrink-0"
           >
             <Plus size={15} strokeWidth={3} />

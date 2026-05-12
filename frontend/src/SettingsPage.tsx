@@ -39,6 +39,7 @@ import {
   type ServiceModel,
 } from "./serviceModels";
 import PrinterDocketSettings from "./components/PrinterDocketSettings";
+import ServiceModelRulesCard from "./components/ServiceModelRulesCard";
 
 /* --- Sub-Components --- */
 
@@ -52,6 +53,7 @@ const RestaurantProfile = () => {
   const [serviceModels, setServiceModels] = useState<ServiceModel[]>([
     "DINE_IN",
   ]);
+  const [serviceModelRules, setServiceModelRules] = useState<any>(null);
   const [loadingModels, setLoadingModels] = useState(true);
   const [savingModels, setSavingModels] = useState(false);
   const [modelMessage, setModelMessage] = useState("");
@@ -97,6 +99,7 @@ const RestaurantProfile = () => {
       setContactEmail(data.contactEmail || "");
       setLogoUrl(data.logoUrl || "");
       setTimezone(data.timezone || "Australia/Sydney");
+      setServiceModelRules(data.serviceModelRules || null);
     } catch (err) {
       console.error("Failed to load restaurant profile", err);
       setModelMessage("Unable to load restaurant profile details");
@@ -282,6 +285,14 @@ const RestaurantProfile = () => {
           </p>
         ) : null}
       </div>
+
+      {/* Service Model Rules Section */}
+      <ServiceModelRulesCard
+        isAdmin={isAdmin}
+        enabledModels={serviceModels}
+        initialRules={serviceModelRules}
+        onRefresh={() => void loadRestaurant()}
+      />
 
       {/* Integrated Unified Business Profile Sheet */}
       <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
@@ -1867,6 +1878,462 @@ const VisualsSettings = () => {
 
 /* --- Main Settings Module --- */
 
+/* --- Table & Categories Management --- */
+
+const TableLayoutManagement = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
+  const [groups, setGroups] = useState<any[]>([]);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Category (Group) creation state
+  const [newGroupName, setNewGroupName] = useState("");
+  const [isSavingGroup, setIsSavingGroup] = useState(false);
+
+  // Table creation state
+  const [newTableName, setNewTableName] = useState("");
+  const [newTableSeats, setNewTableSeats] = useState(4);
+  const [isSavingTable, setIsSavingTable] = useState(false);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const res = await api.get("/tables/groups");
+      const fetchedGroups = res.data || [];
+      setGroups(fetchedGroups);
+      if (fetchedGroups.length > 0) {
+        // Retain selection if possible, otherwise choose first
+        if (!activeGroupId || !fetchedGroups.some((g: any) => g.id === activeGroupId)) {
+          setActiveGroupId(fetchedGroups[0].id);
+        }
+      } else {
+        setActiveGroupId(null);
+      }
+    } catch (err: any) {
+      console.error("Failed to load table configurations:", err);
+      setError("Failed to load table configurations.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+    if (!isAdmin) {
+      setError("Only administrators can perform this action.");
+      return;
+    }
+
+    try {
+      setIsSavingGroup(true);
+      setError(null);
+      const res = await api.post("/tables/groups", { name: newGroupName.trim() });
+      setSuccessMsg(`Category "${newGroupName}" created successfully!`);
+      setNewGroupName("");
+      const fetchedGroups = [...groups, { ...res.data, tables: [] }];
+      setGroups(fetchedGroups);
+      if (!activeGroupId) {
+        setActiveGroupId(res.data.id);
+      }
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      console.error("Failed to create table category:", err);
+      setError(err?.response?.data?.message || "Failed to create category.");
+    } finally {
+      setIsSavingGroup(false);
+    }
+  };
+
+  const handleDeleteCategory = async (groupId: string, name: string) => {
+    if (!isAdmin) {
+      setError("Only administrators can perform this action.");
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete the category "${name}"? All tables inside this category will be removed.`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await api.delete(`/tables/groups/${groupId}`);
+      setSuccessMsg(`Category "${name}" deleted.`);
+      const remainingGroups = groups.filter((g) => g.id !== groupId);
+      setGroups(remainingGroups);
+      if (activeGroupId === groupId) {
+        setActiveGroupId(remainingGroups.length > 0 ? remainingGroups[0].id : null);
+      }
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      console.error("Failed to delete table category:", err);
+      setError("Failed to delete category.");
+    }
+  };
+
+  const handleAddTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeGroupId) {
+      setError("Please select or create a category first.");
+      return;
+    }
+    if (!newTableName.trim()) {
+      setError("Table number is required.");
+      return;
+    }
+    if (!isAdmin) {
+      setError("Only administrators can perform this action.");
+      return;
+    }
+
+    try {
+      setIsSavingTable(true);
+      setError(null);
+      
+      const res = await api.post("/tables", {
+        groupId: activeGroupId,
+        name: newTableName.trim(),
+        seats: Number(newTableSeats),
+        floor: "GROUND",
+      });
+
+      setSuccessMsg(`Table "${newTableName}" added successfully!`);
+      setNewTableName("");
+      setNewTableSeats(4);
+      
+      // Update local state dynamically
+      setGroups(prevGroups => prevGroups.map((g) => {
+        if (g.id === activeGroupId) {
+          return {
+            ...g,
+            tables: [...(g.tables || []), res.data]
+          };
+        }
+        return g;
+      }));
+
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      console.error("Failed to add table:", err);
+      setError(err?.response?.data?.message || "Failed to add table. Note: Table numbers must be unique within sections.");
+    } finally {
+      setIsSavingTable(false);
+    }
+  };
+
+  const handleDeleteTable = async (tableId: string, tableName: string) => {
+    if (!isAdmin) {
+      setError("Only administrators can perform this action.");
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete table "${tableName}"?`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await api.delete(`/tables/${tableId}`);
+      setSuccessMsg(`Table "${tableName}" deleted successfully.`);
+      
+      // Update local state dynamically
+      setGroups(prevGroups => prevGroups.map((g) => {
+        if (g.id === activeGroupId) {
+          return {
+            ...g,
+            tables: g.tables.filter((t: any) => t.id !== tableId)
+          };
+        }
+        return g;
+      }));
+
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      console.error("Failed to delete table:", err);
+      setError("Failed to delete table.");
+    }
+  };
+
+  const selectedGroup = groups.find((g) => g.id === activeGroupId);
+  const activeTables = selectedGroup?.tables || [];
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col">
+        <h2 className="text-[32px] font-black text-[#0c1424] tracking-tight leading-none">
+          Table & Categories Management
+        </h2>
+        <p className="text-[14px] text-slate-400 font-medium mt-2">
+          Create seating layouts, customize table flooring sections, and manage dine-in table allocations.
+        </p>
+      </div>
+
+      {!isAdmin && (
+        <div className="rounded-2xl px-6 py-4 text-[13px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100 flex items-center gap-2">
+          <Info size={16} />
+          Viewing only. Setup of tables and categories is restricted to administrators.
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-2xl px-6 py-4 text-[13px] font-bold bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <X size={16} />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="rounded-2xl px-6 py-4 text-[13px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center gap-2 animate-bounce">
+          <CheckCircle2 size={16} />
+          {successMsg}
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="p-12 text-center text-slate-400 font-bold">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#5dc7ec] mx-auto mb-4" />
+          Loading layout configurations...
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left Panel: Table Categories */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[15px] font-black text-[#0c1424] uppercase tracking-wider">
+                  Layout Sections
+                </h3>
+                <span className="bg-[#f0f9ff] text-[#5dc7ec] text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
+                  {groups.length} Floors
+                </span>
+              </div>
+
+              {/* Category creation inline */}
+              {isAdmin && (
+                <form onSubmit={handleAddCategory} className="flex gap-2">
+                  <div className="h-11 rounded-xl bg-slate-50 border border-slate-200 px-3 flex items-center flex-1 focus-within:ring-2 focus-within:ring-[#5dc7ec]/25 transition-all">
+                    <input
+                      type="text"
+                      placeholder="e.g. Ground Floor, Terrace"
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      className="bg-transparent w-full text-[12px] font-bold text-[#0c1424] outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSavingGroup || !newGroupName.trim()}
+                    className="h-11 w-11 rounded-xl bg-[#0c1424] text-white flex items-center justify-center hover:bg-slate-800 disabled:opacity-50 transition-all cursor-pointer shadow-md shadow-[#0c1424]/5"
+                    title="Add Category"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </form>
+              )}
+
+              {/* Categories list */}
+              <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
+                {groups.length === 0 ? (
+                  <div className="py-8 text-center text-slate-300 font-medium text-[12px] italic">
+                    No layout categories configured. Add one above to begin.
+                  </div>
+                ) : (
+                  groups.map((g) => (
+                    <div
+                      key={g.id}
+                      onClick={() => setActiveGroupId(g.id)}
+                      className={`w-full flex items-center justify-between p-3.5 rounded-2xl cursor-pointer group/item transition-all border ${
+                        activeGroupId === g.id
+                          ? "bg-blue-50/50 border-[#5dc7ec]/30 text-[#0c1424] shadow-sm font-extrabold"
+                          : "bg-white border-transparent text-slate-500 hover:bg-slate-50 hover:text-[#0c1424]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${activeGroupId === g.id ? 'bg-[#5dc7ec]/10 text-[#5dc7ec]' : 'bg-slate-100 text-slate-400 group-hover/item:bg-slate-200/50'}`}>
+                          <LayoutGrid size={15} />
+                        </div>
+                        <div className="flex flex-col text-left">
+                          <span className="text-[13px] font-black">{g.name}</span>
+                          <span className="text-[10px] text-slate-400 font-semibold">{g.tables?.length || 0} Tables</span>
+                        </div>
+                      </div>
+                      
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleDeleteCategory(g.id, g.name);
+                          }}
+                          className="h-8 w-8 rounded-lg hover:bg-rose-50 text-slate-300 hover:text-rose-500 flex items-center justify-center transition-colors opacity-0 group-hover/item:opacity-100"
+                          title="Delete Category"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Panel: Tables Grid & Actions */}
+          <div className="lg:col-span-8 space-y-6">
+            {activeGroupId ? (
+              <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-8">
+                {/* Header detail */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-50 pb-6">
+                  <div>
+                    <h3 className="text-[18px] font-black text-[#0c1424]">
+                      {selectedGroup?.name} Layout
+                    </h3>
+                    <p className="text-[12px] text-slate-400 font-medium mt-1">
+                      Manage layout placement and table structures for this section.
+                    </p>
+                  </div>
+                  
+                  {/* Table setup widget */}
+                  {isAdmin && (
+                    <form onSubmit={handleAddTable} className="flex flex-wrap items-center gap-3 bg-slate-50 border border-slate-100 p-2 rounded-2xl">
+                      {/* Name / Table number input - STRICT numbers constraint */}
+                      <div className="h-10 w-28 rounded-xl bg-white border border-slate-200 px-3 flex items-center focus-within:ring-2 focus-within:ring-[#5dc7ec]/25 transition-all">
+                        <input
+                          type="text"
+                          pattern="[0-9]*"
+                          inputMode="numeric"
+                          placeholder="Table #"
+                          value={newTableName}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "" || /^\d+$/.test(val)) {
+                              setNewTableName(val);
+                            }
+                          }}
+                          className="bg-transparent w-full text-[12px] font-extrabold text-[#0c1424] outline-none"
+                        />
+                      </div>
+
+                      {/* Seats count spinner */}
+                      <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-2 rounded-xl h-10 select-none">
+                        <button
+                          type="button"
+                          onClick={() => setNewTableSeats((p) => Math.max(1, p - 1))}
+                          className="h-6 w-6 rounded-md hover:bg-slate-100 flex items-center justify-center font-black text-[12px] text-slate-400"
+                        >
+                          -
+                        </button>
+                        <span className="text-[12px] font-black text-[#0c1424] w-8 text-center">{newTableSeats} seats</span>
+                        <button
+                          type="button"
+                          onClick={() => setNewTableSeats((p) => p + 1)}
+                          className="h-6 w-6 rounded-md hover:bg-slate-100 flex items-center justify-center font-black text-[12px] text-slate-400"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isSavingTable || !newTableName.trim()}
+                        className="h-10 px-4 rounded-xl bg-[#0c1424] text-white text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-slate-850 disabled:opacity-50 transition-all cursor-pointer shadow-md shadow-[#0c1424]/5"
+                      >
+                        <Plus size={14} /> Add Table
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                {/* Tables Grid */}
+                {activeTables.length === 0 ? (
+                  <div className="py-16 text-center text-slate-400 space-y-4">
+                    <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mx-auto border border-dashed border-slate-200">
+                      <LayoutGrid size={24} />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-[14px] font-bold text-[#0c1424]">This section is empty</h4>
+                      <p className="text-[11px] text-slate-400 max-w-[280px] mx-auto leading-relaxed">
+                        Add seating coordinates and table configurations to structure your flooring layout.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {activeTables.map((table: any) => (
+                      <div
+                        key={table.id}
+                        className="relative bg-slate-50/50 hover:bg-white border border-slate-100 hover:border-[#5dc7ec]/30 hover:shadow-lg hover:shadow-black/5 group/card rounded-[24px] p-5 transition-all text-center flex flex-col items-center justify-center gap-3 min-h-[140px]"
+                      >
+                        {/* Seating cap badge */}
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 rounded-md px-2 py-0.5 select-none">
+                          {table.seats} Seats
+                        </span>
+
+                        {/* Name/Number */}
+                        <h4 className="text-[18px] font-black text-[#0c1424] leading-none mt-1">
+                          Table {table.name}
+                        </h4>
+
+                        {/* Status badge */}
+                        <div className="flex items-center gap-1.5 bg-emerald-50 rounded-full px-2.5 py-0.5">
+                          <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full" />
+                          <span className="text-[9px] font-black uppercase text-emerald-600 tracking-wider">
+                            Available
+                          </span>
+                        </div>
+
+                        {/* Delete action overlay */}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteTable(table.id, table.name)}
+                            className="absolute -top-2.5 -right-2.5 h-7 w-7 rounded-full bg-white border border-slate-150 text-slate-300 hover:text-rose-500 hover:border-rose-100 flex items-center justify-center transition-all shadow-md opacity-0 group-hover/card:opacity-100 group-hover/card:scale-105"
+                            title="Delete Table"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-[32px] p-12 border border-slate-100 shadow-sm text-center py-20 space-y-4">
+                <div className="h-20 w-20 bg-slate-50 rounded-[32px] flex items-center justify-center text-slate-300 mx-auto">
+                  <LayoutGrid size={32} />
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-[18px] font-black text-[#0c1424]">Select a Section</h4>
+                  <p className="text-[13px] text-slate-400 font-medium max-w-[320px] mx-auto leading-relaxed">
+                    Highlight an active floor category or floor section from the left column to view and modify tables layout.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* --- Main Settings Module --- */
+
 type SettingType =
   | "profile"
   | "tax"
@@ -1875,6 +2342,7 @@ type SettingType =
   | "sms"
   | "terminals"
   | "printer"
+  | "tables_mgmt"
   | "visuals";
 
 export default function SettingsPage() {
@@ -1895,6 +2363,7 @@ export default function SettingsPage() {
     { id: "loyalty", label: "Loyalty Program", icon: Star },
     { id: "sms", label: "SMS Credits", icon: MessageSquare },
     { id: "terminals", label: "Terminals", icon: Monitor },
+    { id: "tables_mgmt", label: "Table Management", icon: LayoutGrid },
     { id: "printer", label: "Printer / Docket", icon: Printer },
     { id: "visuals", label: "Themes and Settings", icon: Sliders },
   ];
@@ -1930,6 +2399,9 @@ export default function SettingsPage() {
     if (item.id === "terminals") {
       return hasPermission(FRONTEND_PERMISSIONS.SETTINGS_TERMINALS);
     }
+    if (item.id === "tables_mgmt") {
+      return true; // Visible to all with settings access, restricted inside
+    }
     if (item.id === "printer") {
       return true; // For now allow all who can see settings, can refine later
     }
@@ -1956,7 +2428,7 @@ export default function SettingsPage() {
         <div className="px-8 flex flex-col gap-10">
           <div className="space-y-4">
             <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] px-4">
-              CONFIGURATION
+               CONFIGURATION
             </h3>
             <div className="space-y-1">
               {visibleNavItems.map((item) => (
@@ -1988,6 +2460,7 @@ export default function SettingsPage() {
           {activeSetting === "payment" && <PaymentMethods />}
           {activeSetting === "loyalty" && <LoyaltyProgram />}
           {activeSetting === "sms" && <SMSCredits />}
+          {activeSetting === "tables_mgmt" && <TableLayoutManagement />}
           {activeSetting === "printer" && <PrinterDocketSettings />}
           {activeSetting === "visuals" && <VisualsSettings />}
         </div>
@@ -1995,3 +2468,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
