@@ -12,13 +12,39 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const configuredOrigins = configService.get<string>('FRONTEND_URL');
-  const allowedOrigins = configuredOrigins
-    ? configuredOrigins.split(',').map((origin) => origin.trim())
-    : true;
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // Allow requests with no origin (like mobile apps, postman, server-to-server)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const allowedList = configuredOrigins
+        ? configuredOrigins.split(',').map((o) => o.trim().replace(/\/$/, ''))
+        : [];
+
+      // Unconditionally allow localhost, tillcloud.com.au, and any tillcloud.com.au subdomains
+      const isAllowed =
+        allowedList.includes(origin) ||
+        origin === 'https://test.tillcloud.com.au' ||
+        origin === 'https://tillcloud.com.au' ||
+        /\.tillcloud\.com\.au$/.test(origin) ||
+        origin.startsWith('http://localhost:') ||
+        !configuredOrigins;
+
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
   });
 
   app.use(
