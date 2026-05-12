@@ -26,4 +26,4 @@ RUN npm run build
 EXPOSE 3100
 
 # Start script: Run migrations and then start the app
-CMD npx prisma db push && npm run start:prod
+CMD npx prisma db push --accept-data-loss && npm run start:prod
