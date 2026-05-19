@@ -500,6 +500,9 @@ export class AuthService {
 
     for (const candidate of candidates) {
       try {
+        if (!candidate.pinEncrypted || !candidate.passwordHash) {
+          continue;
+        }
         const decryptedPin = this.decryptPin(candidate.pinEncrypted);
         if (decryptedPin === pin) {
           const isPasswordValid = bcrypt.compareSync(
