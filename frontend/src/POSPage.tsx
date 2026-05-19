@@ -38,6 +38,7 @@ export default function POSPage() {
   const [toastMessage, setToastMessage] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showPosHeader] = useState(() => localStorage.getItem("ui-pos-header") === "true");
 
   const [modifierItem, setModifierItem] = useState<any | null>(null);
   const [comboDeal, setComboDeal] = useState<any | null>(null);
@@ -139,42 +140,44 @@ export default function POSPage() {
   return (
     <div className="h-screen w-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans overflow-hidden">
       {/* POS Header */}
-      <header className="h-20 bg-[#0c1424] text-white flex items-center justify-between px-6 shrink-0 z-20 shadow-xl">
-        <div className="flex items-center gap-8">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[#5dc7ec]">
-              TillCloud POS
+      {showPosHeader && (
+        <header className="h-20 bg-[#0c1424] text-white flex items-center justify-between px-6 shrink-0 z-20 shadow-xl">
+          <div className="flex items-center gap-8">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[#5dc7ec]">
+                TillCloud POS
+              </div>
+              <div className="text-xl font-black">
+                {user?.businessName || "Restaurant"}
+              </div>
             </div>
-            <div className="text-xl font-black">
-              {user?.businessName || "Restaurant"}
+            <div className="h-8 w-px bg-white/10 hidden md:block" />
+            <div className="hidden md:flex items-center gap-4">
+              <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+                <Clock3 size={16} className="text-[#5dc7ec]" />
+                <span className="text-sm font-bold">Session: Front Counter</span>
+              </div>
             </div>
           </div>
-          <div className="h-8 w-px bg-white/10 hidden md:block" />
-          <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
-              <Clock3 size={16} className="text-[#5dc7ec]" />
-              <span className="text-sm font-bold">Session: Front Counter</span>
-            </div>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex flex-col items-end mr-2">
-            <span className="text-xs font-bold text-slate-400">
-              {user?.role || "STAFF"}
-            </span>
-            <span className="text-sm font-black">
-              {user?.fullName || "Staff Member"}
-            </span>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex flex-col items-end mr-2">
+              <span className="text-xs font-bold text-slate-400">
+                {user?.role || "STAFF"}
+              </span>
+              <span className="text-sm font-black">
+                {user?.fullName || "Staff Member"}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="h-12 w-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-rose-500 hover:border-rose-500 transition-all text-white/70 hover:text-white"
+            >
+              <LogOut size={20} />
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="h-12 w-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-rose-500 hover:border-rose-500 transition-all text-white/70 hover:text-white"
-          >
-            <LogOut size={20} />
-          </button>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Main 3-Column Content */}
       <main className="flex-1 flex overflow-hidden p-4 gap-4">
@@ -255,6 +258,21 @@ export default function POSPage() {
                 );
               })}
             </div>
+
+            {/* Fallback Logout when header is hidden */}
+            {!showPosHeader && (
+              <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center shrink-0">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{user?.fullName || "Staff"}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="h-10 px-4 rounded-xl bg-rose-50 text-rose-600 font-bold text-xs flex items-center gap-2 hover:bg-rose-100 transition-all"
+                >
+                  <LogOut size={14} /> Logout
+                </button>
+              </div>
+            )}
           </div>
         </aside>
 

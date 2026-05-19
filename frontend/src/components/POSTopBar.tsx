@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
 import {
-  Bell,
-  HelpCircle,
   LogOut,
   ClipboardList,
   LayoutGrid,
-  CheckCircle2,
   Maximize2,
   Minimize2,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 import { usePosCart } from "../context/PosCartContext";
 import Clock from "./Clock";
 
@@ -25,6 +24,7 @@ const POSTopBar: React.FC<POSTopBarProps> = () => {
     clearBill,
     activeSubView,
     setActiveSubView,
+    isLandingScreen,
     setIsLandingScreen,
     billItems,
     activeBill,
@@ -32,13 +32,25 @@ const POSTopBar: React.FC<POSTopBarProps> = () => {
   const navigate = useNavigate();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [showPosHeader, setShowPosHeader] = useState(() => localStorage.getItem("ui-pos-header") === "true");
 
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
+    const handleStorageChange = () => {
+      setShowPosHeader(localStorage.getItem("ui-pos-header") === "true");
+    };
+
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("ui-pos-header-change", handleStorageChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("ui-pos-header-change", handleStorageChange);
+    };
   }, []);
 
   const handleExit = () => {
@@ -67,26 +79,35 @@ const POSTopBar: React.FC<POSTopBarProps> = () => {
   };
 
   const handleNewOrderClick = () => {
-    const hasUnsavedItems = billItems && billItems.length > 0;
-    const isNotPaid = activeBill && activeBill.status !== "PAID" && activeBill.status !== "CLOSED" && activeBill.status !== "VOIDED";
+    // If we're already outside of an active order, just start a new one
+    clearBill();
+    setIsLandingScreen(true);
+    setActiveSubView("menu");
+    navigate("/pos");
+  };
 
-    // Only prompt with unsaved warning if user is actively in the cart/menu view editing an order
-    if (activeSubView === "menu" && hasUnsavedItems && isNotPaid) {
+  const handleBackClick = () => {
+    const isDraft = activeBill && (activeBill.status === "CREATED" || activeBill.status === "OPEN");
+    const hasItems = billItems && billItems.length > 0;
+    
+    if (isDraft && hasItems) {
       setShowUnsavedWarning(true);
     } else {
       clearBill();
       setIsLandingScreen(true);
       setActiveSubView("menu");
-      navigate("/pos");
     }
   };
 
   const handleConfirmDiscard = () => {
     setShowUnsavedWarning(false);
+    if (activeBill?.id) {
+       // Explicitly void the discarded draft so it doesn't linger on the dashboard
+       api.delete(`/orders/${activeBill.id}`, { data: { reason: "Discarded unsaved draft" } }).catch(console.error);
+    }
     clearBill();
     setIsLandingScreen(true);
     setActiveSubView("menu");
-    navigate("/pos");
   };
 
   return (
@@ -101,37 +122,50 @@ const POSTopBar: React.FC<POSTopBarProps> = () => {
             className="flex items-center gap-3 hover:opacity-85 transition-opacity text-left"
           >
             <img src="/logo.png" alt="TillCloud Logo" className="w-8 h-8 object-contain flex-shrink-0" />
-            <h1 className="text-[17px] font-[1000] tracking-tight text-[#0c1424] leading-none">
-              TillCloud POS
-            </h1>
           </button>
 
           <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
 
           {/* Compact Combined Restaurant & Timer Badge next to POS name */}
-          <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5 shadow-sm select-none">
-            <div className="flex flex-col border-r border-slate-200 pr-3">
-              <span className="text-[11px] font-[900] text-slate-700 uppercase tracking-wider leading-none">
-                {user?.businessName || "Restaurant"}
-              </span>
-              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">
-                {user?.role || "STAFF"}
-                {user?.fullName ? (
-                  <span className="normal-case tracking-normal font-semibold text-slate-500"> · {user.fullName}</span>
-                ) : null}
-              </span>
+          {showPosHeader && (
+            <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5 shadow-sm select-none">
+              <div className="flex flex-col border-r border-slate-200 pr-3">
+                <span className="text-[11px] font-[900] text-slate-700 uppercase tracking-wider leading-none">
+                  {user?.businessName || "Restaurant"}
+                </span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">
+                  {user?.role || "STAFF"}
+                  {user?.fullName ? (
+                    <span className="normal-case tracking-normal font-semibold text-slate-500"> · {user.fullName}</span>
+                  ) : null}
+                </span>
+              </div>
+              <Clock />
             </div>
-            <Clock />
-          </div>
+          )}
 
           {/* Premium Highlighted + NEW ORDER Button */}
-          <button
-            onClick={handleNewOrderClick}
-            className="flex items-center gap-1.5 h-10 px-5 rounded-full bg-[#0c1424] text-white text-[12px] font-black uppercase tracking-wider shadow-lg shadow-black/5 hover:scale-[1.02] hover:bg-[#142038] transition-all cursor-pointer"
-            title="Start a fresh POS session"
-          >
-            + New Order
-          </button>
+          {(activeSubView === "live-orders" || activeSubView === "tables") && (
+            <button
+              onClick={handleNewOrderClick}
+              className="flex items-center gap-1.5 h-10 px-5 rounded-full bg-[#0c1424] text-white text-[12px] font-black uppercase tracking-wider shadow-lg shadow-black/5 hover:scale-[1.02] hover:bg-[#142038] transition-all cursor-pointer"
+              title="Start a fresh POS session"
+            >
+              + New Order
+            </button>
+          )}
+
+          {/* Back Button when inside an order (not on the landing/selection screen) */}
+          {activeSubView === "menu" && !isLandingScreen && (
+            <button
+              onClick={handleBackClick}
+              className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-slate-100 text-slate-600 text-[12px] font-black uppercase tracking-wider hover:bg-slate-200 transition-all cursor-pointer"
+              title="Leave active order and go back"
+            >
+              <ArrowLeft size={16} strokeWidth={2.5} />
+              Back
+            </button>
+          )}
         </div>
 
         {/* Central Segmented Control for POS Screen Navigation */}
@@ -148,17 +182,6 @@ const POSTopBar: React.FC<POSTopBarProps> = () => {
             Live Orders
           </button>
 
-          <button
-            onClick={() => setActiveSubView("recent-orders")}
-            className={`flex items-center gap-2 h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-              activeSubView === "recent-orders"
-                ? "bg-[#0c1424] text-white shadow-md shadow-black/10"
-                : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/50"
-            }`}
-          >
-            <CheckCircle2 size={15} strokeWidth={activeSubView === "recent-orders" ? 2.5 : 2} />
-            Recent Orders
-          </button>
 
           <button
             onClick={() => setActiveSubView("tables")}
@@ -190,21 +213,9 @@ const POSTopBar: React.FC<POSTopBarProps> = () => {
                 className="h-full w-full object-cover"
               />
             </div>
-            <div className="text-sm font-black text-[#0c1424]">
-              {user?.role === "CASHIER" ? "Cashier" : user?.role || "User"} #
-              {user?.id.slice(-2) || "42"}
-            </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="text-slate-400 hover:text-[#0c1424] transition-colors relative">
-              <Bell size={20} />
-              <div className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-rose-500 border border-white"></div>
-            </button>
-            <button className="text-slate-400 hover:text-[#0c1424] transition-colors">
-              <HelpCircle size={20} />
-            </button>
-            <div className="h-8 w-[1px] bg-slate-100 mx-1"></div>
             <button
               onClick={handleExit}
               className="flex h-10 w-10 items-center justify-center rounded-xl text-rose-500 hover:bg-rose-50 transition-colors"
@@ -226,7 +237,7 @@ const POSTopBar: React.FC<POSTopBarProps> = () => {
           <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-2xl max-w-md w-full relative z-[151] animate-in fade-in zoom-in-95 duration-250">
             <h3 className="text-[19px] font-[1000] text-[#0c1424]">Unsaved Order in Progress</h3>
             <p className="text-[13px] text-slate-500 font-medium mt-2 leading-relaxed">
-              You are currently editing an active order. If you start a new order, your current unsaved progress will be discarded.
+              You are currently editing an active order. If you leave, your current unsaved progress will be discarded.
             </p>
             <div className="flex items-center gap-3 mt-6">
               <button
@@ -239,7 +250,7 @@ const POSTopBar: React.FC<POSTopBarProps> = () => {
                 onClick={handleConfirmDiscard}
                 className="flex-1 h-12 rounded-xl bg-rose-500 text-white font-black text-xs uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/15 cursor-pointer"
               >
-                Discard & Start New
+                Discard & Leave
               </button>
             </div>
           </div>

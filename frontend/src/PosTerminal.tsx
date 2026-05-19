@@ -35,6 +35,7 @@ export default function PosTerminal() {
   const [toastMessage, setToastMessage] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showPosHeader] = useState(() => localStorage.getItem("ui-pos-header") === "true");
 
   const categoryTabs = useMemo(
     () => [
@@ -113,32 +114,34 @@ export default function PosTerminal() {
   return (
     <div className="min-h-screen bg-[#f6f8fc] text-slate-900">
       <div className="mx-auto max-w-[1700px] px-4 py-4 sm:px-6 lg:px-8">
-        <div className="mb-4 rounded-[28px] bg-[#0c1424] px-6 py-5 text-white shadow-2xl shadow-black/10">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.25em] text-[#5dc7ec]">
-                POS Terminal
+        {showPosHeader && (
+          <div className="mb-4 rounded-[28px] bg-[#0c1424] px-6 py-5 text-white shadow-2xl shadow-black/10">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.25em] text-[#5dc7ec]">
+                  POS Terminal
+                </div>
+                <h1 className="mt-2 text-3xl font-black tracking-tight">
+                  {user?.businessName || "Restaurant"} ordering station
+                </h1>
+                <p className="mt-1 text-sm text-slate-300">
+                  Signed in as {user?.fullName || "Cashier"}.
+                </p>
               </div>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
-                {user?.businessName || "Restaurant"} ordering station
-              </h1>
-              <p className="mt-1 text-sm text-slate-300">
-                Signed in as {user?.fullName || "Cashier"}.
-              </p>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => {
-                  void logout();
-                }}
-                className="rounded-full border border-white/15 px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-white/90 hover:bg-white/10"
-              >
-                Logout
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => {
+                    void logout();
+                  }}
+                  className="rounded-full border border-white/15 px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-white/90 hover:bg-white/10"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="grid gap-4 lg:grid-cols-[1.35fr_0.8fr]">
           <section className="rounded-[32px] border border-slate-100 bg-white p-4 sm:p-6 shadow-sm">
@@ -428,6 +431,15 @@ export default function PosTerminal() {
                 <CheckCircle2 size={14} /> {location.pathname}
               </span>
             </div>
+
+            {!showPosHeader && (
+              <button
+                onClick={() => void logout()}
+                className="mt-4 h-12 w-full rounded-2xl bg-rose-50 text-rose-600 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-100 transition-all"
+              >
+                Logout
+              </button>
+            )}
           </aside>
         </div>
       </div>

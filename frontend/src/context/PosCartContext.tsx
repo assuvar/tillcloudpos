@@ -591,6 +591,20 @@ export const PosCartProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const clearBill = () => {
+    // If the user abandons an order with 0 items, automatically void it to free up the table and keep the dashboard clean
+    if (activeBill && (!activeBill.items || activeBill.items.length === 0)) {
+      if (
+        activeBill.status !== "VOIDED" &&
+        activeBill.status !== "CLOSED" &&
+        activeBill.status !== "PAID" &&
+        activeBill.status !== "COMPLETED"
+      ) {
+        api.delete(`/orders/${activeBill.id}`, { data: { reason: "Abandoned empty order" } })
+          .then(() => loadOpenBills())
+          .catch((err) => console.error("Failed to cleanup abandoned empty bill", err));
+      }
+    }
+
     syncBill(null);
     setIsLandingScreen(true);
     setUserHasSelectedServiceModel(false);

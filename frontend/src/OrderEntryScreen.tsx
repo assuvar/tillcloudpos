@@ -25,7 +25,6 @@ import { ALLOWED_SERVICE_MODELS, type ServiceModel } from "./serviceModels";
 
 import POSTablesScreen from "./POSTablesScreen";
 import { LiveOrdersPanel } from "./components/LiveOrdersPanel";
-import { RecentOrdersPanel } from "./components/RecentOrdersPanel";
 
 interface CustomerData {
   name: string;
@@ -732,9 +731,7 @@ export default function OrderEntryScreen() {
   if (activeSubView === "live-orders") {
     return <LiveOrdersPanel />;
   }
-  if (activeSubView === "recent-orders") {
-    return <RecentOrdersPanel />;
-  }
+
   if (activeSubView === "kot-board") {
     return <LiveOrdersPanel initialSubTab="kot" />;
   }
@@ -750,8 +747,8 @@ export default function OrderEntryScreen() {
             COLUMN 1: Category Sidebar (Left side, fixed width 220px)
             ======================================================== */}
         {!(effectiveOrderType === "DINE_IN" && showTableSelection) && (
-          <aside className="custom-scrollbar min-h-0 w-[220px] shrink-0 overflow-y-auto rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm flex flex-col">
-            <h3 className="mb-3 px-1 text-xs font-black uppercase tracking-wider text-slate-400">
+          <aside className="custom-scrollbar min-h-0 w-[140px] lg:w-[180px] xl:w-[220px] shrink-0 overflow-y-auto rounded-[24px] border border-slate-100 bg-white p-3 xl:p-4 shadow-sm flex flex-col transition-all">
+            <h3 className="mb-3 px-1 text-[10px] xl:text-xs font-black uppercase tracking-wider text-slate-400">
               Categories
             </h3>
             
@@ -783,10 +780,10 @@ export default function OrderEntryScreen() {
                       style={{ backgroundColor: category.color || "#e2e8f0" }}
                     />
                     <div className="flex-1 text-left min-w-0">
-                      <div className="text-[12px] font-black uppercase tracking-wide truncate leading-none">
+                      <div className="text-[10px] xl:text-[12px] font-black uppercase tracking-wide break-words whitespace-normal leading-tight">
                         {category.name}
                       </div>
-                      <div className={`text-[10px] font-bold mt-1.5 leading-none ${
+                      <div className={`text-[9px] xl:text-[10px] font-bold mt-1.5 leading-none ${
                         selectedCategoryId === category.id ? "text-[#5dc7ec]" : "text-slate-400"
                       }`}>
                         {category.items.length} items
@@ -825,7 +822,7 @@ export default function OrderEntryScreen() {
                           setShowTableSelection(false);
                           showToast("Started In-Store Order");
                         }}
-                        className="h-9 px-5 rounded-lg bg-[#c52c24] text-[#ffffff] hover:bg-[#b0221a] font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-sm shadow-[#c52c24]/10 cursor-pointer"
+                        className="h-9 px-5 rounded-lg bg-[#0c1424] text-white hover:bg-[#142038] font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-sm shadow-black/10 cursor-pointer"
                       >
                         In-Store
                       </button>
@@ -840,7 +837,7 @@ export default function OrderEntryScreen() {
                           setShowTableSelection(false);
                           showToast("Started Delivery Order");
                         }}
-                        className="h-9 px-5 rounded-lg bg-[#c52c24] text-[#ffffff] hover:bg-[#b0221a] font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-sm shadow-[#c52c24]/10 cursor-pointer"
+                        className="h-9 px-5 rounded-lg bg-[#0c1424] text-white hover:bg-[#142038] font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-sm shadow-black/10 cursor-pointer"
                       >
                         Delivery
                       </button>
@@ -855,7 +852,7 @@ export default function OrderEntryScreen() {
                           setShowTableSelection(false);
                           showToast("Started Pickup Order");
                         }}
-                        className="h-9 px-5 rounded-lg bg-[#c52c24] text-[#ffffff] hover:bg-[#b0221a] font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-sm shadow-[#c52c24]/10 cursor-pointer"
+                        className="h-9 px-5 rounded-lg bg-[#0c1424] text-white hover:bg-[#142038] font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-sm shadow-black/10 cursor-pointer"
                       >
                         Pick Up
                       </button>
@@ -865,7 +862,7 @@ export default function OrderEntryScreen() {
                       onClick={() => {
                         showToast("Manage layouts & add tables in Restaurant Settings.");
                       }}
-                      className="h-9 px-4 rounded-lg bg-[#c52c24] text-[#ffffff] hover:bg-[#b0221a] font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-sm shadow-[#c52c24]/10 cursor-pointer"
+                      className="h-9 px-4 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer"
                     >
                       + Add Table
                     </button>
@@ -879,7 +876,7 @@ export default function OrderEntryScreen() {
                     <button
                       type="button"
                       onClick={() => showToast("Table Reservation panel opened")}
-                      className="h-8 px-4 rounded-lg bg-[#c52c24] text-white hover:bg-[#b0221a] font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+                      className="h-8 px-4 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-sm"
                     >
                       + Table Reservation
                     </button>
@@ -1075,7 +1072,7 @@ export default function OrderEntryScreen() {
 
               {/* Menu Items Container */}
               {isLoading ? (
-                <div className="grid min-h-0 flex-1 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pb-4 animate-pulse">
+                <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4 overflow-y-auto pb-4 animate-pulse">
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((idx) => (
                     <div key={idx} className="h-[180px] rounded-2xl bg-slate-100/70" />
                   ))}
@@ -1097,9 +1094,9 @@ export default function OrderEntryScreen() {
                   </div>
                 </div>
               ) : (
-                <div className="custom-scrollbar grid min-h-0 flex-1 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto pr-1 pb-4">
+                <div className="custom-scrollbar grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4 overflow-y-auto pr-1 pb-4">
                   {visibleItems.length === 0 ? (
-                    <div className="col-span-full rounded-[24px] border border-dashed border-slate-200 bg-slate-50/50 p-12 text-center flex flex-col items-center justify-center">
+                    <div className="col-span-full rounded-[24px] border border-dashed border-slate-200 bg-slate-50/50 p-8 lg:p-12 text-center flex flex-col items-center justify-center">
                       <ShoppingBag size={32} className="text-slate-300" />
                       <p className="mt-3 text-sm font-black text-[#0c1424]">
                         No items available in this category.
@@ -1184,10 +1181,10 @@ export default function OrderEntryScreen() {
         </section>
 
         {/* ========================================================
-            COLUMN 3: Cart Panel (Right side, fixed width 380px)
+            COLUMN 3: Cart Panel (Right side, flexible width)
             ======================================================== */}
         {!(effectiveOrderType === "DINE_IN" && showTableSelection) && (
-          <aside className="custom-scrollbar min-h-0 flex w-[380px] shrink-0 flex-col overflow-hidden rounded-[24px] border border-slate-100 bg-white shadow-sm">
+          <aside className="custom-scrollbar min-h-0 flex w-[280px] lg:w-[320px] xl:w-[380px] shrink-0 flex-col overflow-hidden rounded-[24px] border border-slate-100 bg-white shadow-sm transition-all">
           
           {/* Cart Header Section */}
           <div className="border-b border-slate-50 p-4">

@@ -1552,15 +1552,18 @@ const VisualsSettings = () => {
   const [scale, setScale] = useState<string>("100%");
   const [softFont, setSoftFont] = useState<boolean>(false);
   const [theme, setTheme] = useState<string>("light");
+  const [showPosHeader, setShowPosHeader] = useState<boolean>(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     const savedScale = localStorage.getItem("ui-scale") || "100%";
     const savedSoft = localStorage.getItem("ui-font-soft") === "true";
     const savedTheme = localStorage.getItem("ui-theme") || "light";
+    const savedPosHeader = localStorage.getItem("ui-pos-header") === "true";
     setScale(savedScale);
     setSoftFont(savedSoft);
     setTheme(savedTheme);
+    setShowPosHeader(savedPosHeader);
   }, []);
 
   const handleApplyScale = (newScale: string) => {
@@ -1602,6 +1605,14 @@ const VisualsSettings = () => {
       document.body.classList.remove("softer-typography");
     }
     setSaveMsg({ type: "success", text: `Typography weights tuned successfully!` });
+    setTimeout(() => setSaveMsg(null), 3000);
+  };
+
+  const handleTogglePosHeader = (val: boolean) => {
+    setShowPosHeader(val);
+    localStorage.setItem("ui-pos-header", val ? "true" : "false");
+    window.dispatchEvent(new Event("ui-pos-header-change"));
+    setSaveMsg({ type: "success", text: `POS Header visibility updated!` });
     setTimeout(() => setSaveMsg(null), 3000);
   };
 
@@ -1841,6 +1852,20 @@ const VisualsSettings = () => {
               className={`w-12 h-7 rounded-full relative transition-colors duration-200 ${softFont ? "bg-emerald-500" : "bg-slate-200"}`}
             >
               <div className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white transition-transform duration-200 ${softFont ? "translate-x-5" : "translate-x-0"}`} />
+            </button>
+          </div>
+          <div className="flex items-center justify-between py-4">
+            <div>
+              <h4 className="text-[13px] font-black text-[#0c1424]">Show POS Header</h4>
+              <p className="text-[11px] text-slate-400 font-medium">
+                Display the restaurant name, admin info, time, and date at the top of the POS screens.
+              </p>
+            </div>
+            <button
+              onClick={() => handleTogglePosHeader(!showPosHeader)}
+              className={`w-12 h-7 rounded-full relative transition-colors duration-200 ${showPosHeader ? "bg-emerald-500" : "bg-slate-200"}`}
+            >
+              <div className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white transition-transform duration-200 ${showPosHeader ? "translate-x-5" : "translate-x-0"}`} />
             </button>
           </div>
         </div>

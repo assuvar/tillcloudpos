@@ -8,14 +8,13 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  Bell,
-  HelpCircle,
   LayoutGrid,
   LucideIcon,
   ShieldAlert,
   Plus,
+  History,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { DASHBOARD_VIEWS } from "../dashboardNavigation";
@@ -64,6 +63,7 @@ function SidebarIcon({
 const VIEW_ICONS: Record<string, LucideIcon> = {
   home: Home,
   orders: LayoutGrid,
+  history: History,
   menu: Utensils,
   staff: Users,
   inventory: Package,
@@ -75,6 +75,7 @@ const VIEW_ICONS: Record<string, LucideIcon> = {
 const VIEW_PERMISSION: Record<string, string | null> = {
   home: FRONTEND_PERMISSIONS.DASHBOARD_VIEW,
   orders: FRONTEND_PERMISSIONS.BILLING_VIEW_OPEN,
+  history: FRONTEND_PERMISSIONS.REPORTS_VIEW,
   menu: FRONTEND_PERMISSIONS.MENU_HIDE_SHOW_ITEMS,
   staff: FRONTEND_PERMISSIONS.STAFF_VIEW,
   inventory: FRONTEND_PERMISSIONS.INVENTORY_VIEW_STOCK,
@@ -103,6 +104,19 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
   const [accessDeniedLabel, setAccessDeniedLabel] = useState<string | null>(
     null,
   );
+  const [showPosHeader, setShowPosHeader] = useState(() => localStorage.getItem("ui-pos-header") === "true");
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setShowPosHeader(localStorage.getItem("ui-pos-header") === "true");
+    };
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("ui-pos-header-change", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("ui-pos-header-change", handleStorageChange);
+    };
+  }, []);
   const isCashier = user?.role === "CASHIER";
 
   const handleLogout = () => {
@@ -214,11 +228,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       <main className="mx-auto min-w-0 w-full max-w-[1600px] px-4 pb-24 pt-4 sm:px-6 lg:ml-0 lg:pl-[100px] lg:pr-8 xl:pl-[108px] lg:py-8">
         <header className="mb-6 flex flex-col gap-4 lg:mb-8 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex flex-col gap-0.5">
-              <h2 className="text-[20px] font-[950] tracking-tight text-[#0c1424] leading-none">
-                TillCloud POS
-              </h2>
-            </div>
+
             {availableOutlets.length > 0 && (
               <div className="relative">
                 <select
@@ -255,28 +265,26 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
           </button>
 
           <div className="flex items-center gap-4 self-end lg:self-auto">
-            <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-2.5 shadow-sm select-none">
-              <div className="flex flex-col border-r border-slate-200 pr-4">
-                <span className="text-[13px] font-[900] text-slate-800 uppercase tracking-wide leading-none">
-                  {user?.businessName || "Restaurant"}
-                </span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
-                  {user?.role || "User"}
-                  {user?.fullName ? (
-                    <span className="normal-case tracking-normal font-semibold text-slate-500"> · {user.fullName}</span>
-                  ) : null}
-                </span>
-              </div>
-              <Clock />
-            </div>
-            <div className="h-6 w-[1px] bg-slate-100 hidden sm:block mx-1"></div>
-            <button className="text-slate-400 hover:text-[#0c1424] transition-colors relative">
-              <Bell size={18} />
-              <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-rose-500 border border-white"></div>
-            </button>
-            <button className="text-slate-400 hover:text-[#0c1424] transition-colors">
-              <HelpCircle size={18} />
-            </button>
+            {showPosHeader && (
+              <>
+                <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-2.5 shadow-sm select-none">
+                  <div className="flex flex-col border-r border-slate-200 pr-4">
+                    <span className="text-[13px] font-[900] text-slate-800 uppercase tracking-wide leading-none">
+                      {user?.businessName || "Restaurant"}
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
+                      {user?.role || "User"}
+                      {user?.fullName ? (
+                        <span className="normal-case tracking-normal font-semibold text-slate-500"> · {user.fullName}</span>
+                      ) : null}
+                    </span>
+                  </div>
+                  <Clock />
+                </div>
+                <div className="h-6 w-[1px] bg-slate-100 hidden sm:block mx-1"></div>
+              </>
+            )}
+
             <div className="h-10 w-10 rounded-full border border-slate-200 overflow-hidden shadow-sm">
               <img
                 src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || "User")}&background=f3f4f6&color=0c1424`}
