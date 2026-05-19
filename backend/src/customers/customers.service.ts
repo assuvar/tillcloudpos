@@ -23,7 +23,12 @@ export class CustomersService {
     if (frequent === 'true') {
       where.totalVisits = { gte: 5 }; // Define frequent as >= 5 visits
     }
-    if (customerType === 'DELIVERY' || customerType === 'PICKUP' || customerType === 'DINE_IN' || customerType === 'IN_STORE') {
+    if (
+      customerType === 'DELIVERY' ||
+      customerType === 'PICKUP' ||
+      customerType === 'DINE_IN' ||
+      customerType === 'IN_STORE'
+    ) {
       where.bills = {
         some: {
           orderType: customerType,
@@ -102,7 +107,11 @@ export class CustomersService {
     });
 
     let address = '';
-    if (latestDeliveryBill && latestDeliveryBill.deliveryAddress && latestDeliveryBill.deliveryAddress.trim() !== '') {
+    if (
+      latestDeliveryBill &&
+      latestDeliveryBill.deliveryAddress &&
+      latestDeliveryBill.deliveryAddress.trim() !== ''
+    ) {
       const parts = [
         latestDeliveryBill.deliveryAddress,
         latestDeliveryBill.deliverySuburb,
@@ -121,7 +130,12 @@ export class CustomersService {
     return { ...customer, address, purchaseHistory, loyaltyActivity };
   }
 
-  async adjustLoyaltyPoints(restaurantId: string, id: string, data: { pointsChange: number; reason: string }, userId: string) {
+  async adjustLoyaltyPoints(
+    restaurantId: string,
+    id: string,
+    data: { pointsChange: number; reason: string },
+    userId: string,
+  ) {
     const customer = await this.prisma.customer.findUnique({ where: { id } });
     if (!customer || customer.restaurantId !== restaurantId) {
       throw new NotFoundException('Customer not found');

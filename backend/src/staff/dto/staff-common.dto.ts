@@ -109,4 +109,3 @@ export class ResetStaffPasswordDto {
   @MaxLength(128)
   newPassword?: string;
 }
-

@@ -31,7 +31,10 @@ export class AttendanceController {
   }
 
   @Get(':employeeId')
-  async findByEmployee(@GetUser() user: any, @Param('employeeId') employeeId: string) {
+  async findByEmployee(
+    @GetUser() user: any,
+    @Param('employeeId') employeeId: string,
+  ) {
     return this.attendanceService.findByEmployee(employeeId, user.restaurantId);
   }
 }

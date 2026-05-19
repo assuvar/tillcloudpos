@@ -502,7 +502,10 @@ export class AuthService {
       try {
         const decryptedPin = this.decryptPin(candidate.pinEncrypted!);
         if (decryptedPin === pin) {
-          const isPasswordValid = await bcrypt.compare(password, candidate.passwordHash!);
+          const isPasswordValid = await bcrypt.compare(
+            password,
+            candidate.passwordHash!,
+          );
           if (isPasswordValid) {
             matchedUser = candidate;
             break;
@@ -529,7 +532,6 @@ export class AuthService {
 
     return this.mapUser(matchedUser);
   }
-
 
   async validatePosUser(
     identifier: string,

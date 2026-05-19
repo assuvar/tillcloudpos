@@ -464,17 +464,26 @@ export class OrdersService {
       }
 
       let customerId = existing.customerId;
-      const phoneToUse = updateOrderDto.customerPhone || updateOrderDto.pickupPhone || updateOrderDto.deliveryPhone;
-      const nameToUse = updateOrderDto.customerName || updateOrderDto.pickupName || updateOrderDto.deliveryName;
-      
+      const phoneToUse =
+        updateOrderDto.customerPhone ||
+        updateOrderDto.pickupPhone ||
+        updateOrderDto.deliveryPhone;
+      const nameToUse =
+        updateOrderDto.customerName ||
+        updateOrderDto.pickupName ||
+        updateOrderDto.deliveryName;
+
       if (phoneToUse && !customerId) {
         const existingCustomer = await tx.customer.findUnique({
-          where: { restaurantId_phone: { restaurantId, phone: phoneToUse } }
+          where: { restaurantId_phone: { restaurantId, phone: phoneToUse } },
         });
         if (existingCustomer) {
           customerId = existingCustomer.id;
           if (nameToUse && existingCustomer.name !== nameToUse) {
-            await tx.customer.update({ where: { id: customerId }, data: { name: nameToUse } });
+            await tx.customer.update({
+              where: { id: customerId },
+              data: { name: nameToUse },
+            });
           }
         } else {
           const newCustomer = await tx.customer.create({
@@ -482,7 +491,7 @@ export class OrdersService {
               restaurantId,
               phone: phoneToUse,
               name: nameToUse || null,
-            }
+            },
           });
           customerId = newCustomer.id;
         }

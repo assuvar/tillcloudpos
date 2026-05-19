@@ -25,7 +25,11 @@ export class AttendanceService {
 
     const now = new Date();
     // Use start of day for shiftDate
-    const shiftDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const shiftDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
 
     const session = await this.prisma.attendanceSession.create({
       data: {

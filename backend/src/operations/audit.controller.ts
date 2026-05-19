@@ -26,7 +26,13 @@ export class AuditController {
   @Post()
   async createLog(
     @GetUser() user: any,
-    @Body() body: { action: string; details?: string; ipAddress?: string; userAgent?: string },
+    @Body()
+    body: {
+      action: string;
+      details?: string;
+      ipAddress?: string;
+      userAgent?: string;
+    },
   ) {
     if (!body?.action) {
       throw new BadRequestException('action is required');

@@ -51,7 +51,12 @@ export class RegisterService {
     return session;
   }
 
-  async getExpectedCash(userId: string, restaurantId: string, openedAt: Date, openingCash: number) {
+  async getExpectedCash(
+    userId: string,
+    restaurantId: string,
+    openedAt: Date,
+    openingCash: number,
+  ) {
     const cashPayments = await this.prisma.payment.findMany({
       where: {
         createdAt: {
@@ -66,7 +71,10 @@ export class RegisterService {
       },
     });
 
-    const totalCashSales = cashPayments.reduce((sum, p) => sum + p.amountCents, 0);
+    const totalCashSales = cashPayments.reduce(
+      (sum, p) => sum + p.amountCents,
+      0,
+    );
     return openingCash + totalCashSales;
   }
 
@@ -114,7 +122,9 @@ export class RegisterService {
     });
 
     if (!active) {
-      throw new BadRequestException('No active register session found for this cashier.');
+      throw new BadRequestException(
+        'No active register session found for this cashier.',
+      );
     }
 
     const expectedCash = await this.getExpectedCash(

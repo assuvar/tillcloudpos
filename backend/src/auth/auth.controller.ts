@@ -121,7 +121,9 @@ export class AuthController {
     let user;
 
     if (/^\d{4}$/.test(passwordOrPin)) {
-      throw new BadRequestException('Use /auth/pos-login, /auth/manager-login, or /auth/kitchen-login for staff PIN access.');
+      throw new BadRequestException(
+        'Use /auth/pos-login, /auth/manager-login, or /auth/kitchen-login for staff PIN access.',
+      );
     } else {
       user = await this.authService.validateDashboardUser(email, passwordOrPin);
       if (!user) {
@@ -150,7 +152,10 @@ export class AuthController {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const user = await this.authService.validateDashboardUser(loginDto.email, loginDto.password);
+    const user = await this.authService.validateDashboardUser(
+      loginDto.email,
+      loginDto.password,
+    );
     if (!user || user.role !== 'ADMIN') {
       throw new UnauthorizedException('Invalid admin credentials');
     }
@@ -176,7 +181,11 @@ export class AuthController {
       throw new UnauthorizedException('PIN and Password are required');
     }
 
-    const user = await this.authService.validateStaffByPinAndPassword(body.pin, body.password, 'CASHIER');
+    const user = await this.authService.validateStaffByPinAndPassword(
+      body.pin,
+      body.password,
+      'CASHIER',
+    );
     const session = await this.authService.loginPos(user);
     this.setRefreshCookie(res, session.refreshToken);
 
@@ -199,7 +208,11 @@ export class AuthController {
       throw new UnauthorizedException('PIN and Password are required');
     }
 
-    const user = await this.authService.validateStaffByPinAndPassword(body.pin, body.password, 'MANAGER');
+    const user = await this.authService.validateStaffByPinAndPassword(
+      body.pin,
+      body.password,
+      'MANAGER',
+    );
     const session = await this.authService.login(user);
     this.setRefreshCookie(res, session.refreshToken);
 
@@ -221,7 +234,11 @@ export class AuthController {
       throw new UnauthorizedException('PIN and Password are required');
     }
 
-    const user = await this.authService.validateStaffByPinAndPassword(body.pin, body.password, 'KITCHEN');
+    const user = await this.authService.validateStaffByPinAndPassword(
+      body.pin,
+      body.password,
+      'KITCHEN',
+    );
     const session = await this.authService.login(user);
     this.setRefreshCookie(res, session.refreshToken);
 

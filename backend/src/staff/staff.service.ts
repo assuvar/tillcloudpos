@@ -787,11 +787,7 @@ export class StaffService {
     };
   }
 
-  async getCredentials(
-    restaurantId: string,
-    id: string,
-    actor: StaffActor,
-  ) {
+  async getCredentials(restaurantId: string, id: string, actor: StaffActor) {
     if (actor.role !== 'ADMIN') {
       throw new ForbiddenException('Only admins can view staff credentials');
     }

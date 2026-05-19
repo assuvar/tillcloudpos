@@ -9,20 +9,8 @@ import { AuditController } from './audit.controller';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [
-    AttendanceController,
-    RegisterController,
-    AuditController,
-  ],
-  providers: [
-    AttendanceService,
-    RegisterService,
-    AuditService,
-  ],
-  exports: [
-    AttendanceService,
-    RegisterService,
-    AuditService,
-  ],
+  controllers: [AttendanceController, RegisterController, AuditController],
+  providers: [AttendanceService, RegisterService, AuditService],
+  exports: [AttendanceService, RegisterService, AuditService],
 })
 export class OperationsModule {}
