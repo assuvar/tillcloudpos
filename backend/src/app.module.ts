@@ -29,6 +29,7 @@ import { ReservationsModule } from './reservations/reservations.module';
 import { SettingsModule } from './settings/settings.module';
 import { OutletsModule } from './outlets/outlets.module';
 import { CustomersModule } from './customers/customers.module';
+import { OperationsModule } from './operations/operations.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { CustomersModule } from './customers/customers.module';
     SettingsModule,
     OutletsModule,
     CustomersModule,
+    OperationsModule,
   ],
   controllers: [AppController],
   providers: [

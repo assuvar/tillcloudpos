@@ -21,8 +21,8 @@ async function bootstrap() {
       customerPhone: true,
       deliveryPhone: true,
       totalCents: true,
-      createdAt: true
-    }
+      createdAt: true,
+    },
   });
   console.log('--- RECENT BILLS ---');
   console.dir(bills, { depth: null });

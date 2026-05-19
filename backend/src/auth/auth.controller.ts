@@ -121,9 +121,8 @@ export class AuthController {
     let user;
 
     if (/^\d{4}$/.test(passwordOrPin)) {
-      user = await this.authService.validateStaffByEmailPin(
-        email,
-        passwordOrPin,
+      throw new BadRequestException(
+        'Use /auth/pos-login, /auth/manager-login, or /auth/kitchen-login for staff PIN access.',
       );
     } else {
       user = await this.authService.validateDashboardUser(email, passwordOrPin);
@@ -144,38 +143,102 @@ export class AuthController {
 
   @Public()
   @HttpCode(HttpStatus.OK)
-  @Post('pos-login')
-  async posLogin() {
-    throw new BadRequestException(
-      'Legacy POS login is disabled. Use /auth/login with email and Password/PIN.',
-    );
-  }
-
-  @Public()
-  @HttpCode(HttpStatus.OK)
-  @Post('pin-login')
-  async pinLogin() {
-    throw new BadRequestException(
-      'Legacy PIN login is disabled. Use /auth/login with email and Password/PIN.',
-    );
-  }
-
-  @Public()
-  @HttpCode(HttpStatus.OK)
-  @Post('staff-login')
-  async staffLogin(
-    @Body() body: StaffPinLoginBody,
+  @Post('admin-login')
+  async adminLogin(
+    @Body() loginDto: { email?: string; password?: string },
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (!body?.email || !body?.pin) {
-      throw new UnauthorizedException('Invalid PIN credentials');
+    if (!loginDto?.email || !loginDto?.password) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    const user = await this.authService.validateStaffByEmailPin(
-      body.email,
-      body.pin,
+    const user = await this.authService.validateDashboardUser(
+      loginDto.email,
+      loginDto.password,
     );
+    if (!user || user.role !== 'ADMIN') {
+      throw new UnauthorizedException('Invalid admin credentials');
+    }
 
+    const session = await this.authService.login(user);
+    this.setRefreshCookie(res, session.refreshToken);
+
+    return {
+      access_token: session.accessToken,
+      accessTokenExpiresIn: session.accessTokenExpiresIn,
+      user: session.user,
+    };
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('pos-login')
+  async posLogin(
+    @Body() body: { pin?: string; password?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!body?.pin || !body?.password) {
+      throw new UnauthorizedException('PIN and Password are required');
+    }
+
+    const user = await this.authService.validateStaffByPinAndPassword(
+      body.pin,
+      body.password,
+      'CASHIER',
+    );
+    const session = await this.authService.loginPos(user);
+    this.setRefreshCookie(res, session.refreshToken);
+
+    return {
+      access_token: session.accessToken,
+      pos_session_token: session.posSessionToken,
+      accessTokenExpiresIn: session.accessTokenExpiresIn,
+      user: session.user,
+    };
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('manager-login')
+  async managerLogin(
+    @Body() body: { pin?: string; password?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!body?.pin || !body?.password) {
+      throw new UnauthorizedException('PIN and Password are required');
+    }
+
+    const user = await this.authService.validateStaffByPinAndPassword(
+      body.pin,
+      body.password,
+      'MANAGER',
+    );
+    const session = await this.authService.login(user);
+    this.setRefreshCookie(res, session.refreshToken);
+
+    return {
+      access_token: session.accessToken,
+      accessTokenExpiresIn: session.accessTokenExpiresIn,
+      user: session.user,
+    };
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('kitchen-login')
+  async kitchenLogin(
+    @Body() body: { pin?: string; password?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!body?.pin || !body?.password) {
+      throw new UnauthorizedException('PIN and Password are required');
+    }
+
+    const user = await this.authService.validateStaffByPinAndPassword(
+      body.pin,
+      body.password,
+      'KITCHEN',
+    );
     const session = await this.authService.login(user);
     this.setRefreshCookie(res, session.refreshToken);
 

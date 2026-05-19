@@ -18,7 +18,9 @@ export class MenuService {
     for (const key of keysToDelete) {
       this.cache.delete(key);
     }
-    console.log(`[MenuCache] Invalidated cache for restaurant: ${restaurantId}`);
+    console.log(
+      `[MenuCache] Invalidated cache for restaurant: ${restaurantId}`,
+    );
   }
 
   /**
@@ -80,7 +82,7 @@ export class MenuService {
     const cacheKey = `${restaurantId}:categories:${serviceType || 'all'}`;
     const cached = MenuService.cache.get(cacheKey);
     const now = Date.now();
-    if (cached && (now - cached.timestamp < MenuService.CACHE_TTL_MS)) {
+    if (cached && now - cached.timestamp < MenuService.CACHE_TTL_MS) {
       return cached.data;
     }
 
@@ -334,7 +336,10 @@ export class MenuService {
       });
     }
 
-    MenuService.cache.set(cacheKey, { data: mappedCategories, timestamp: Date.now() });
+    MenuService.cache.set(cacheKey, {
+      data: mappedCategories,
+      timestamp: Date.now(),
+    });
     return mappedCategories;
   }
 
@@ -346,7 +351,7 @@ export class MenuService {
     const cacheKey = `${restaurantId}:items:${categoryId || 'all'}:${serviceType || 'all'}`;
     const cached = MenuService.cache.get(cacheKey);
     const now = Date.now();
-    if (cached && (now - cached.timestamp < MenuService.CACHE_TTL_MS)) {
+    if (cached && now - cached.timestamp < MenuService.CACHE_TTL_MS) {
       return cached.data;
     }
 

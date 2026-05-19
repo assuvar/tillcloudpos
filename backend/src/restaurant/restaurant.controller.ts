@@ -37,6 +37,11 @@ export class RestaurantController {
     return this.restaurantService.getCurrentRestaurant(getRestaurantId(req));
   }
 
+  @Get('terminals')
+  getTerminals(@Req() req: AuthenticatedRequest) {
+    return this.restaurantService.getTerminals(getRestaurantId(req));
+  }
+
   @Post()
   createOrUpdate(
     @Req() req: AuthenticatedRequest,

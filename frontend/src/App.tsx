@@ -155,15 +155,57 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route
-        path="/login"
+        path="/admin"
         element={
           <PublicRoute>
-            <Login />
+            <Login loginType="admin" />
           </PublicRoute>
         }
       />
-      <Route path="/pos/login" element={<Navigate to="/login" replace />} />
-      <Route path="/pos-login" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login loginType="admin" />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/pos/login"
+        element={
+          <PublicRoute>
+            <Login loginType="cashier" />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/pos-login"
+        element={<Navigate to="/pos/login" replace />}
+      />
+      <Route
+        path="/manager/login"
+        element={
+          <PublicRoute>
+            <Login loginType="manager" />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/manager"
+        element={<Navigate to="/manager/login" replace />}
+      />
+      <Route
+        path="/kitchen/login"
+        element={
+          <PublicRoute>
+            <Login loginType="kitchen" />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/kitchen-login"
+        element={<Navigate to="/kitchen/login" replace />}
+      />
       <Route
         path="/register"
         element={

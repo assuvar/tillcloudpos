@@ -22,6 +22,7 @@ import { usePosCart } from "./context/PosCartContext";
 import { FRONTEND_PERMISSIONS } from "./permissions";
 import api from "./services/api";
 import { ALLOWED_SERVICE_MODELS, type ServiceModel } from "./serviceModels";
+import { formatDuration } from "./utils/dateUtils";
 
 import POSTablesScreen from "./POSTablesScreen";
 import { LiveOrdersPanel } from "./components/LiveOrdersPanel";
@@ -221,11 +222,8 @@ export default function OrderEntryScreen() {
   const getRunningTime = (startedAt?: string) => {
     if (!startedAt) return "";
     const start = new Date(startedAt).getTime();
-    const now = Date.now();
-    const diff = Math.max(0, now - start);
-    const mins = Math.floor(diff / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    const elapsedMs = Date.now() - start;
+    return formatDuration(elapsedMs, 'ms');
   };
 
   const handleTableClick = async (table: any) => {
@@ -966,7 +964,7 @@ export default function OrderEntryScreen() {
                                   <div className="flex flex-col items-center justify-between h-full w-full min-h-[85px]">
                                     {/* Top: Running Time Timer */}
                                     <div className="text-[9px] font-black tracking-wider text-slate-500/80 bg-white/50 px-2 py-0.5 rounded-full leading-none">
-                                      {table.startedAt ? getRunningTime(table.startedAt) : "0 Min"}
+                                      {table.startedAt ? getRunningTime(table.startedAt) : "Just now"}
                                     </div>
 
                                     {/* Middle: Big Table Number */}

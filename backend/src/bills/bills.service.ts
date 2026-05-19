@@ -206,10 +206,7 @@ export class BillsService {
   }
 
   private isLockedStatus(status: BillStatus) {
-    return (
-      status === BillStatus.PAID ||
-      status === BillStatus.VOIDED
-    );
+    return status === BillStatus.PAID || status === BillStatus.VOIDED;
   }
 
   private normalizeBill(bill: any): NormalizedBill {
@@ -468,17 +465,21 @@ export class BillsService {
 
     return this.prisma.$transaction(async (tx) => {
       let customerId = null;
-      const phoneToUse = dto.customerPhone || dto.pickupPhone || dto.deliveryPhone;
+      const phoneToUse =
+        dto.customerPhone || dto.pickupPhone || dto.deliveryPhone;
       const nameToUse = dto.customerName || dto.pickupName || dto.deliveryName;
-      
+
       if (phoneToUse) {
         const existingCustomer = await tx.customer.findUnique({
-          where: { restaurantId_phone: { restaurantId, phone: phoneToUse } }
+          where: { restaurantId_phone: { restaurantId, phone: phoneToUse } },
         });
         if (existingCustomer) {
           customerId = existingCustomer.id;
           if (nameToUse && existingCustomer.name !== nameToUse) {
-            await tx.customer.update({ where: { id: customerId }, data: { name: nameToUse } });
+            await tx.customer.update({
+              where: { id: customerId },
+              data: { name: nameToUse },
+            });
           }
         } else {
           const newCustomer = await tx.customer.create({
@@ -486,7 +487,7 @@ export class BillsService {
               restaurantId,
               phone: phoneToUse,
               name: nameToUse || null,
-            }
+            },
           });
           customerId = newCustomer.id;
         }
@@ -593,7 +594,12 @@ export class BillsService {
       const cleanSearch = search.trim();
       const orderNumSearch = Number(cleanSearch);
       where.OR = [
-        ...(Number.isInteger(orderNumSearch) ? [{ orderNumber: orderNumSearch }, { displayOrderNumber: orderNumSearch }] : []),
+        ...(Number.isInteger(orderNumSearch)
+          ? [
+              { orderNumber: orderNumSearch },
+              { displayOrderNumber: orderNumSearch },
+            ]
+          : []),
         { customerName: { contains: cleanSearch, mode: 'insensitive' } },
         { customerPhone: { contains: cleanSearch, mode: 'insensitive' } },
         { deliveryAddress: { contains: cleanSearch, mode: 'insensitive' } },
@@ -658,7 +664,7 @@ export class BillsService {
         throw new BadRequestException('Quantity must be a positive integer');
       }
 
-      let menuItem = await tx.menuItem.findFirst({
+      const menuItem = await tx.menuItem.findFirst({
         where: {
           id: dto.menuItemId,
           restaurantId,
@@ -690,14 +696,16 @@ export class BillsService {
         categoryName = 'Deals';
         itemName = deal.name;
         priceCents =
-          dto.customPriceInCents !== undefined && dto.customPriceInCents !== null
+          dto.customPriceInCents !== undefined &&
+          dto.customPriceInCents !== null
             ? dto.customPriceInCents
             : deal.priceInCents;
       } else {
         categoryName = menuItem.category?.name || 'Uncategorized';
         itemName = menuItem.name;
         priceCents =
-          dto.customPriceInCents !== undefined && dto.customPriceInCents !== null
+          dto.customPriceInCents !== undefined &&
+          dto.customPriceInCents !== null
             ? dto.customPriceInCents
             : menuItem.priceInCents;
       }
@@ -1148,7 +1156,9 @@ export class BillsService {
       });
 
       if (updatedBill.customerId) {
-        const c = await tx.customer.findUnique({ where: { id: updatedBill.customerId } });
+        const c = await tx.customer.findUnique({
+          where: { id: updatedBill.customerId },
+        });
         if (c) {
           const earnPoints = Math.floor(totalAmount * 0.1);
           await tx.customer.update({
@@ -1158,7 +1168,7 @@ export class BillsService {
               totalSpentCents: c.totalSpentCents + updatedBill.totalCents,
               lastVisitAt: new Date(),
               loyaltyPoints: c.loyaltyPoints + earnPoints,
-            }
+            },
           });
           if (earnPoints > 0) {
             await tx.loyaltyTransaction.create({
@@ -1168,8 +1178,8 @@ export class BillsService {
                 type: 'EARN',
                 pointsDelta: earnPoints,
                 balanceAfter: c.loyaltyPoints + earnPoints,
-                reason: `Earned from Order #${updatedBill.orderNumber}`
-              }
+                reason: `Earned from Order #${updatedBill.orderNumber}`,
+              },
             });
           }
         }

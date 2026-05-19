@@ -13,20 +13,21 @@ async function bootstrap() {
         { customerPhone: { not: null } },
         { deliveryPhone: { not: null } },
         { pickupPhone: { not: null } },
-      ]
-    }
+      ],
+    },
   });
 
   console.log(`Found ${bills.length} bills missing customer linkage.`);
 
   for (const bill of bills) {
-    const phoneToUse = bill.customerPhone || bill.pickupPhone || bill.deliveryPhone;
+    const phoneToUse =
+      bill.customerPhone || bill.pickupPhone || bill.deliveryPhone;
     const nameToUse = bill.customerName || bill.pickupName || bill.deliveryName;
 
     if (!phoneToUse) continue;
 
     let customer = await prisma.customer.findFirst({
-      where: { restaurantId: bill.restaurantId, phone: phoneToUse }
+      where: { restaurantId: bill.restaurantId, phone: phoneToUse },
     });
 
     if (!customer) {
@@ -35,14 +36,14 @@ async function bootstrap() {
           restaurantId: bill.restaurantId,
           phone: phoneToUse,
           name: nameToUse || null,
-        }
+        },
       });
       console.log(`Created new customer ${phoneToUse}`);
     }
 
     await prisma.bill.update({
       where: { id: bill.id },
-      data: { customerId: customer.id }
+      data: { customerId: customer.id },
     });
 
     // Retroactively update customer stats if paid
@@ -55,9 +56,11 @@ async function bootstrap() {
           totalSpentCents: customer.totalSpentCents + (bill.totalCents || 0),
           lastVisitAt: bill.paidAt || bill.createdAt,
           loyaltyPoints: customer.loyaltyPoints + earnPoints,
-        }
+        },
       });
-      console.log(`Linked and updated stats for ${phoneToUse} (Bill ${bill.orderNumber})`);
+      console.log(
+        `Linked and updated stats for ${phoneToUse} (Bill ${bill.orderNumber})`,
+      );
     }
   }
 

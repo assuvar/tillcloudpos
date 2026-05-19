@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { KOTBoardPanel } from "./KOTBoardPanel";
 import { useNavigate } from "react-router-dom";
+import { formatDuration } from "../utils/dateUtils";
 
 // Hook to trigger safe force re-render on interval so that live elapsed timers increment
 function useTicker(intervalMs = 15000) {
@@ -122,8 +123,7 @@ export const LiveOrdersPanel: React.FC<{ initialSubTab?: "bills" | "kot" }> = ({
   // Helper to format elapsed time text nicely
   const formatElapsed = (mins: number) => {
     if (mins < 1) return "Just now";
-    if (mins === 1) return "1 min ago";
-    return `${mins} mins ago`;
+    return `${formatDuration(mins, 'mins')} ago`;
   };
 
   // Filter service models that are enabled on this restaurant profile
