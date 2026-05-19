@@ -237,6 +237,7 @@ export class StaffService {
     lastLoginAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
+    passwordHash?: string | null;
   }) {
     return {
       id: user.id,
@@ -249,6 +250,7 @@ export class StaffService {
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      passwordStatus: user.passwordHash ? 'Configured' : 'Not Configured',
     };
   }
 
@@ -317,6 +319,7 @@ export class StaffService {
         lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
+        passwordHash: true,
       },
     });
 
@@ -414,6 +417,7 @@ export class StaffService {
           lastLoginAt: true,
           createdAt: true,
           updatedAt: true,
+          passwordHash: true,
         },
       });
 
@@ -489,6 +493,7 @@ export class StaffService {
         lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
+        passwordHash: true,
       },
     });
 
@@ -514,6 +519,7 @@ export class StaffService {
         lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
+        passwordHash: true,
       },
     });
     return this.sanitizeStaff(updated);
@@ -542,6 +548,7 @@ export class StaffService {
         lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
+        passwordHash: true,
       },
     });
     return this.sanitizeStaff(updated);
@@ -690,6 +697,143 @@ export class StaffService {
       );
       throw error;
     }
+  }
+
+  async setPassword(
+    restaurantId: string,
+    id: string,
+    actor: StaffActor,
+    adminPassword: string,
+    newPassword?: string,
+  ) {
+    await this.verifyAdminActor(restaurantId, actor, adminPassword);
+
+    const target = await this.findTenantUserOrThrow(id, restaurantId);
+    this.ensureAdminImmutable(target.role);
+
+    let passwordToSet = newPassword?.trim();
+    if (!passwordToSet) {
+      // Auto-generate
+      passwordToSet = Math.random().toString(36).slice(-8);
+    }
+
+    const passwordHash = await bcrypt.hash(passwordToSet, 10);
+    const passwordEncrypted = this.encryptPin(passwordToSet);
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        passwordHash,
+        passwordEncrypted,
+      },
+    });
+
+    return {
+      id,
+      password: passwordToSet,
+    };
+  }
+
+  async verifyAdminPassword(
+    restaurantId: string,
+    actor: StaffActor,
+    adminPassword: string,
+  ) {
+    await this.verifyAdminActor(restaurantId, actor, adminPassword);
+    return { success: true };
+  }
+
+  async revealCredentials(
+    restaurantId: string,
+    id: string,
+    actor: StaffActor,
+    adminPassword: string,
+  ) {
+    await this.verifyAdminActor(restaurantId, actor, adminPassword);
+
+    const target = await this.prisma.user.findFirst({
+      where: { id, restaurantId },
+      select: {
+        pinEncrypted: true,
+        passwordEncrypted: true,
+      },
+    });
+
+    if (!target) {
+      throw new NotFoundException('Staff member not found');
+    }
+
+    let pin: string | null = null;
+    if (target.pinEncrypted) {
+      try {
+        pin = this.decryptPin(target.pinEncrypted);
+      } catch {
+        pin = null;
+      }
+    }
+
+    let password: string | null = null;
+    if (target.passwordEncrypted) {
+      try {
+        password = this.decryptPin(target.passwordEncrypted);
+      } catch {
+        password = null;
+      }
+    }
+
+    return {
+      pin,
+      password,
+    };
+  }
+
+  async getCredentials(
+    restaurantId: string,
+    id: string,
+    actor: StaffActor,
+  ) {
+    if (actor.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can view staff credentials');
+    }
+
+    const target = await this.prisma.user.findFirst({
+      where: { id, restaurantId },
+      select: {
+        name: true,
+        fullName: true,
+        email: true,
+        pinEncrypted: true,
+        passwordEncrypted: true,
+      },
+    });
+
+    if (!target) {
+      throw new NotFoundException('Staff member not found');
+    }
+
+    let pin: string | null = null;
+    if (target.pinEncrypted) {
+      try {
+        pin = this.decryptPin(target.pinEncrypted);
+      } catch {
+        pin = null;
+      }
+    }
+
+    let password: string | null = null;
+    if (target.passwordEncrypted) {
+      try {
+        password = this.decryptPin(target.passwordEncrypted);
+      } catch {
+        password = null;
+      }
+    }
+
+    return {
+      username: target.name || target.fullName || target.email,
+      pin,
+      password,
+    };
   }
 
   async remove(restaurantId: string, id: string, actor: StaffActor) {

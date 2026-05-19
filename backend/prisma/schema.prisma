@@ -68,6 +68,9 @@ model Restaurant {
   paymentBeforeKotRules Json?
   serviceModelRules    Json?
   orderDeletionLogs    OrderDeletionLog[]
+  attendanceSessions   AttendanceSession[]
+  registerSessions     RegisterSession[]
+  auditLogs            AuditLog[]
 
   @@map("restaurants")
 }
@@ -90,6 +93,7 @@ model User {
   email        String
   phone        String?
   passwordHash String?
+  passwordEncrypted String?
   pinHash      String?
   pinEncrypted String?
   role         UserRole      @default(CASHIER)
@@ -106,6 +110,10 @@ model User {
   invitesSent  InviteToken[] @relation("InvitedBy")
   staffPermissions StaffPermission[]
   restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  attendanceSessions AttendanceSession[]
+  openedSessions     RegisterSession[] @relation("OpenedSessions")
+  closedSessions     RegisterSession[] @relation("ClosedSessions")
+  auditLogs          AuditLog[]
 
   @@unique([restaurantId, email])
   @@map("users")
@@ -164,6 +172,7 @@ model Terminal {
   updatedAt    DateTime     @updatedAt
   bills        Bill[]
   restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
+  registerSessions RegisterSession[]
 
   @@index([restaurantId])
   @@map("terminals")
@@ -980,4 +989,70 @@ model OrderDeletionLog {
 
   @@map("order_deletion_logs")
 }
+
+model AttendanceSession {
+  id               String          @id @default(cuid())
+  restaurantId     String
+  userId           String
+  clockInTime      DateTime        @default(now())
+  clockOutTime     DateTime?
+  shiftDate        DateTime        @db.Date
+  attendanceStatus String          @default("ACTIVE") // "ACTIVE", "COMPLETED"
+  totalHours       Decimal?        @db.Decimal(5, 2)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant       Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([userId])
+  @@map("attendance_sessions")
+}
+
+model RegisterSession {
+  id            String    @id @default(cuid())
+  restaurantId  String
+  userId        String    // Opened by user
+  closedByUserId String?  // Closed by user
+  terminalId    String?   // Associated terminal/register
+  openingCash   Int       // Store in cents
+  expectedCash  Int?      // Store in cents
+  closingCash   Int?      // Store in cents
+  variance      Int?      // Store in cents
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+  sessionStatus String    @default("OPEN") // "OPEN", "CLOSED"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User       @relation("OpenedSessions", fields: [userId], references: [id], onDelete: Cascade)
+  closedByUser  User?      @relation("ClosedSessions", fields: [closedByUserId], references: [id])
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  terminal      Terminal?  @relation(fields: [terminalId], references: [id])
+
+  @@index([restaurantId])
+  @@index([userId])
+  @@map("register_sessions")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  restaurantId String
+  userId       String?
+  action       String   // "LOGIN", "LOGOUT", "CLOCK_IN", "CLOCK_OUT", "REGISTER_OPEN", "REGISTER_CLOSE", "REFUND", "VOID", "DISCOUNT", "ORDER_DELETION"
+  details      String?  // Text description or JSON
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
 

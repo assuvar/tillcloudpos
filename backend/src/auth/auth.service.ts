@@ -15,6 +15,7 @@ import * as bcrypt from 'bcrypt';
 import { ALLOWED_SERVICE_MODELS } from '../restaurant/restaurant.constants';
 import { flattenPermissionMap } from './permissions/permissions.constants';
 import { MailService } from '../mail/mail.service';
+import { createHash, createDecipheriv } from 'crypto';
 
 type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
 
@@ -442,24 +443,93 @@ export class AuthService {
     });
   }
 
-  async validateStaffByEmailPin(
-    email: string,
-    pin: string,
-  ): Promise<AuthenticatedUser> {
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await this.findLoginCandidateByEmail(normalizedEmail);
+  private getPinEncryptionKey() {
+    const secret =
+      this.configService.get<string>('STAFF_PIN_ENCRYPTION_KEY') ||
+      this.configService.get<string>('PIN_ENCRYPTION_KEY') ||
+      this.configService.get<string>('JWT_SECRET');
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (!secret?.trim()) {
+      throw new UnauthorizedException('PIN encryption key is not configured');
     }
 
-    if (!['MANAGER', 'CASHIER', 'KITCHEN'].includes(user.role)) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    await this.validatePinForUser(user, pin);
-    return this.mapUser(user);
+    return createHash('sha256').update(secret.trim(), 'utf8').digest();
   }
+
+  private decryptPin(payload: string) {
+    const parts = payload.split('.');
+    if (parts.length !== 3) {
+      throw new UnauthorizedException('Stored PIN format is invalid');
+    }
+
+    const [ivEncoded, tagEncoded, encryptedEncoded] = parts;
+    const iv = Buffer.from(ivEncoded, 'base64');
+    const authTag = Buffer.from(tagEncoded, 'base64');
+    const encrypted = Buffer.from(encryptedEncoded, 'base64');
+
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      this.getPinEncryptionKey(),
+      iv,
+    );
+    decipher.setAuthTag(authTag);
+
+    const decrypted = Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]);
+    return decrypted.toString('utf8');
+  }
+
+  async validateStaffByPinAndPassword(
+    pin: string,
+    password: string,
+    requiredRole: string,
+  ): Promise<AuthenticatedUser> {
+    const candidates = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        role: requiredRole as any,
+        pinEncrypted: { not: null },
+        passwordHash: { not: null },
+      },
+      include: { restaurant: true },
+    });
+
+    let matchedUser = null;
+
+    for (const candidate of candidates) {
+      try {
+        const decryptedPin = this.decryptPin(candidate.pinEncrypted!);
+        if (decryptedPin === pin) {
+          const isPasswordValid = await bcrypt.compare(password, candidate.passwordHash!);
+          if (isPasswordValid) {
+            matchedUser = candidate;
+            break;
+          }
+        }
+      } catch (err) {
+        // Ignore individual decryption/hash mismatches
+      }
+    }
+
+    if (!matchedUser) {
+      throw new UnauthorizedException('Invalid PIN or Password');
+    }
+
+    // Reset pin attempts and update last login
+    await this.prisma.user.update({
+      where: { id: matchedUser.id },
+      data: {
+        lastLoginAt: new Date(),
+        pinFailedAttempts: 0,
+        pinLockedUntil: null,
+      },
+    });
+
+    return this.mapUser(matchedUser);
+  }
+
 
   async validatePosUser(
     identifier: string,

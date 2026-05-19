@@ -306,4 +306,22 @@ export class RestaurantService {
       url: `/uploads/logos/${fileName}`,
     };
   }
+
+  async getTerminals(restaurantId: string) {
+    const terminals = await this.prisma.terminal.findMany({
+      where: { restaurantId, isActive: true },
+    });
+    if (terminals.length === 0) {
+      return [
+        {
+          id: 'default-terminal',
+          name: 'Main Cash Register (Terminal #1)',
+          deviceLabel: 'Terminal #1',
+          type: 'BILLING_COUNTER',
+          isActive: true,
+        },
+      ];
+    }
+    return terminals;
+  }
 }

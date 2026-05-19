@@ -5,6 +5,7 @@ import { useAuth } from "./context/AuthContext";
 import { FRONTEND_PERMISSIONS } from "./permissions";
 import UnifiedLayout from "./components/UnifiedLayout";
 import PrintPreviewModal from "./components/PrintPreviewModal";
+import { formatDuration } from "./utils/dateUtils";
 
 interface KitchenOrderItem {
   id: string;
@@ -110,11 +111,8 @@ export default function KitchenDisplay() {
 
   const getTimer = (sentAt: string) => {
     const start = new Date(sentAt).getTime();
-    const now = new Date().getTime();
-    const diff = Math.floor((now - start) / 1000);
-    const mins = Math.floor(diff / 60);
-    const secs = diff % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const elapsedMs = Date.now() - start;
+    return formatDuration(elapsedMs, 'ms');
   };
 
   const getTimerColor = (sentAt: string) => {

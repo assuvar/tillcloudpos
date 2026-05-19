@@ -23,6 +23,7 @@ import AddTableModal from "./components/AddTableModal";
 import AddReservationModal from "./components/AddReservationModal";
 import { usePosCart } from "./context/PosCartContext";
 import { useAuth } from "./context/AuthContext";
+import { formatDuration } from "./utils/dateUtils";
 
 interface Table {
   id: string;
@@ -216,10 +217,8 @@ export default function POSTablesScreen() {
   const getRunningTime = (startedAt?: string) => {
     if (!startedAt) return "";
     const start = new Date(startedAt).getTime();
-    const diff = Math.max(0, Math.floor((Date.now() - start) / 1000));
-    const mins = Math.floor(diff / 60);
-    const secs = diff % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    const elapsedMs = Date.now() - start;
+    return formatDuration(elapsedMs, 'ms');
   };
 
   return (

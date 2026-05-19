@@ -79,3 +79,34 @@ export class PinAuditQueryDto {
   @Max(100)
   limit?: number;
 }
+
+export class SetStaffPasswordDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  adminPassword!: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(4)
+  @MaxLength(128)
+  newPassword?: string;
+}
+
+export class ResetStaffPasswordDto {
+  @IsString()
+  @Length(10, 64)
+  staffId!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  adminPassword!: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(4)
+  @MaxLength(128)
+  newPassword?: string;
+}
+

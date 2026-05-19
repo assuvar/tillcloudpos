@@ -6,6 +6,7 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
+import { formatDuration } from "../utils/dateUtils";
 
 export const KOTBoardPanel: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -40,9 +41,8 @@ export const KOTBoardPanel: React.FC = () => {
 
   const getTimerMinutes = (sentAt: string) => {
     const elapsedMs = Date.now() - new Date(sentAt).getTime();
-    const elapsedMins = Math.floor(elapsedMs / 60000);
-    if (elapsedMins < 1) return "Just now";
-    return `${elapsedMins}m ago`;
+    if (elapsedMs < 60000) return "Just now";
+    return `${formatDuration(elapsedMs, 'ms')} ago`;
   };
 
   const getKOTTimerColor = (sentAt: string) => {

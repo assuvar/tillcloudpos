@@ -25,6 +25,17 @@ interface User {
 
 export type AuthMode = "dashboard" | "pos" | "kitchen";
 
+export interface AttendanceSession {
+  id: string;
+  restaurantId: string;
+  userId: string;
+  clockInTime: string;
+  clockOutTime: string | null;
+  shiftDate: string;
+  attendanceStatus: string;
+  totalHours: number | null;
+}
+
 interface AuthContextType {
   user: User | null;
   accessToken: string | null;
@@ -32,6 +43,7 @@ interface AuthContextType {
   permissions: PermissionMap | null;
   permissionsLoading: boolean;
   isAuthenticated: boolean;
+  activeAttendance: AttendanceSession | null;
   login: (
     token: string,
     user: User,
@@ -43,6 +55,9 @@ interface AuthContextType {
   updateOnboardingStatus: (status: boolean) => void;
   refreshAccessToken: () => Promise<string | null>;
   refreshPermissions: () => Promise<void>;
+  refreshSessions: () => Promise<void>;
+  clockIn: () => Promise<AttendanceSession>;
+  clockOut: () => Promise<AttendanceSession>;
   hasPermission: (code: string) => boolean;
   canAccess: (module: string, action: string) => boolean;
   hasModuleAccess: (group: PermissionGroup) => boolean;
@@ -101,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [permissions, setPermissions] = useState<PermissionMap | null>(null);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeAttendance, setActiveAttendance] = useState<AttendanceSession | null>(null);
 
   const hasHydratedRef = useRef(false);
   const accessTokenRef = useRef<string | null>(null);
@@ -302,6 +318,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           savePermissions(fetchedPermissions || fallbackPermissions);
         }
+        void refreshSessions();
       } finally {
         setPermissionsLoading(false);
       }
@@ -313,6 +330,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const pollId = setInterval(fetchLatest, 30000);
     return () => clearInterval(pollId);
   }, [location.pathname, user?.id, accessToken]);
+
+  const refreshSessions = async () => {
+    if (!accessTokenRef.current) return;
+    try {
+      const attRes = await api.get("/attendance/current");
+      setActiveAttendance(attRes.data?.session || null);
+    } catch (err) {
+      console.error("[Auth] Failed to refresh sessions:", err);
+    }
+  };
+
+  const clockIn = async (): Promise<AttendanceSession> => {
+    const res = await api.post("/attendance/clock-in");
+    const session = res.data;
+    setActiveAttendance(session);
+    return session;
+  };
+
+  const clockOut = async (): Promise<AttendanceSession> => {
+    const res = await api.post("/attendance/clock-out");
+    const session = res.data;
+    setActiveAttendance(null);
+    return session;
+  };
+
+  useEffect(() => {
+    if (accessToken) {
+      void refreshSessions();
+    } else {
+      setActiveAttendance(null);
+    }
+  }, [accessToken]);
 
   const login = async (
     token: string,
@@ -373,11 +422,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         permissions,
         permissionsLoading,
         isAuthenticated: !!user && !!accessToken,
+        activeAttendance,
         login,
         logout,
         isLoading,
         updateOnboardingStatus,
         refreshAccessToken,
+        refreshSessions,
+        clockIn,
+        clockOut,
         refreshPermissions: async () => {
           if (!accessToken) {
             return;

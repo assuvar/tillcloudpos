@@ -20,6 +20,8 @@ import {
   ResetStaffPinDto,
   StaffIdParamDto,
   UpdateStaffDto,
+  SetStaffPasswordDto,
+  ResetStaffPasswordDto,
 } from './dto/staff-common.dto';
 import { StaffService } from './staff.service';
 
@@ -164,6 +166,93 @@ export class StaffController {
       params.id,
       req.user,
       body.adminPassword,
+    );
+  }
+
+  @Post(':id/password/set')
+  @Roles('ADMIN')
+  setPassword(
+    @Req() req: AuthenticatedRequest,
+    @Param() params: StaffIdParamDto,
+    @Body() body: SetStaffPasswordDto,
+  ) {
+    return this.staffService.setPassword(
+      req.user.restaurantId,
+      params.id,
+      req.user,
+      body.adminPassword,
+      body.newPassword,
+    );
+  }
+
+  @Post('verify-admin-password')
+  @Roles('ADMIN')
+  verifyAdminPassword(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: ResetStaffPinDto,
+  ) {
+    return this.staffService.verifyAdminPassword(
+      req.user.restaurantId,
+      req.user,
+      body.adminPassword,
+    );
+  }
+
+  @Post('set-password')
+  @Roles('ADMIN')
+  setPasswordGlobal(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: ResetStaffPasswordDto,
+  ) {
+    return this.staffService.setPassword(
+      req.user.restaurantId,
+      body.staffId,
+      req.user,
+      body.adminPassword,
+      body.newPassword,
+    );
+  }
+
+  @Post('reset-password')
+  @Roles('ADMIN')
+  resetPassword(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: ResetStaffPasswordDto,
+  ) {
+    return this.staffService.setPassword(
+      req.user.restaurantId,
+      body.staffId,
+      req.user,
+      body.adminPassword,
+      body.newPassword,
+    );
+  }
+
+  @Post(':id/credentials/reveal')
+  @Roles('ADMIN')
+  revealCredentials(
+    @Req() req: AuthenticatedRequest,
+    @Param() params: StaffIdParamDto,
+    @Body() body: ResetStaffPinDto,
+  ) {
+    return this.staffService.revealCredentials(
+      req.user.restaurantId,
+      params.id,
+      req.user,
+      body.adminPassword,
+    );
+  }
+
+  @Get(':id/credentials')
+  @Roles('ADMIN')
+  getCredentials(
+    @Req() req: AuthenticatedRequest,
+    @Param() params: StaffIdParamDto,
+  ) {
+    return this.staffService.getCredentials(
+      req.user.restaurantId,
+      params.id,
+      req.user,
     );
   }
 
